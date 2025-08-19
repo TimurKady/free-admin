@@ -12,7 +12,7 @@ Bootstrap 5 UI, JSON-Editor forms, clean layering, two modes (ORM/Settings), str
 * **Clean layering**
 
   * `AdminSite` (coordinator), `PageRegistry`, `CrudRouterBuilder`, `ApiController`, `TemplateProvider`
-  * `BaseModelAdmin` (domain): JSON-Schema forms, list, filters, validation, QS hooks, RLS, `allow()`
+  * `ModelAdmin` (domain): JSON-Schema forms, list, filters, validation, QS hooks, RLS, `allow()`
 * **Two modes of the same model**
 
   * **ORM**: `/orm/<app>/<model>/…` with model permissions `view/add/change/delete`
