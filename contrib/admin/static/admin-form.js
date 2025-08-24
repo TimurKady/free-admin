@@ -51,7 +51,7 @@ class AdminFormEditor {
         schema,
         startval: sv,
         ...this.cfg.defaults,
-        display_required_only: false, 
+        display_required_only: false,
       });
 
       window._editor = this.editor;
@@ -82,6 +82,7 @@ class AdminFormEditor {
     const { schema, startval } = await res.json();
     return { schema, startval };
   }
+
 
   hideRootHeader() {
     const rootEditor = this.editor.getEditor('root');

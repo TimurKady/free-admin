@@ -2,6 +2,9 @@
 
 {% block head %}
   {{ super() }}
+  {% for href in assets.css %}
+  <link rel="stylesheet" href="{{ href }}">
+  {% endfor %}
 {% endblock %}
 
 {% block section_body %}
@@ -22,6 +25,14 @@
 
 {% block scripts %}
   {{ super() }}
+  {% for src in assets.js %}
+  <script src="{{ src }}"></script>
+  {% endfor %}
+  <script>
+    if (window.ace?.config?.set) {
+      window.ace.config.set("basePath", "https://cdn.jsdelivr.net/npm/ace-builds@latest/src-noconflict/");
+    }
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/@json-editor/json-editor@latest/dist/jsoneditor.min.js"></script>
   <script src="{{ prefix }}/static/admin-form.js"></script>
   <script>

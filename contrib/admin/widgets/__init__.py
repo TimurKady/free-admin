@@ -19,6 +19,7 @@ __all__ = ["BaseWidget", "register_widget", "registry"]
 
 # Импорт стандартных виджетов, чтобы они зарегистрировались:
 from .text import TextWidget      # noqa: F401
+from .textarea import TextAreaWidget  # noqa: F401
 from .relations import RelationsWidget  # noqa: F401
 from .file import FileUploadWidget  # noqa: F401
 from .number import NumberWidget  # noqa: F401

@@ -49,6 +49,10 @@ class WidgetRegistry:
             return "number"
         if k in ("date", "datetime", "time"):
             return "datetime"
+        if k == "text":
+            return "textarea"
+        if k == "string":
+            return "text"
         return "text"
 
 registry = WidgetRegistry()

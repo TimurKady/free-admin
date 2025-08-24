@@ -23,10 +23,64 @@ class BaseWidget(ABC):
     Widgets provide JSON Schema fragments and optional start values.
     """
     key: str = "base"
+    assets_css: tuple[str, ...] = ()
+    assets_js: tuple[str, ...] = ()
+
+    class Meta:
+        css: tuple[str, ...] = ()
+        js: tuple[str, ...] = ()
 
     def __init__(self, ctx: WidgetContext) -> None:
         self.ctx = ctx
 
+    def get_assets(self) -> Dict[str, list[str]]:
+        """
+        Return widget assets:
+        {
+            "css": [...],
+            "js": [...],
+        }
+        Priority: class attributes + Meta; preserve order, remove duplicates.
+
+        Then any specific widget can put assets either like this:
+        
+        class RadioWidget(BaseWidget):
+            assets_js = ("/static/admin/widgets/radio.js",)
+            assets_css = ("/static/admin/widgets/radio.css",)
+        
+        or like this:
+        
+        class RadioWidget(BaseWidget):
+            class Meta:
+                js = ("/static/admin/widgets/radio.js",)
+                css = ("/static/admin/widgets/radio.css",)
+        
+        Both methods will be combined.
+        """
+
+        css: list[str] = []
+        js: list[str] = []
+
+        # class-level
+        css.extend(getattr(self, "assets_css", ()))
+        js.extend(getattr(self, "assets_js", ()))
+
+        # Meta-level
+        meta = getattr(self, "Meta", None)
+        if meta:
+            css.extend(getattr(meta, "css", ()))
+            js.extend(getattr(meta, "js", ()))
+
+        # dedup c сохранением порядка
+        def _uniq(seq):
+            seen = set()
+            for x in seq:
+                if x not in seen:
+                    seen.add(x)
+                    yield x
+
+        return {"css": list(_uniq(css)), "js": list(_uniq(js))}
+    
     def get_title(self) -> str:
         label = getattr(self.ctx.field, "label", None)
         if label:

@@ -54,6 +54,10 @@ class BaseModelAdmin:
     autocomplete_fields: Sequence[str] = ()
     list_use_only: bool = False
     # Later: list_display, search_fields, list_filter, ordering, fieldsets, etc.
+    
+    # Global Admin Assets
+    admin_assets_css: tuple[str, ...] = ()
+    admin_assets_js: tuple[str, ...] = ()
 
     FILTER_OPS = {"": "eq", "icontains": "icontains", "gte": "gte", "lte": "lte", "gt": "gt", "lt": "lt", "in": "in"}
     widgets_overrides: dict[str, str] = {}
@@ -169,6 +173,39 @@ class BaseModelAdmin:
         checks enforced elsewhere.
         """
         return True
+
+    # --- Assets -----------------------------------------------------------
+
+    def collect_assets(self, md, mode: str, obj=None, request=None, fields: list[str] | None = None) -> dict:
+        """Collect CSS/JS assets for all widgets used in a form.
+
+        Returns a dict of the form ``{"css": [...], "js": [...]}`` where duplicates are
+        removed while preserving the order: first any global admin assets and then the
+        widget-provided ones.
+        """
+        fields = fields or self.get_fields(md)
+
+        css_ordered: list[str] = list(self.admin_assets_css)
+        js_ordered: list[str] = list(self.admin_assets_js)
+        seen_css = set(css_ordered)
+        seen_js = set(js_ordered)
+
+        for name in fields:
+            # Important: do not build the widget twice if schema generation already did it.
+            # The easiest approach is to collect assets in the same loop where
+            # ``w.get_schema()`` is called, but this helper handles the fallback case.
+            w = self._build_widget(md, name, mode, obj=obj, request=request)
+            assets = w.get_assets() or {}
+            for href in assets.get("css", []):
+                if href not in seen_css:
+                    seen_css.add(href)
+                    css_ordered.append(href)
+            for src in assets.get("js", []):
+                if src not in seen_js:
+                    seen_js.add(src)
+                    js_ordered.append(src)
+
+        return {"css": css_ordered, "js": js_ordered}
 
     # --- queryset hooks ---------------------------------------------------
 
@@ -377,7 +414,8 @@ class BaseModelAdmin:
 
             pf = getattr(w, "prefetch", None)
             if callable(pf):
-                import inspect, asyncio  # noqa: F401
+                import inspect  # noqa: F401
+                import asyncio  # noqa: F401
                 if inspect.iscoroutinefunction(pf):
                     await pf()
 

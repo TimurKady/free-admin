@@ -21,6 +21,8 @@ from tortoise.exceptions import IntegrityError
 from tortoise.models import Model
 from config.settings import settings
 
+from ..adapters.tortoise import get_model_descriptor
+
 from .auth import (
     AdminUserDTO,
     build_auth_router,
@@ -273,11 +275,22 @@ class AdminSite:
             "current_app": app_label,
             "current_model": model_name,
             "section_mode": "settings" if is_settings else "orm",
+            "assets": {"css": [], "js": []},
         }
         if page_title is not None:
             ctx["page_title"] = page_title
         if extra:
             ctx.update(extra)
+
+        # Collect form widget assets for add/edit pages
+        last_segment = request.url.path.rstrip("/").split("/")[-1]
+        if last_segment in {"add", "edit"} and app_label and model_name:
+            admin = self.model_reg.get((app_label.lower(), model_name.lower()))
+            if admin is not None:
+                md = get_model_descriptor(admin.model)
+                ctx["assets"] = admin.collect_assets(
+                    md, mode=last_segment, obj=None, request=request
+                )
         return ctx
 
     def register_view(self, *, path: str, name: str, icon: str | None = None):
