@@ -1,5 +1,13 @@
 # -*- coding: utf-8 -*-
-"""Admin configuration for core system settings."""
+"""
+setting
+
+Admin configuration for core system settings.
+
+Version: 0.1.0
+Author: Timur Kady
+Email: timurkady@yandex.com
+"""
 
 from contrib.admin.core.model import ModelAdmin
 from contrib.admin.hub import admin_site

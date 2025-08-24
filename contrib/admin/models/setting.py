@@ -1,5 +1,13 @@
 # -*- coding: utf-8 -*-
-"""System settings stored in the database."""
+"""
+setting
+
+System settings stored in the database.
+
+Version: 0.1.0
+Author: Timur Kady
+Email: timurkady@yandex.com
+"""
 
 from __future__ import annotations
 
@@ -53,3 +61,5 @@ class SystemSetting(Model):
 
     def __str__(self) -> str:  # pragma: no cover - simple repr
         return f"{self.key}={self.value!r}"
+
+# The End

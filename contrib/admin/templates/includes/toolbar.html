@@ -1,10 +1,12 @@
 <!-- Toolbar -->
 <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+  {% if has_search %}
   <div class="input-group" style="max-width:320px;">
     <span class="input-group-text" id="basic-addon1"><i class="bi bi-search"></i></span>
     <input id="search" class="form-control" placeholder="Search...">
     <button id="btn-search" class="btn btn-outline-primary">Search</button>
   </div>
+  {% endif %}
   {% if has_list_filters %}
   <button id="btn-filters" class="btn btn-outline-secondary" data-bs-toggle="offcanvas" data-bs-target="#filtersOffcanvas" type="button" hidden>
     Filters <span id="filters-count" class="badge bg-secondary ms-1"></span>

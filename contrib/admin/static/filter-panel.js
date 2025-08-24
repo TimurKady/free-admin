@@ -1,12 +1,12 @@
 // API endpoints injected via templates (see contrib/admin/core/settings)
-const { prefix: API_PREFIX, list_filters: API_LIST_FILTERS } = window.ADMIN_API;
+const { list_filters: API_LIST_FILTERS } = window.ADMIN_API;
 
 function sanitizeId(name) {
   return `filter-${String(name).toLowerCase().replace(/[^a-z0-9_-]/gi, '-')}`;
 }
 
 class FiltersPanel {
-  constructor({ offcanvasId = 'filtersOffcanvas', formId = 'filters-form', buttonId = 'btn-filters', clearButtonId = 'clear-filters-btn', prefix = '', app = '', model = '' } = {}) {
+  constructor({ offcanvasId = 'filtersOffcanvas', formId = 'filters-form', buttonId = 'btn-filters', clearButtonId = 'clear-filters-btn', app = '', model = '' } = {}) {
     this.el = document.getElementById(offcanvasId);
     this.form = document.getElementById(formId);
     this.button = document.getElementById(buttonId);
@@ -18,17 +18,21 @@ class FiltersPanel {
       this.form.addEventListener('submit', (e) => { e.preventDefault(); this.apply(); });
     }
 
-    this.load(prefix, app, model);
+    // `API_LIST_FILTERS` already contains the full base path, so no extra
+    // prefix should be prepended here.
+    this.load(app, model);
   }
 
-  async load(prefix, app, model) {
+  async load(app, model) {
     if (!app || !model) {
       this.button?.setAttribute('hidden', '');
       this.clearButton?.setAttribute('hidden', '');
       return;
     }
     try {
-      const res = await fetch(`${prefix}${API_LIST_FILTERS}?app=${app}&model=${model}`, { credentials: 'same-origin' });
+      const res = await fetch(`${API_LIST_FILTERS}?app=${app}&model=${model}`, {
+        credentials: 'same-origin',
+      });
       const data = await res.json();
       const specs = data.filters || [];
       if (!specs.length) {

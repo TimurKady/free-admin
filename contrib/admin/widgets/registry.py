@@ -1,37 +1,59 @@
 # -*- coding: utf-8 -*-
 """
-Widget Registry Class.
+registry
+
+Widget registry.
 
 Version: 0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """
 
-from typing import Dict, Type, Tuple, Any
-from .base import WidgetBase
+from __future__ import annotations
+from typing import Dict, Type
+
+from ..schema.descriptors import FieldDescriptor
+from .base import BaseWidget
+
 
 class WidgetRegistry:
     def __init__(self) -> None:
-        self._map: Dict[str, WidgetBase] = {}
+        self._by_key: Dict[str, Type[BaseWidget]] = {}
 
-    def register(self, cls: Type[WidgetBase]) -> Type[WidgetBase]:
-        key = getattr(cls, "key", None)
-        if not key or not isinstance(key, str):
-            raise ValueError("Widget must define string 'key'")
-        if key in self._map:
-            raise ValueError(f"Widget '{key}' already registered")
-        self._map[key] = cls()  # singletons OK
-        return cls
+    def register(self, key: str):
+        """Декоратор регистрации виджета по ключу."""
+        def _decorator(cls: Type[BaseWidget]) -> Type[BaseWidget]:
+            cls.key = key
+            self._by_key[key] = cls
+            return cls
+        return _decorator
 
-    def get(self, key: str) -> WidgetBase:
-        if key not in self._map:
-            raise KeyError(f"Unknown widget '{key}'")
-        return self._map[key]
+    def get(self, key: str) -> Type[BaseWidget] | None:
+        return self._by_key.get(key)
 
-    def items(self):
-        return self._map.items()
+    def resolve_for_field(self, fd: FieldDescriptor) -> str:
+        """Маппинг поля → ключ виджета."""
+        k = (fd.kind or "").lower()  # "string" | "int" | "bool" | "date" | "m2m" | "fk" | ...
+    
+        # 1) булевы — всегда чекбокс (даже если заданы choices типа Yes/No)
+        if k in ("bool", "boolean"):
+            return "checkbox"
+
+        if fd.relation is not None:
+            return "relation"
+
+        if fd.choices is not None:
+            return "radio"
+
+        if k in ("int", "integer", "float", "number"):
+            return "number"
+        if k in ("date", "datetime", "time"):
+            return "datetime"
+        return "text"
 
 registry = WidgetRegistry()
 
-def register_widget(cls):
-    return registry.register(cls)
+def register_widget(key: str):
+    return registry.register(key)
+
+# The End

@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Core admin core package.
+__init__
 
+Core utilities for the admin interface.
+
+Version: 0.1.0
+Author: Timur Kady
+Email: timurkady@yandex.com
 """
 
 # The End
-

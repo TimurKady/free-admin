@@ -1,32 +1,10 @@
 # -*- coding: utf-8 -*-
 """
+create_superuser
+
 Django-like createsuperuser utility.
 
-Usage examples:
-  python -m contrib.admin.utils.create_superuser
-  python -m contrib.admin.utils.create_superuser --username admin --email admin@example.com --no-input
-  ADMIN_USERNAME=admin ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=secret \
-      python -m contrib.admin.utils.create_superuser --no-input
-  python -m contrib.admin.utils.create_superuser --username admin --update-if-exists
-
-Behavior:
-- Interactive prompts for username/email/password (with confirmation) by default.
-- Non-interactive mode with --no-input (values must come from flags or env).
-- If user exists:
-    - by default: error and exit code 1
-    - with --update-if-exists: update is_superuser/is_staff/is_active and (optionally) reset password.
-
-Exit codes:
-  0 on success, 1 on validation or create/update failure.
-
-Interactive: 
-python -m contrib.admin.utils.create_superuser
-Non-interactive (create or crash if exists): 
-ADMIN_USERNAME=admin ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=secret python -m contrib.admin.utils.create_superuser --no-input
-Update existing + reset password:
-python -m contrib.admin.utils.create_superuser --username admin --update-if-exists --reset-password-if-exists --no-input --password newpass
-
-Version: 1.0.0
+Version: 0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """
@@ -206,3 +184,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+# The End

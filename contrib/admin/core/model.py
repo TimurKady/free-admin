@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """
+model
+
 ModelAdmin implementation.
 
-Version: 1.0.0
+Version: 0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """
@@ -20,6 +22,4 @@ class ModelAdmin(BaseModelAdmin):
     # It's the most trouble-free option at runtime
     inlines: tuple[type["InlineAdmin"], ...] = ()
 
-
 # The End
-

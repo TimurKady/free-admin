@@ -1,5 +1,13 @@
 # -*- coding: utf-8 -*-
-"""Utility for mounting CRUD routes on FastAPI routers."""
+"""
+crud
+
+Utility for mounting CRUD routes on FastAPI routers.
+
+Version: 0.1.0
+Author: Timur Kady
+Email: timurkady@yandex.com
+"""
 
 from __future__ import annotations
 
@@ -88,10 +96,11 @@ class CrudRouterBuilder:
                 is_settings=(perms == "global"),
                 extra={
                     "can_add": can_add,
-                    "has_list_filters": bool(admin.list_filter),
+                    "has_list_filters": bool(admin.get_list_filter()),
+                    "has_search": bool(admin.get_search_fields(md)),
                 },
             )
-            return templates.TemplateResponse("list.html", ctx)
+            return templates.TemplateResponse("context/list.html", ctx)
 
         @router.get(prefix + "/add", response_class=HTMLResponse)
         async def add_page(
@@ -108,7 +117,7 @@ class CrudRouterBuilder:
                 model_name=model_name,
                 is_settings=(perms == "global"),
             )
-            return templates.TemplateResponse("form.html", ctx)
+            return templates.TemplateResponse("context/form.html", ctx)
 
         @router.get(prefix + "/{pk}/edit", response_class=HTMLResponse)
         async def edit_page(
@@ -117,6 +126,11 @@ class CrudRouterBuilder:
             user: AdminUserDTO = Depends(get_current_admin_user),
             _: None = Depends(perm_change),
         ) -> HTMLResponse:
+            qs = admin.get_objects(request, user)
+            try:
+                obj = await qs.get(**{md.pk_attr: pk})
+            except DoesNotExist:
+                raise HTTPException(404)
             title = f"Edit {admin.get_verbose_name()}"
             ctx = admin_site.build_template_ctx(
                 request,
@@ -127,21 +141,9 @@ class CrudRouterBuilder:
                 is_settings=(perms == "global"),
                 extra={"pk": pk},
             )
-            return templates.TemplateResponse("form.html", ctx)
+            return templates.TemplateResponse("context/form.html", ctx)
 
-        @router.get(prefix + "/_schema")
-        async def schema(
-            request: Request,
-            mode: Literal["add", "edit"] = "add",
-            pk: str | None = None,
-            user: AdminUserDTO = Depends(get_current_admin_user),
-            _: None = Depends(perm_view),
-        ):
-            schema_data = await admin.get_schema(request, user, md, mode)
-            return {
-                "schema": schema_data["schema"],
-                "startval": schema_data["startval"],
-            }
+        # form schema served via global API; no local endpoint
 
         @router.get(prefix + "/_list")
         async def list_data(
@@ -193,19 +195,12 @@ class CrudRouterBuilder:
             user: AdminUserDTO = Depends(get_current_admin_user),
             _: None = Depends(perm_add),
         ):
-            try:
-                payload = admin.clean(payload)
-            except HTTPException as exc:
-                detail = getattr(exc, "detail", None)
-                if isinstance(detail, dict) and "errors" in detail:
-                    raise HTTPException(status_code=422, detail=detail)
-                raise
             if not admin.allow(user, "add", None):
                 raise HTTPException(
                     status_code=403, detail="Add not allowed by business rule",
                 )
             try:
-                obj = await admin.save_create(request, user, md, payload)
+                obj = await admin.create(request, user, md, payload)
                 return {"ok": True, "id": getattr(obj, md.pk_attr)}
             except IntegrityError as exc:
                 raise admin.handle_integrity_error(exc)
@@ -218,24 +213,17 @@ class CrudRouterBuilder:
             user: AdminUserDTO = Depends(get_current_admin_user),
             _: None = Depends(perm_change),
         ):
-            qs = admin.get_object_queryset(request, user)
+            qs = admin.get_objects(request, user)
             try:
                 obj = await qs.get(**{md.pk_attr: pk})
             except DoesNotExist:
                 raise HTTPException(404)
-            try:
-                payload = admin.clean(payload)
-            except HTTPException as exc:
-                detail = getattr(exc, "detail", None)
-                if isinstance(detail, dict) and "errors" in detail:
-                    raise HTTPException(status_code=422, detail=detail)
-                raise
             if not admin.allow(user, "change", obj):
                 raise HTTPException(
                     status_code=403, detail="Change not allowed by business rule",
                 )
             try:
-                await admin.save_update(request, user, md, obj, payload)
+                await admin.update(request, user, md, obj, payload)
                 return {"ok": True}
             except IntegrityError as exc:
                 raise admin.handle_integrity_error(exc)
@@ -247,7 +235,7 @@ class CrudRouterBuilder:
             user: AdminUserDTO = Depends(get_current_admin_user),
             _: None = Depends(perm_delete),
         ):
-            qs = admin.get_object_queryset(request, user)
+            qs = admin.get_objects(request, user)
             try:
                 obj = await qs.get(**{md.pk_attr: pk})
             except DoesNotExist:
@@ -264,3 +252,5 @@ class CrudRouterBuilder:
             return {"ok": True}
 
         return router
+
+# The End

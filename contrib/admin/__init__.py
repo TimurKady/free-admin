@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-contrib.admin
+__init__
 
-Initialization for the admin package.
+Admin module entry point.
 
-Version: 0.0.1
+Version: 0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """

@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """
+passwords
+
 Password generation utility.
 
-Version: 1.0.0
+Version: 0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """
@@ -45,6 +47,5 @@ async def check_password(password: str, stored: str) -> bool:
         return hmac.compare_digest(cand, dh)
     except Exception:
         return False
-
 
 # The End

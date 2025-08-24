@@ -1,3 +1,14 @@
+# -*- coding: utf-8 -*-
+"""
+registry
+
+Registry for admin pages and view entries.
+
+Version: 0.1.0
+Author: Timur Kady
+Email: timurkady@yandex.com
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -26,9 +37,7 @@ class MenuItem:
     title: str
     path: str
     icon: str | None = None
-    page_type: str = system_config.get_cached(
-        SettingsKey.PAGE_TYPE_VIEW, "view"
-    )
+    page_type: str | None = None
 
 
 class PageRegistry:
@@ -105,7 +114,18 @@ class PageRegistry:
     def make_menu(self) -> List[MenuItem]:
         """Return full menu including ORM and settings admin entries."""
 
-        menu = list(self.menu_list)
+        default_page_type = system_config.get_cached(
+            SettingsKey.PAGE_TYPE_VIEW, "view"
+        )
+        menu: List[MenuItem] = [
+            MenuItem(
+                title=m.title,
+                path=m.path,
+                icon=m.icon,
+                page_type=m.page_type or default_page_type,
+            )
+            for m in self.menu_list
+        ]
         orm_prefix = system_config.get_cached(SettingsKey.ORM_PREFIX, "/orm")
         settings_prefix = system_config.get_cached(SettingsKey.SETTINGS_PREFIX, "/settings")
         for e in self.iter_orm():
@@ -127,3 +147,5 @@ class PageRegistry:
                 )
             )
         return menu
+
+# The End

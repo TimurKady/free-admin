@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Complete defaults mapping/
+defaults
 
-Covers ALL SettingsKey items
-Value types are simple strings: "string", "int", "bool".
+Default settings mapping.
+
+Version: 0.1.0
+Author: Timur Kady
+Email: timurkady@yandex.com
 """
 
 from .keys import SettingsKey
@@ -37,9 +40,7 @@ DEFAULT_SETTINGS: dict[SettingsKey, tuple[object, str]] = {
     # API endpoints
     SettingsKey.API_PREFIX:            ("/api", "string"),
     SettingsKey.API_SCHEMA:            ("/api/schema", "string"),
-    SettingsKey.API_UICONFIG:          ("/api/uiconfig", "string"),
     SettingsKey.API_LIST_FILTERS:      ("/api/list_filters", "string"),
-    SettingsKey.API_AUTOCOMPLETE:      ("/api/autocomplete", "string"),
 
     # Auth / Session
     SettingsKey.LOGIN_PATH:            ("/login", "string"),
@@ -57,3 +58,5 @@ DEFAULT_SETTINGS: dict[SettingsKey, tuple[object, str]] = {
     SettingsKey.STATIC_URL_SEGMENT:    ("/static", "string"),
     SettingsKey.STATIC_ROUTE_NAME:     ("admin-static", "string"),
 }
+
+# The End

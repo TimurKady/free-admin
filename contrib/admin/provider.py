@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """
+provider
+
 Utility class for providing templates and static files for the admin.
 
-Version: 1.0.0
+Version: 0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """

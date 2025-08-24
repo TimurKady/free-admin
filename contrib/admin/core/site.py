@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """
+site
+
 Core admin site implementation and registration utilities.
 
-Version: 1.0.0
+Version: 0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """
@@ -32,7 +34,7 @@ from .settings import SettingsKey, system_config
 from .registry import PageRegistry, MenuItem
 from ..models.content_type import AdminContentType
 from ..crud import CrudRouterBuilder
-from ..api import ApiController
+from ..api import API_PREFIX, router as api_router
 from ..provider import TemplateProvider
 
 logger = logging.getLogger(__name__)
@@ -280,13 +282,12 @@ class AdminSite:
 
     def register_view(self, *, path: str, name: str, icon: str | None = None):
         """Register a simple view page handled by ``func``."""
-        page_type_view = system_config.get_cached(SettingsKey.PAGE_TYPE_VIEW, "view")
 
         def decorator(func: Callable[..., Any]):
             page = FreeViewPage(title=name, path=path, icon=icon, handler=func)
             self.registry.page_list.append(page)
             self.registry.menu_list.append(
-                MenuItem(title=name, path=path, icon=icon, page_type=page_type_view)
+                MenuItem(title=name, path=path, icon=icon)
             )
             return func
         return decorator
@@ -311,16 +312,21 @@ class AdminSite:
         setattr(router, "templates", templates)
 
         def get_admin_api() -> dict[str, str]:
+            """Expose fully-qualified API paths for templates."""
+
+            api_prefix = system_config.get_cached(SettingsKey.API_PREFIX, "/api")
+            schema_path = system_config.get_cached(
+                SettingsKey.API_SCHEMA, f"{api_prefix}/schema"
+            )
+            list_filters_path = system_config.get_cached(
+                SettingsKey.API_LIST_FILTERS, f"{api_prefix}/list_filters"
+            )
+            base = settings.ADMIN_PATH.rstrip("/")
+
             return {
-                "prefix": system_config.get_cached(SettingsKey.API_PREFIX, "/api"),
-                "schema": system_config.get_cached(SettingsKey.API_SCHEMA, "/api/schema"),
-                "uiconfig": system_config.get_cached(SettingsKey.API_UICONFIG, "/api/uiconfig"),
-                "list_filters": system_config.get_cached(
-                    SettingsKey.API_LIST_FILTERS, "/api/list_filters"
-                ),
-                "autocomplete": system_config.get_cached(
-                    SettingsKey.API_AUTOCOMPLETE, "/api/autocomplete"
-                ),
+                "prefix": f"{base}{api_prefix}",
+                "schema": f"{base}{schema_path}",
+                "list_filters": f"{base}{list_filters_path}",
             }
 
         templates.env.globals.update(
@@ -334,17 +340,42 @@ class AdminSite:
         views_prefix = system_config.get_cached(SettingsKey.VIEWS_PREFIX, "/views")
         page_type_settings = system_config.get_cached(SettingsKey.PAGE_TYPE_SETTINGS)
 
-        # 1) Attach /login, /logout, /setup
+        self._attach_auth_routes(router, templates)
+        self._attach_page_routes(
+            router,
+            templates,
+            orm_prefix,
+            settings_prefix,
+            views_prefix,
+            page_type_settings,
+        )
+        self._attach_api_routes(router)
+        self._attach_crud_routes(router, orm_prefix, settings_prefix)
+
+        return router
+
+    def _attach_auth_routes(
+        self, router: APIRouter, templates: Jinja2Templates
+    ) -> None:
         router.include_router(build_auth_router(templates), tags=["admin-auth"])
 
+    def _attach_page_routes(
+        self,
+        router: APIRouter,
+        templates: Jinja2Templates,
+        orm_prefix: str,
+        settings_prefix: str,
+        views_prefix: str,
+        page_type_settings: str,
+    ) -> None:
         @router.get("/", response_class=HTMLResponse)
         async def admin_index(
             request: Request,
-            user: AdminUserDTO = Depends(require_permissions(())),
+            user: AdminUserDTO = Depends(require_permissions((), admin_site=self)),
         ) -> HTMLResponse:
             dash_title = await system_config.get(SettingsKey.DASHBOARD_PAGE_TITLE)
             return templates.TemplateResponse(
-                "index.html",
+                "pages/index.html",
                 {
                     "request": request,
                     "site_title": self.title,
@@ -357,12 +388,11 @@ class AdminSite:
                 },
             )
 
-        # Free pages and settings
         for page in [p for p in self.registry.page_list if isinstance(p, FreeViewPage)]:
             user_dep = (
                 get_current_admin_user
                 if page.page_type == page_type_settings
-                else require_permissions(())
+                else require_permissions((), admin_site=self)
             )
             perm_dep = (
                 require_global_permission(PermAction.view)
@@ -387,13 +417,13 @@ class AdminSite:
                     or page.path == settings_prefix
                 )
                 if page.path == orm_prefix:
-                    template_name = "orm.html"
+                    template_name = "pages/orm.html"
                 elif page.path == settings_prefix:
-                    template_name = "settings.html"
+                    template_name = "pages/settings.html"
                 elif page.path == views_prefix:
-                    template_name = "views.html"
+                    template_name = "pages/views.html"
                 else:
-                    template_name = "view.html"
+                    template_name = "layout/default.html"
                 base_ctx = self.build_template_ctx(
                     request,
                     user,
@@ -409,10 +439,12 @@ class AdminSite:
                 page.path, view_handler, methods=["GET"], name=page.title
             )
 
-        # API endpoints operating on registered model admins
-        ApiController.attach(router, self.find_admin_or_404)
+    def _attach_api_routes(self, router: APIRouter) -> None:
+        router.include_router(api_router, prefix=API_PREFIX)
 
-        # CRUD routes for registered ORM admins
+    def _attach_crud_routes(
+        self, router: APIRouter, orm_prefix: str, settings_prefix: str
+    ) -> None:
         for entry in self.registry.iter_orm():
             prefix = f"{orm_prefix}/{entry.app}/{entry.model}"
             CrudRouterBuilder.mount(
@@ -425,7 +457,6 @@ class AdminSite:
                 model_name=entry.model,
             )
 
-        # CRUD routes for registered settings admins
         for entry in self.registry.iter_settings():
             prefix = f"{settings_prefix}/{entry.app}/{entry.model}"
             CrudRouterBuilder.mount(
@@ -437,10 +468,7 @@ class AdminSite:
                 app_label=entry.app,
                 model_name=entry.model,
             )
-        # Finalize menu
+
         self.registry.make_menu()
 
-        return router
-
 # The End
-

@@ -1,58 +1,29 @@
 # -*- coding: utf-8 -*-
+"""
+__init__
 
-"""Utilities for working with admin form widgets.
+Utilities for working with admin form widgets.
 
-This module maintains a registry of widget classes so that they can be
-referenced by a simple string key.  It also provides a minimal base class
-that concrete widgets can extend.
+Version: 0.1.0
+Author: Timur Kady
+Email: timurkady@yandex.com
 """
 
+# admin/widgets/__init__.py
 from __future__ import annotations
-from typing import Any, Dict, Type
 
+from .base import BaseWidget
+from .registry import register_widget, registry
 
-__all__ = [
-    "BaseWidget",
-    "register_widget",
-    "get_widget",
-    "FileUploadWidget",
-    "SelectWidget",
-    "TextWidget",
-]
+__all__ = ["BaseWidget", "register_widget", "registry"]
 
-_registry: Dict[str, Type["BaseWidget"]] = {}
-
-
-class BaseWidget:
-    """Base class for form widgets used in the admin interface."""
-
-    key: str = "base"
-
-    def __init__(self, **options: Any) -> None:
-        """Store widget configuration options."""
-        self.options = options
-
-
-def register_widget(key: str):
-    """Decorator to register a widget class under ``key``."""
-
-    def _decorator(cls: Type[BaseWidget]) -> Type[BaseWidget]:
-        """Assign the registry key and store the widget class."""
-        cls.key = key
-        _registry[key] = cls
-        return cls
-
-    return _decorator
-
-
-def get_widget(key: str) -> Type[BaseWidget] | None:
-    """Return a registered widget class for ``key`` if it exists."""
-    return _registry.get(key)
-
-
-from .file import FileUploadWidget  # noqa: E402
-from .select import SelectWidget  # noqa: E402
-from .text import TextWidget  # noqa: E402
-
+# Импорт стандартных виджетов, чтобы они зарегистрировались:
+from .text import TextWidget      # noqa: F401
+from .relations import RelationsWidget  # noqa: F401
+from .file import FileUploadWidget  # noqa: F401
+from .number import NumberWidget  # noqa: F401
+from .checkbox import CheckboxWidget  # noqa: F401
+from .radio import RadioWidget          # noqa: F401
+from .datetime import DateTimeWidget  # noqa: F401
 
 # The End

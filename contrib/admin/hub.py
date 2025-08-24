@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """
+hub
+
 Admin hub configuration and autodiscovery helpers.
 
-Version: 1.0.0
+Version: 0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """

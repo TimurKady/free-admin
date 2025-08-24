@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """
+pages
+
 Dataclasses describing different kinds of admin pages.
 
-Version: 1.0.0
+Version: 0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """
@@ -58,6 +60,4 @@ class SettingsPage(FreeViewPage):
         )
     )
 
-
 # The End
-

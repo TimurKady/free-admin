@@ -1,24 +1,10 @@
 # -*- coding: utf-8 -*-
 """
+__init__
+
 Single point of connection of Admin Models.
 
-The idea is simple: the contrib.admin.models package auto-imports
-all its submodules with models, so that Tortoise only needs
-one module line.
-
-Then in orm.py specify:
-
-```python
-await Tortoise.init(
-    db_url=...,
-    modules={
-        "models": [...],
-        "admin": ["contrib.admin.models"], # ← one command
-    },
-)
-```
-
-Version: 1.0.0
+Version: 0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """

@@ -1,4 +1,14 @@
 # -*- coding: utf-8 -*-
+"""
+keys
+
+Available settings keys for the system.
+
+Version: 0.1.0
+Author: Timur Kady
+Email: timurkady@yandex.com
+"""
+
 # settings_keys.py
 from .choices import StrChoices  # adjust import path as needed
 
@@ -34,9 +44,7 @@ class SettingsKey(StrChoices):
     # --- API endpoints ---
     API_PREFIX            = ("API_PREFIX", "API prefix")
     API_SCHEMA            = ("API_SCHEMA", "Schema endpoint")
-    API_UICONFIG          = ("API_UICONFIG", "UI config endpoint")
     API_LIST_FILTERS      = ("API_LIST_FILTERS", "List filters endpoint")
-    API_AUTOCOMPLETE      = ("API_AUTOCOMPLETE", "Autocomplete endpoint")
 
     # --- Auth / Session ---
     LOGIN_PATH            = ("LOGIN_PATH", "Login path")
@@ -54,5 +62,4 @@ class SettingsKey(StrChoices):
     STATIC_URL_SEGMENT    = ("STATIC_URL_SEGMENT", "Static URL segment")
     STATIC_ROUTE_NAME     = ("STATIC_ROUTE_NAME", "Static route name")
 
-
-
+# The End

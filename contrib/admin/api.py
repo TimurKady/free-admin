@@ -1,124 +1,102 @@
 # -*- coding: utf-8 -*-
 """
+api
+
 API endpoints for the admin interface.
+
+Version: 0.1.0
+Author: Timur Kady
+Email: timurkady@yandex.com
 """
 
 from __future__ import annotations
 
-from typing import Callable, Literal
+from typing import Literal
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
+from tortoise.exceptions import DoesNotExist
 
-from .core.auth import AdminUserDTO
-from .core.base import BaseModelAdmin
-from .core.permissions import require_model_permission, PermAction
 from .adapters.tortoise import get_model_descriptor
+from .core.auth import AdminUserDTO
+from .core.permissions import PermAction, require_model_permission
 from .core.settings import SettingsKey, system_config
 
+class AdminAPI:
+    """API endpoints for the admin interface."""
 
-class ApiController:
-    @staticmethod
-    def attach(
-        router: APIRouter,
-        find_admin: Callable[[str, str], BaseModelAdmin],
-    ) -> None:
-
-        schema_path = system_config.get_cached(SettingsKey.API_SCHEMA, "/api/schema")
-        uiconfig_path = system_config.get_cached(SettingsKey.API_UICONFIG, "/api/uiconfig")
-        list_filters_path = system_config.get_cached(
-            SettingsKey.API_LIST_FILTERS, "/api/list_filters"
+    def __init__(self) -> None:
+        self.API_PREFIX = system_config.get_cached(SettingsKey.API_PREFIX, "/api")
+        self.SCHEMA_PATH = system_config.get_cached(
+            SettingsKey.API_SCHEMA, f"{self.API_PREFIX}/schema"
         )
-        autocomplete_path = system_config.get_cached(
-            SettingsKey.API_AUTOCOMPLETE, "/api/autocomplete"
+        self.LIST_FILTERS_PATH = system_config.get_cached(
+            SettingsKey.API_LIST_FILTERS, f"{self.API_PREFIX}/list_filters"
         )
 
-        @router.get(schema_path, name="admin.api.schema")
-        async def api_schema(
-            request: Request,
-            app: str,
-            model: str,
-            mode: Literal["add", "edit"] = "add",
-            user: AdminUserDTO = Depends(require_model_permission(PermAction.view)),
-        ):
-            admin = find_admin(app, model)
+        self.router = APIRouter()
 
-            md = get_model_descriptor(admin.model)
-            schema_data = await admin.get_schema(request, user, md, mode)
+        self.router.get(
+            self._relative(self.SCHEMA_PATH), name="admin.api.schema"
+        )(self.api_schema)
+        self.router.get(
+            self._relative(self.LIST_FILTERS_PATH), name="admin.api.list_filters"
+        )(self.api_list_filters)
 
-            return {
-                "schema": schema_data["schema"],
-                "startval": schema_data["startval"],
-            }
+    def _relative(self, path: str) -> str:
+        """Return a path relative to ``API_PREFIX`` suitable for the router."""
 
-        @router.get(uiconfig_path, name="admin.api.uiconfig")
-        async def api_uiconfig(
-            request: Request,
-            app: str,
-            model: str,
-            user: AdminUserDTO = Depends(require_model_permission(PermAction.view)),
-        ):
-            admin = find_admin(app, model)
+        if path.startswith(self.API_PREFIX):
+            path = path[len(self.API_PREFIX) :]
+        if not path.startswith("/"):
+            path = "/" + path
+        return path
 
-            md = get_model_descriptor(admin.model)
-            ui_schema = await admin.build_ui(request, user, md, "add")
+    async def api_schema(
+        self,
+        request: Request,
+        app: str,
+        model: str,
+        mode: Literal["add", "edit"] = "add",
+        pk: str | None = None,
+        user: AdminUserDTO = Depends(require_model_permission(PermAction.view)),
+    ):
+        admin_site = request.app.state.admin_site
+        admin = admin_site.find_admin_or_404(app, model)
 
-            return {
-                "uiSchema": ui_schema,
-                "widgets": {},
-                "masks": {},
-                "readonly_fields": getattr(admin, "readonly_fields", []),
-                "hidden_fields": getattr(admin, "hidden_fields", []),
-            }
+        md = get_model_descriptor(admin.model)
 
-        @router.get(list_filters_path, name="admin.api.list_filters")
-        async def api_list_filters(
-            request: Request,
-            app: str,
-            model: str,
-            user: AdminUserDTO = Depends(require_model_permission(PermAction.view)),
-        ):
-            admin = find_admin(app, model)
-            md = get_model_descriptor(admin.model)
+        obj = None
+        if mode == "edit" and pk is not None:
+            qs = admin.get_objects(request, user)
+            try:
+                obj = await qs.get(**{md.pk_attr: pk})
+            except DoesNotExist:
+                raise HTTPException(status_code=404)
 
-            return {"filters": admin.get_list_filters(md)}
+        schema_data = await admin.get_schema(request, user, md, mode, obj=obj)
 
-        @router.get(autocomplete_path, name="admin.api.autocomplete")
-        async def api_autocomplete(
-            request: Request,
-            app: str,
-            model: str,
-            field: str,
-            q: str = "",
-            page: int = 1,
-            per_page: int | None = None,
-            user: AdminUserDTO = Depends(require_model_permission(PermAction.view)),
-        ):
-            admin = find_admin(app, model)
-            if per_page is None:
-                per_page = await system_config.get(SettingsKey.DEFAULT_PER_PAGE)
-            md = get_model_descriptor(admin.model)
-            fd = md.field(field)
-            if not fd or not fd.relation:
-                return {"results": [], "page": 1, "pages": 1, "total": 0}
+        return {
+            "schema": schema_data["schema"],
+            "startval": schema_data["startval"],
+        }
 
-            from tortoise import Tortoise
+    async def api_list_filters(
+        self,
+        request: Request,
+        app: str,
+        model: str,
+        user: AdminUserDTO = Depends(require_model_permission(PermAction.view)),
+    ):
+        admin_site = request.app.state.admin_site
+        admin = admin_site.find_admin_or_404(app, model)
+        md = get_model_descriptor(admin.model)
 
-            if hasattr(Tortoise, "get_model"):
-                rel_model = Tortoise.get_model(fd.relation.target)
-            else:  # pragma: no cover - older Tortoise versions
-                app_label, model_name = fd.relation.target.rsplit(".", 1)
-                rel_model = Tortoise.apps.get(app_label, {}).get(model_name)
-            search_fields = getattr(admin, "search_fields", None) or ["name", "title"]
-            qs = admin.get_autocomplete_queryset(fd, q, search_fields=search_fields)
-            total = await qs.count()
-            offset = max(0, (page - 1) * per_page)
-            objs = await qs.limit(per_page).offset(offset)
-            pk_attr = rel_model._meta.pk_attr
-            results = [{"value": getattr(o, pk_attr), "label": str(o)} for o in objs]
-            pages = (total + per_page - 1) // per_page
-            return {"results": results, "page": page, "pages": pages, "total": total}
+        return {"filters": admin.get_list_filters(md)}
 
+_api = AdminAPI()
+router = _api.router
+API_PREFIX = _api.API_PREFIX
 
-__all__ = ["ApiController"]
+__all__ = ["router", "API_PREFIX"]
 
 # The End

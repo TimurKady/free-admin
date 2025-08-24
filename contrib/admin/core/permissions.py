@@ -1,6 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Проверка прав на основе плоских таблиц user/group permissions.
+permissions
+
+Permission checks based on flat user/group tables.
+
+Version: 0.1.0
+Author: Timur Kady
+Email: timurkady@yandex.com
 """
 
 from __future__ import annotations
@@ -20,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:  # pragma: no cover - for type checking only
     from .auth import AdminUserDTO
+    from .site import AdminSite
 
 
 def require_model_permission(
@@ -28,6 +35,7 @@ def require_model_permission(
     model_param: str = "model",
     app_value: str | None = None,
     model_value: str | None = None,
+    admin_site: "AdminSite | None" = None,
 ):
     """Dependency ensuring user has ``action`` permission on a model.
 
@@ -38,8 +46,11 @@ def require_model_permission(
     """
 
     async def _dep(request: Request) -> "AdminUserDTO":
-        from contrib.admin.hub import admin_site
         from .auth import get_current_admin_user
+
+        site = admin_site or getattr(request.app.state, "admin_site", None)
+        if site is None:
+            raise HTTPException(status_code=500, detail="Admin site not configured")
 
         user_dto = await get_current_admin_user(request)
         orm_user: AdminUser = request.state.user
@@ -52,7 +63,7 @@ def require_model_permission(
         if not app or not model:
             raise HTTPException(status_code=400, detail="Missing app/model params")
 
-        ct_id = admin_site.get_ct_id(app, model)
+        ct_id = site.get_ct_id(app, model)
         if ct_id is None:
             raise HTTPException(status_code=404, detail=f"Unknown content type: {app}.{model}")
 
@@ -113,3 +124,5 @@ def require_global_permission(action: PermAction):
         return None
 
     return _dep
+
+# The End

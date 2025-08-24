@@ -1,64 +1,66 @@
 # -*- coding: utf-8 -*-
 """
-Base Widget Class.
+base
+
+Base widget class.
 
 Version: 0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """
-from typing import Any, Dict, Iterable, Tuple
-from fastapi import APIRouter
 
-class WidgetBase:
+# admin/widgets/base.py
+from __future__ import annotations
+from typing import Any, Dict
+from abc import ABC, abstractmethod
+from .context import WidgetContext
+
+
+class BaseWidget(ABC):
     """
-    Base class of the field widget.
-    The contract is minimal: schema, ui, assets, endpoints, converters.
+    Base Widget Class
+
+    Widgets provide JSON Schema fragments and optional start values.
     """
-  
-    key: str = "base"  # системное имя виджета, например: 'text', 'integer', 'fk'
+    key: str = "base"
 
-    # ---- Формирование формы ----
-    def get_schema(self, field, options: Dict[str, Any]) -> Dict[str, Any]:
-        """Фрагмент JSON Schema для поля (type/format/enum и т.п.)."""
-        return {}
+    def __init__(self, ctx: WidgetContext) -> None:
+        self.ctx = ctx
 
-    def get_ui(self, field, options: Dict[str, Any]) -> Dict[str, Any]:
-        """Фрагмент ui-конфига (uiSchema/опции рендеринга)."""
-        return {}
+    def get_title(self) -> str:
+        label = getattr(self.ctx.field, "label", None)
+        if label:
+            return label
+        name = self.ctx.name.replace("_", "\u00A0")
+        return name[:1].upper() + name[1:]
 
-    # ---- Ассеты и эндпоинты ----
-    def assets(self) -> Dict[str, Iterable[str]]:
-        """
-        Возвращает словарь путей статических ресурсов:
-        {"js": [...], "css": [...], "partials": [...]}
-        """
-        return {"js": [], "css": [], "partials": []}
+    # === Формирование схем ===
+    @abstractmethod
+    def get_schema(self) -> Dict[str, Any]:
+        """JSON Schema-фрагмент для конкретного поля."""
+        raise NotImplementedError
 
-    def endpoints(self, router: APIRouter) -> None:
-        """
-        Регистрирует эндпоинты виджета под /api/widgets/<key>/*.
-        По умолчанию — ничего.
-        """
+    def merge_readonly(self, schema: Dict[str, Any]) -> Dict[str, Any]:
+        """Вставить флаг ``readonly`` в схему при необходимости."""
+        if self.ctx.readonly:
+            schema["readonly"] = True
+        return schema
+    
+    def get_startval(self) -> Any:
+        """Стартовое значение для формы (edit) — по умолчанию из instance."""
+        if self.ctx.instance is not None:
+            return getattr(self.ctx.instance, self.ctx.name, None)
         return None
 
-    # ---- Конвертеры значений ----
-    def format_value(self, value: Any, options: Dict[str, Any]) -> Any:
-        """
-        Приводит значение к «чистому» виду для шаблонов/рендера (строки, примитивы).
-        Не меняет тип хранения, только для отображения.
-        """
+    async def prefetch(self) -> None:
+        """Заготовка для асинхронной подготовки данных перед генерацией схемы."""
+        return None
+
+    # === Конвертеры значений ===
+    def to_python(self, value: Any, options: Dict[str, Any] | None = None) -> Any:
         return value
 
-    def to_python(self, value: Any, options: Dict[str, Any]) -> Any:
-        """
-        Приводит из входного (обычно JSON/строка) к корректному Python-объекту.
-        Используется до валидации/сохранения.
-        """
+    def to_storage(self, value: Any, options: Dict[str, Any] | None = None) -> Any:
         return value
 
-    def to_storage(self, value: Any, options: Dict[str, Any]) -> Any:
-        """
-        Приводит Python-объект к формату БД/ORM (id, JSON, строка и т.п.).
-        Вызывается перед записью в БД.
-        """
-        return value
+# The End

@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
-
 """
-Tortoise ORM Adapter.
+tortoise
 
-Utilities for building admin descriptors from Tortoise ORM models.
+Tortoise ORM adapter utilities.
+
+Version: 0.1.0
+Author: Timur Kady
+Email: timurkady@yandex.com
 """
 
 from __future__ import annotations
@@ -110,14 +113,24 @@ def _field_descriptor(name: str, f: fields.Field) -> FieldDescriptor:
     """Build a :class:`FieldDescriptor` from a Tortoise field."""
     kind = _kind_for_field(f)
     rel = _relation_for_field(f)
+    raw_default = getattr(f, "default", None)
+    default = None if callable(raw_default) else raw_default
+    is_m2m = isinstance(f, fields.relational.ManyToManyFieldInstance)
+    required = (
+        not getattr(f, "null", False)
+        and raw_default is None
+        and not callable(raw_default)
+        and not getattr(f, "pk", False)
+        and not is_m2m
+    )
     desc = FieldDescriptor(
         name=name,
         kind=kind,
         nullable=bool(getattr(f, "null", False)),
+        required=required,
         primary_key=bool(getattr(f, "pk", False)),
         unique=bool(getattr(f, "unique", False)),
-        default=(None if callable(getattr(f, "default", None))
-                 else getattr(f, "default", None)),
+        default=default,
         max_length=getattr(f, "max_length", None),
         decimal_places=getattr(f, "decimal_places", None),
         max_digits=getattr(f, "max_digits", None),
@@ -155,4 +168,3 @@ def get_models_descriptors(models: Iterable[type[Model]]) -> list[ModelDescripto
     return [get_model_descriptor(m) for m in models]
 
 # The End
-

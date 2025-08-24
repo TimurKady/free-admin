@@ -1,5 +1,13 @@
 # -*- coding: utf-8 -*-
-"""Utility helpers for bootstrapping the admin app."""
+"""
+boot
+
+Utility helpers for bootstrapping the admin app.
+
+Version: 0.1.0
+Author: Timur Kady
+Email: timurkady@yandex.com
+"""
 
 from __future__ import annotations
 
@@ -15,6 +23,5 @@ def register_startup(app: FastAPI) -> None:
     async def _load_system_config() -> None:
         await system_config.ensure_seed()
         await system_config.reload()
-
 
 # The End

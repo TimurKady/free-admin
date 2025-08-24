@@ -1,5 +1,13 @@
 # -*- coding: utf-8 -*-
-"""Admin registrations for admin models."""
+"""
+__init__
+
+Admin registrations for admin models.
+
+Version: 0.1.0
+Author: Timur Kady
+Email: timurkady@yandex.com
+"""
 
 from .user import AdminUserAdmin
 from .rbac import (

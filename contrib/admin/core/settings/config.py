@@ -1,5 +1,13 @@
 # -*- coding: utf-8 -*-
-"""Database-backed system configuration utilities."""
+"""
+config
+
+Database-backed system configuration utilities.
+
+Version: 0.1.0
+Author: Timur Kady
+Email: timurkady@yandex.com
+"""
 
 from __future__ import annotations
 
@@ -174,3 +182,5 @@ class SystemConfig:
 system_config = SystemConfig()
 
 __all__ = ["SystemConfig", "system_config"]
+
+# The End

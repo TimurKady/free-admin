@@ -1,20 +1,10 @@
 # -*- coding: utf-8 -*-
 """
+choices
+
 Django-like Choices for Tortoise/Pydantic v2.
 
-Usage:
-
-    from .choices import StrChoices, IntChoices
-
-    class ConnectorType(IntChoices):
-        INPUT = 1, "Input"
-        OUTPUT = 2, "Output"
-
-    class Status(StrChoices):
-        DRAFT = "draft", "Draft"
-        ACTIVE = "active", "Active"
-
-Version: 1.0.0
+Version: 0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """

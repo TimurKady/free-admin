@@ -1,7 +1,7 @@
 // admin-form.js
 
 // API endpoints injected via templates (see contrib/admin/core/settings)
-const { prefix: API_PREFIX, uiconfig: API_UICONFIG } = window.ADMIN_API;
+const { schema: API_SCHEMA } = window.ADMIN_API;
 
 class AdminFormEditor {
   constructor({ rootId = 'form-root', spinnerId = 'form-spinner', app, model, pk, prefix, config = {} }) {
@@ -20,22 +20,17 @@ class AdminFormEditor {
       defaults: {
         theme: 'bootstrap5',
         iconlib: 'bootstrap',
+        show_errors: 'interaction',
+        form_name_root: '\u200B',
         display_required_only: false,
         disable_edit_json: true,
         disable_collapse: true,
-        show_errors: 'interaction',
         required_by_default: false,
-        expand_height: true,
         disable_properties: true,
-        no_additional_properties: true,
-        show_opt_in: false,
-        form_name_root: '\u200B',
-        remove_empty_properties: false,
       },
       endpoints: {
-        schema: (mode, pk) => `${this.base}/_schema?mode=${mode}` + (pk ? `&pk=${pk}` : ''),
-        uiconfig: (p, a, m) => `${p}${API_UICONFIG}?app=${a}&model=${m}`,
-        save: (base, pk) => pk ? `${base}/${pk}` : base
+        schema: (a, m, mode, pk) => `${API_SCHEMA}?app=${a}&model=${m}&mode=${mode}` + (pk ? `&pk=${pk}` : ''),
+        save: (base, pk) => (pk ? `${base}/${pk}` : base),
       },
       debug: false,
     }, config);
@@ -43,16 +38,11 @@ class AdminFormEditor {
 
   async load() {
     try {
-      const { schema, startval, uiSchema } = await this.fetchSchemaUi();
-
-      this.bakeUiIntoSchema(schema, uiSchema);
+      const { schema, startval } = await this.fetchSchema();
 
       let sv = startval;
       if (sv === null || typeof sv !== 'object') {
         sv = {};
-      }
-      if (schema && typeof schema === 'object' && schema.type === 'object' && schema.additionalProperties === undefined) {
-        schema.additionalProperties = false;
       }
 
       this.spinner.style.display = 'none';
@@ -61,6 +51,7 @@ class AdminFormEditor {
         schema,
         startval: sv,
         ...this.cfg.defaults,
+        display_required_only: false, 
       });
 
       window._editor = this.editor;
@@ -70,79 +61,26 @@ class AdminFormEditor {
 
     } catch (err) {
       console.error(err);
-      alert('Failed to load form.');
+      const msg = err?.message ? `Failed to load form: ${err.message}` : 'Failed to load form.';
+      alert(msg);
     }
   }
 
-  // Статически переносим настройки из uiSchema в JSON-Schema
-  bakeUiIntoSchema(schema, ui) {
-    if (!schema || !schema.properties || !ui) return;
-
-    // 2.1 Порядок полей (ui:order)
-    const order = ui['ui:order'];
-    if (Array.isArray(order)) {
-      order.forEach((name, idx) => {
-        if (schema.properties[name]) {
-          schema.properties[name].propertyOrder = idx;
-        }
-      });
-    }
-
-    // 2.2 Пробег по полям 1-го уровня
-    for (const [field, cfg] of Object.entries(ui)) {
-      if (field.startsWith('ui:')) continue;
-      const ps = schema.properties[field];
-      if (!ps || !cfg) continue;
-
-      // readonly -> в схему
-      if (cfg['ui:readonly']) {
-        ps.readOnly = true;
-        ps.options = Object.assign({}, ps.options, {
-          input_attributes: Object.assign(
-            {},
-            ps.options?.input_attributes,
-            { readonly: true, disabled: true }
-          )
-        });
+  async fetchSchema() {
+    const url = this.cfg.endpoints.schema(this.app, this.model, this.mode, this.pk);
+    const res = await fetch(url, { credentials: 'same-origin' });
+    if (!res.ok) {
+      let detail = '';
+      try {
+        const data = await res.json();
+        detail = data?.detail || JSON.stringify(data);
+      } catch {
+        detail = await res.text();
       }
-
-      // widget -> только встроенные мапим в схему (статично)
-      const w = cfg['ui:widget'];
-      if (w === 'textarea') {
-        if (ps.type === 'string') ps.format = 'textarea';
-      } else if (w === 'hidden') {
-        if (ps.type === 'string') {
-          ps.format = 'hidden';
-        } else {
-          ps.options = Object.assign({}, ps.options, { hidden: true });
-        }
-      }
-
-      // ui:options -> прокинем в schema.options (статично)
-      if (cfg['ui:options'] && typeof cfg['ui:options'] === 'object') {
-        ps.options = Object.assign({}, ps.options, cfg['ui:options']);
-      }
+      throw new Error(detail || `Request failed with status ${res.status}`);
     }
-  }
-
-  async fetchSchemaUi() {
-    const sURL = this.cfg.endpoints.schema(this.mode, this.pk);
-    const uURL = this.cfg.endpoints.uiconfig(this.prefix, this.app, this.model);
-    const [sRes, uRes] = await Promise.all([fetch(sURL), fetch(uURL)]);
-    if (!sRes.ok) throw new Error(await sRes.text());
-    if (!uRes.ok) throw new Error(await uRes.text());
-
-    const { schema, startval } = await sRes.json();
-    const { uiSchema } = await uRes.json();
-    this.filterUiBySchema(uiSchema, schema);
-    return { schema, startval, uiSchema };
-  }
-
-  filterUiBySchema(ui, schema) {
-    if (!ui) return;
-    for (const k of Object.keys(ui)) {
-      if (!k.startsWith('ui:') && !schema?.properties?.[k]) delete ui[k];
-    }
+    const { schema, startval } = await res.json();
+    return { schema, startval };
   }
 
   hideRootHeader() {

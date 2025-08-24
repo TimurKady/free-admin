@@ -1,15 +1,17 @@
 # -*- coding: utf-8 -*-
 """
+base
+
 Base class for model admin objects.
 
-Version: 1.0.0
+Version: 0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """
 
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, cast
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from fastapi import HTTPException
 from tortoise import Tortoise, fields as tfields
@@ -20,6 +22,11 @@ from tortoise.fields.relational import (
     ManyToManyFieldInstance,
 )
 from tortoise.queryset import QuerySet
+
+from ..widgets import registry as widget_registry
+from ..widgets.context import WidgetContext
+from ..widgets.base import BaseWidget
+
 
 
 class BaseModelAdmin:
@@ -43,12 +50,13 @@ class BaseModelAdmin:
     ordering: Sequence[str] = ("id",)
     fieldsets: tuple[tuple[str, dict[str, Any]], ...] | None = None
     fields: Sequence[str] | None = None
-    readonly_fields: Sequence[str] = ()
+    readonly_fields: set[str] = set()
     autocomplete_fields: Sequence[str] = ()
     list_use_only: bool = False
     # Later: list_display, search_fields, list_filter, ordering, fieldsets, etc.
 
     FILTER_OPS = {"": "eq", "icontains": "icontains", "gte": "gte", "lte": "lte", "gt": "gt", "lt": "lt", "in": "in"}
+    widgets_overrides: dict[str, str] = {}
 
     class Meta:
         """Meta class for BaseModelAdmin."""
@@ -58,6 +66,46 @@ class BaseModelAdmin:
     def __init__(self, model: type[Any]):
         """Save the model class administered by this instance."""
         self.model = model
+
+    # --- attribute accessors -------------------------------------------------
+
+    def get_label(self) -> str | None:
+        """Return plural label for the model."""
+        return self.label
+
+    def get_label_singular(self) -> str | None:
+        """Return singular label for the model."""
+        return self.label_singular
+
+    def get_list_display(self) -> Sequence[str]:
+        """Return fields displayed in list views."""
+        return self.list_display
+
+    def get_list_filter(self) -> Sequence[str]:
+        """Return configured list filters."""
+        return self.list_filter or ()
+
+    def get_ordering(self) -> Sequence[str]:
+        """Return default ordering for list views."""
+        return self.ordering
+
+    def get_readonly_fields(self) -> Sequence[str]:
+        """Return fields marked as read-only."""
+        return self.readonly_fields
+
+    def get_autocomplete_fields(self) -> Sequence[str]:
+        """Return fields using autocomplete widgets."""
+        return self.autocomplete_fields
+
+    def is_field_readonly(self, md, name: str, mode: str, obj=None) -> bool:
+        if name in self.readonly_fields:
+            return True
+        fd = md.fields_map[name]
+        if getattr(fd, "primary_key", False):
+            return True
+        if name in {"created_at", "updated_at"}:
+            return True
+        return False
 
     # --- verbose names ---------------------------------------------------------
 
@@ -124,11 +172,11 @@ class BaseModelAdmin:
 
     # --- queryset hooks ---------------------------------------------------
 
-    def get_base_queryset(self) -> QuerySet:
+    def get_queryset(self) -> QuerySet:
         """Return base queryset for this admin."""
         qs = self.model.all()
         if not isinstance(qs, QuerySet):  # pragma: no cover - runtime safety
-            raise RuntimeError("get_base_queryset must return QuerySet")
+            raise RuntimeError("get_queryset must return QuerySet")
         return qs
 
     def apply_select_related(self, qs: QuerySet) -> QuerySet:
@@ -196,16 +244,16 @@ class BaseModelAdmin:
             raise RuntimeError("apply_row_level_security must return QuerySet")
         return qs
 
-    def get_object_queryset(self, request: Any, user: Any) -> QuerySet:
-        """Return queryset used for retrieving a single object.
+    def get_objects(self, request: Any, user: Any) -> QuerySet:
+        """Return queryset used for retrieving objects.
 
         Row-level security is enforced via :meth:`apply_row_level_security`.
         """
-        qs = self.get_base_queryset()
+        qs = self.get_queryset()
         qs = self.apply_select_related(qs)
         qs = self.apply_row_level_security(qs, user)
         if not isinstance(qs, QuerySet):  # pragma: no cover - runtime safety
-            raise RuntimeError("get_object_queryset must return QuerySet")
+            raise RuntimeError("get_objects must return QuerySet")
         return qs
 
     def handle_integrity_error(self, exc: IntegrityError) -> None:
@@ -278,159 +326,101 @@ class BaseModelAdmin:
 
     # --- minimal public API -------------------------------------------------
 
-    def field_mapping(self, fd) -> dict:
-        """Map a field descriptor to a JSON Schema fragment."""
+    def _resolve_widget_key(self, fd, field_name: str) -> str:
+        if field_name in (getattr(self, "widgets_overrides", {}) or {}):
+            return self.widgets_overrides[field_name]
+        meta = getattr(fd, "meta", None) or {}
+        if "widget" in meta:
+            return str(meta["widget"])
+        return widget_registry.resolve_for_field(fd)
+    
+    def _build_widget(
+        self,
+        md,
+        name: str,
+        mode: str,
+        obj=None,
+        request=None,
+    ) -> BaseWidget:
+        fd = md.fields_map[name]
+        key = self._resolve_widget_key(fd, name)  # <-- единая точка истины
+        cls = widget_registry.get(key)
+        if cls is None:
+            model_name = getattr(md, "name", str(md))
+            raise RuntimeError(
+                f"No widget registered for key '{key}' "
+                f"(field='{name}', model='{model_name}')"
+            )
+        ctx = WidgetContext(
+            admin=self,
+            descriptor=md,
+            field=fd,
+            name=name,
+            instance=obj,
+            mode=mode,
+            request=request,
+            readonly=self.is_field_readonly(md, name, mode, obj),
+        )
+        return cls(ctx)
 
-        kind = cast(str | None, getattr(fd, "kind", None))
-        rel = getattr(fd, "relation", None)
-        if rel:
-            if getattr(rel, "kind", None) == "m2m":
-                return {"type": "array", "items": {"type": "string"}}
-            if getattr(rel, "kind", None) == "fk":
-                return {"type": "string"}
-        mapping = {
-            "text": {"type": "string", "format": "textarea"},
-            "string": {"type": "string"},
-            "boolean": {"type": "boolean"},
-            "integer": {"type": "integer"},
-            "bigint": {"type": "integer"},
-            "float": {"type": "number"},
-            "decimal": {"type": "number"},
-            "date": {"type": "string", "format": "date"},
-            "datetime": {"type": "string", "format": "date-time"},
-            "uuid": {"type": "string", "format": "uuid"},
-            "json": {"type": "object"},
-        }
-        return mapping.get(kind or "", {"type": "string"})
+    async def get_schema(self, request, user, md, mode: str, obj=None) -> dict:
+        """Assemble JSON ``schema`` and ``startval`` for the form."""
 
-    async def get_schema(self, request, user, md, mode: str) -> Dict[str, Any]:
-        """Build a basic JSON Schema and start values for the form."""
+        field_names: tuple[str, ...] = tuple(self.get_fields(md))
 
-        properties: Dict[str, Any] = {}
-        required: List[str] = []
-        fields = self.get_fields(md)
-        for order, name in enumerate(fields):
-            fd = md.fields_map.get(name)
-            if fd is None:
-                for f in getattr(md, "fields", []) or []:
-                    if getattr(f, "name", None) == name:
-                        fd = f
-                        break
-            prop = self.field_mapping(fd)
-            is_nullable = getattr(fd, "nullable", False) or getattr(fd, "null", False)
-            kind = getattr(fd, "kind", "")
-            if is_nullable and kind not in {"string", "text"}:
-                t = prop.get("type")
-                if isinstance(t, list):
-                    if "null" not in t:
-                        prop["type"] = t + ["null"]
-                elif isinstance(t, str):
-                    prop["type"] = [t, "null"]
-            title = getattr(fd, "verbose_name", None) or name.replace("_", " ").title()
-            prop["title"] = title
-            prop["propertyOrder"] = order
-            properties[name] = prop
-            if (
-                not (getattr(fd, "nullable", False) or getattr(fd, "null", False))
-                and not (getattr(fd, "relation", None) and getattr(fd.relation, "kind", "") == "m2m")
-                and getattr(fd, "default", None) is None
-                and getattr(fd, "default_factory", None) is None
-            ):
+        properties: dict = {}
+        required: list[str] = []
+        startval: dict = {}
+
+        for name in field_names:
+            w = self._build_widget(md, name, mode, obj=obj, request=request)
+
+            pf = getattr(w, "prefetch", None)
+            if callable(pf):
+                import inspect, asyncio  # noqa: F401
+                if inspect.iscoroutinefunction(pf):
+                    await pf()
+
+            properties[name] = w.get_schema()
+            if getattr(md.fields_map[name], "required", False) and not w.ctx.readonly:
                 required.append(name)
 
-        schema: Dict[str, Any] = {
+            sv = w.get_startval()
+            if sv is not None:
+                try:
+                    sv = w.to_storage(sv)
+                except Exception:
+                    pass
+                startval[name] = sv
+            else:
+                fd = md.fields_map.get(name)
+                rel = getattr(fd, "relation", None) if fd else None
+                is_many = bool(
+                    getattr(fd, "many", False)
+                    or (rel and getattr(rel, "kind", "") == "m2m")
+                )
+                if mode in ("add", "edit"):
+                    default = getattr(fd, "default", None) if fd else None
+                    if is_many:
+                        sv = default if default is not None else []
+                    else:
+                        sv = default if default is not None else ""
+                    try:
+                        sv = w.to_storage(sv)
+                    except Exception:
+                        pass
+                    startval[name] = sv
+
+        schema = {
             "type": "object",
             "properties": properties,
             "required": required,
-            # Ensure JSON‑Editor sees all fields from ``get_fields``
-            # and renders them in the same order.
-            "defaultProperties": list(fields),
-            "additionalProperties": False,
+            "defaultProperties": list(field_names),
         }
-
-        startval: Dict[str, Any] = {}
-        if mode == "edit":
-            pk = None
-            if hasattr(request, "query_params"):
-                pk = request.query_params.get("pk")
-            if pk:
-                # ``get_object_queryset`` enforces row level security.  Do not
-                # bypass it when retrieving objects for form editing.
-                qs = self.get_object_queryset(request, user)
-                obj = await qs.get(**{md.pk_attr: pk})
-                data: Dict[str, Any] = {}
-                for name in fields:
-                    fd = md.fields_map.get(name)
-                    val = getattr(obj, name, None)
-                    if fd and fd.relation and fd.relation.kind == "fk":
-                        val = getattr(obj, f"{name}_id", None)
-                    elif fd and getattr(fd, "relation", None) and fd.relation.kind == "m2m":
-                        rel_pk = getattr(fd.relation, "to_field", "id")
-                        rel_qs = await getattr(obj, name).all().values_list(rel_pk, flat=True)
-                        val = list(rel_qs)
-                    if fd and fd.kind == "text" and fd.nullable and val is None:
-                        val = ""
-                    data[name] = val
-                startval = data
-        else:
-            for name in fields:
-                fd = md.fields_map.get(name)
-                if fd is None:
-                    continue
-                val: Any
-                if getattr(fd, "relation", None) and fd.relation.kind == "m2m":
-                    val = []
-                elif getattr(fd, "default", None) is not None:
-                    val = fd.default() if callable(fd.default) else fd.default
-                elif getattr(fd, "default_factory", None):
-                    try:
-                        val = fd.default_factory()  # type: ignore[attr-defined]
-                    except Exception:  # pragma: no cover - defensive
-                        continue
-                elif getattr(fd, "nullable", False) or getattr(fd, "null", False):
-                    if getattr(fd, "kind", "") in {"string", "text"}:
-                        val = ""
-                    else:
-                        val = None
-                else:
-                    continue
-                startval[name] = val
 
         return {"schema": schema, "startval": startval}
 
-    async def build_ui(self, request, user, md, mode: str) -> Dict[str, Any]:
-        """Return a minimal uiSchema for JSON‑Editor."""
-
-        ui: Dict[str, Any] = {}
-        fields = self.get_fields(md)
-        readonly = set(getattr(self, "readonly_fields", []) or [])
-        hidden = set(getattr(self, "hidden_fields", []) or [])
-
-        for name in fields:
-            fd = md.fields_map.get(name)
-            if fd and fd.kind == "text":
-                ui[name] = {"ui:widget": "textarea", "ui:options": {"rows": 6}}
-            if name in hidden:
-                ui.setdefault(name, {})["ui:widget"] = "hidden"
-            if name in readonly:
-                ui.setdefault(name, {})["ui:readonly"] = True
-
-        ui["ui:order"] = list(fields)
-        return ui
-
-    def clean(self, payload: dict) -> dict:
-        """Validate ``payload`` before saving.
-
-        Subclasses may override this method and raise
-        :class:`fastapi.HTTPException` with ``status_code=422`` and
-        ``detail`` containing ``{"errors": {...}, "detail": "..."}`` when
-        server-side validation fails.  The base implementation simply
-        returns ``payload`` unchanged.
-        """
-
-        return payload
-
-    def clean_payload(
+    def clean(
         self, payload: Dict[str, Any], *, for_update: bool = False
     ) -> Tuple[Dict[str, Any], List[Tuple[str, Iterable[Any] | None]]]:
         """Normalize ``payload`` for create or update operations.
@@ -439,12 +429,14 @@ class BaseModelAdmin:
         assignments (including foreign keys expressed as ``<name>_id``) and
         ``m2m_ops`` is a list of many‑to‑many operations to perform after the
         instance is saved.  ``for_update`` controls how missing M2M keys are
-        treated.  Subclasses can override this hook to perform custom
-        validation or transformation.
+        treated.  Subclasses may override this hook to perform custom
+        validation or transformation and may raise
+        :class:`fastapi.HTTPException` with ``status_code=422`` when
+        validation fails.
         """
 
         md = self.model._meta
-        readonly = set(getattr(self, "readonly_fields", []) or [])
+        readonly = {name for name in md.fields_map if self.is_field_readonly(md, name, "edit")}
         hidden = set(getattr(self, "hidden_fields", []) or [])
         blocked = readonly | hidden
 
@@ -481,7 +473,7 @@ class BaseModelAdmin:
                 data[name] = val
         return data, m2m_ops
 
-    async def save_create(
+    async def create(
         self,
         request: Any,
         user: Any,
@@ -491,12 +483,12 @@ class BaseModelAdmin:
         """Create a new model instance from ``payload``.
 
         ``request``, ``user`` and ``md`` are passed for symmetry with
-        :meth:`save_update` and allow subclasses to take them into account.
+        :meth:`update` and allow subclasses to take them into account.
         Foreign keys and many‑to‑many relations are handled automatically.
         Subclasses may override this to implement custom create behaviour.
         """
 
-        data, m2m_ops = self.clean_payload(payload, for_update=False)
+        data, m2m_ops = self.clean(payload, for_update=False)
         obj = await self.model.create(**data)
         for fname, ids in m2m_ops:
             if ids is None:
@@ -508,7 +500,7 @@ class BaseModelAdmin:
                 await manager.add(*ids)
         return obj
 
-    async def save_update(
+    async def update(
         self,
         request: Any,
         user: Any,
@@ -523,7 +515,7 @@ class BaseModelAdmin:
         cycle.
         """
 
-        data, m2m_ops = self.clean_payload(payload, for_update=True)
+        data, m2m_ops = self.clean(payload, for_update=True)
         for key, val in data.items():
             setattr(obj, key, val)
         await obj.save()
@@ -540,28 +532,58 @@ class BaseModelAdmin:
     def get_list_columns(self, md) -> Sequence[str]:
         """Return column names used by list views.
 
-        Defaults to :attr:`list_display` or the model's primary key.  Override
+        Defaults to :meth:`get_list_display` or the model's primary key.  Override
         this to supply custom dynamic column sets.
         """
 
-        cols = list(self.list_display or [])
+        cols = list(self.get_list_display())
         if not cols:
             cols = [md.pk_attr]
         return cols
 
+    def get_search_fields(self, md) -> list[str]:
+        """Return field names used for text search in list views.
+
+        If ``self.search_fields`` is explicitly configured, it is returned
+        as a list. Otherwise the model's fields are inspected and only
+        ``TextField`` and ``CharField`` types are included.
+        """
+
+        if self.search_fields:
+            return list(self.search_fields)
+
+        fd_map = getattr(md, "fields_map", {}) or {}
+        result: list[str] = []
+        for name in self.get_fields(md):
+            fd = fd_map.get(name)
+            if not fd:
+                continue
+            kind = getattr(fd, "kind", None)
+            if kind is not None:
+                if kind in {"text", "string"} and not getattr(fd, "choices", None):
+                    result.append(name)
+            elif (
+                isinstance(fd, (tfields.TextField, tfields.CharField))
+                and not getattr(fd, "choices", None)
+                and getattr(fd, "enum_type", None) is None
+            ):
+                result.append(name)
+        return result
+
     def get_list_filters(self, md) -> List[Dict[str, Any]]:
-        """Return filter specifications based on ``self.list_filter``.
+        """Return filter specifications based on ``get_list_filter``.
 
         Each specification contains ``name``, ``label``, ``kind`` and allowed
         operations ``ops``. Choice fields include a ``choices`` list.
         """
 
         specs: List[Dict[str, Any]] = []
-        if not self.list_filter:
+        list_filter = self.get_list_filter()
+        if not list_filter:
             return specs
 
         fields = getattr(md, "fields", {}) or {}
-        for item in self.list_filter:
+        for item in list_filter:
             fname = item if isinstance(item, str) else None
             if not fname:
                 continue
@@ -718,14 +740,15 @@ class BaseModelAdmin:
         search = params.get("search", "") or ""
         order = params.get("order", "")
 
-        qs = self.get_base_queryset()
+        qs = self.get_queryset()
         qs = self.apply_row_level_security(qs, user)
         flist = self.parse_filters(getattr(request, "query_params", {}), md)
         qs = self.apply_filters_to_queryset(qs, flist)
 
-        if search and self.search_fields:
+        search_fields = self.get_search_fields(md)
+        if search and search_fields:
             cond = None
-            for sf in self.search_fields:
+            for sf in search_fields:
                 lookup = f"{sf}__icontains"
                 q_obj = Q(**{lookup: search})
                 cond = q_obj if cond is None else (cond | q_obj)
@@ -733,8 +756,9 @@ class BaseModelAdmin:
                 qs = qs.filter(cond)
 
         if not order:
-            if self.ordering:
-                order = self.ordering[0]
+            ordering = self.get_ordering()
+            if ordering:
+                order = ordering[0]
             else:
                 order = f"-{md.pk_attr}"
 
@@ -845,6 +869,4 @@ class BaseModelAdmin:
             meta.append(entry)
         return meta
 
-
 # The End
-

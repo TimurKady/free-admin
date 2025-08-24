@@ -1,28 +1,32 @@
 # -*- coding: utf-8 -*-
 """
+auth
+
 Authentication utilities for the admin site.
 
-Version: 1.0.0
+Version: 0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """
 
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Iterable, TYPE_CHECKING
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from ..models.users import AdminUser as AdminUserORM
 from ..models.rbac import (
     AdminGroupPermission,
     AdminUserPermission,
     PermAction,
 )
-from ..utils.passwords import check_password, make_password
+from .auth_service import authenticate_user, create_superuser, superuser_exists
 from config.settings import settings
 from .settings import SettingsKey, system_config
+
+if TYPE_CHECKING:  # pragma: no cover
+    from .site import AdminSite
 
 @dataclass
 class AdminUserDTO:
@@ -46,7 +50,9 @@ async def get_current_admin_user(request: Request) -> AdminUserDTO:
         is_active=True,
     )
 
-def require_permissions(codenames: Iterable[str] = ()):  # noqa: D401
+def require_permissions(
+    codenames: Iterable[str] = (), *, admin_site: "AdminSite" | None = None
+):  # noqa: D401
     """Dependency generator enforcing permission codenames."""
 
     parsed: list[tuple[str, str, PermAction]] = []
@@ -62,11 +68,14 @@ def require_permissions(codenames: Iterable[str] = ()):  # noqa: D401
     ) -> AdminUserDTO:
         if not parsed:
             return user
-        from contrib.admin.hub import admin_site
+
+        site = admin_site or getattr(request.app.state, "admin_site", None)
+        if site is None:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         orm_user = request.state.user
         for app, model, action in parsed:
-            ct_id = admin_site.get_ct_id(app, model)
+            ct_id = site.get_ct_id(app, model)
             if ct_id is None:
                 raise HTTPException(status_code=404)
             allowed = False
@@ -107,7 +116,7 @@ def build_auth_router(templates: Jinja2Templates) -> APIRouter:
         settings_prefix = await system_config.get(SettingsKey.SETTINGS_PREFIX)
         views_prefix = await system_config.get(SettingsKey.VIEWS_PREFIX)
         return templates.TemplateResponse(
-            "login.html",
+            "pages/login.html",
             {
                 "request": request,
                 "error": None,
@@ -120,18 +129,13 @@ def build_auth_router(templates: Jinja2Templates) -> APIRouter:
 
     @router.post(login_path)
     async def login_post(request: Request, username: str = Form(...), password: str = Form(...)):
-        user = await AdminUserORM.get_or_none(username=username)
-        if (
-            not user
-            or not user.is_active
-            or not user.is_staff
-            or not await check_password(password, user.password)
-        ):
+        user = await authenticate_user(username, password)
+        if not user:
             orm_prefix = await system_config.get(SettingsKey.ORM_PREFIX)
             settings_prefix = await system_config.get(SettingsKey.SETTINGS_PREFIX)
             views_prefix = await system_config.get(SettingsKey.VIEWS_PREFIX)
             return templates.TemplateResponse(
-                "login.html",
+                "pages/login.html",
                 {
                     "request": request,
                     "error": "Invalid credentials",
@@ -155,15 +159,14 @@ def build_auth_router(templates: Jinja2Templates) -> APIRouter:
 
     @router.get(setup_path)
     async def setup_form(request: Request):
-        exists = await AdminUserORM.filter(is_staff=True, is_superuser=True).exists()
-        if exists:
+        if await superuser_exists():
             login_path = await system_config.get(SettingsKey.LOGIN_PATH)
             return RedirectResponse(f"{settings.ADMIN_PATH}{login_path}", status_code=303)
         orm_prefix = await system_config.get(SettingsKey.ORM_PREFIX)
         settings_prefix = await system_config.get(SettingsKey.SETTINGS_PREFIX)
         views_prefix = await system_config.get(SettingsKey.VIEWS_PREFIX)
         return templates.TemplateResponse(
-            "setup.html",
+            "pages/setup.html",
             {
                 "request": request,
                 "error": None,
@@ -181,18 +184,10 @@ def build_auth_router(templates: Jinja2Templates) -> APIRouter:
         email: str = Form(""),
         password: str = Form(...),
     ):
-        exists = await AdminUserORM.filter(is_staff=True, is_superuser=True).exists()
-        if exists:
+        if await superuser_exists():
             login_path = await system_config.get(SettingsKey.LOGIN_PATH)
             return RedirectResponse(f"{settings.ADMIN_PATH}{login_path}", status_code=303)
-        user = await AdminUserORM.create(
-            username=username,
-            email=email,
-            password=await make_password(password),
-            is_staff=True,
-            is_superuser=True,
-            is_active=True,
-        )
+        user = await create_superuser(username=username, email=email, password=password)
         session_key = await system_config.get(SettingsKey.SESSION_KEY)
         request.session[session_key] = str(user.id)
         return RedirectResponse(f"{settings.ADMIN_PATH}/", status_code=303)
@@ -200,4 +195,3 @@ def build_auth_router(templates: Jinja2Templates) -> APIRouter:
     return router
 
 # The End
-

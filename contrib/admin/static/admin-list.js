@@ -25,9 +25,9 @@ class AdminList {
     this.delId = document.getElementById('del-id');
     this.deleteId = null;
 
-    this.btn.addEventListener('click', () => this.doSearch());
-    this.input.addEventListener('keydown', e => { if (e.key === 'Enter') this.doSearch(); });
-    this.input.addEventListener('input', this.debounce(() => this.doSearch(), 300));
+    this.btn?.addEventListener('click', () => this.doSearch());
+    this.input?.addEventListener('keydown', e => { if (e.key === 'Enter') this.doSearch(); });
+    this.input?.addEventListener('input', this.debounce(() => this.doSearch(), 300));
     this.perPage.addEventListener('change', () => { this.state.per_page = parseInt(this.perPage.value); this.state.page = 1; this.load(); });
     this.clearFiltersBtn?.addEventListener('click', () => window._filters?.reset());
     this.confirmDelete?.addEventListener('click', () => this.onConfirmDelete());
@@ -46,7 +46,7 @@ class AdminList {
   }
 
   doSearch(){
-    this.state.search = this.input.value.trim();
+    this.state.search = this.input?.value.trim() ?? '';
     this.state.page = 1;
     this.load();
   }

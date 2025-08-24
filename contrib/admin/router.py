@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """
+router
+
 Admin router utilities for mounting the admin site.
 
-Version: 1.0.0
+Version: 0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """
@@ -32,6 +34,7 @@ def mount_admin(app: FastAPI, site: AdminSite, prefix: str = settings.ADMIN_PATH
     if site.templates is None:
         site.templates = provider.get_templates()
 
+    app.state.admin_site = site
     router = site.build_router(provider)
     app.include_router(router, prefix=prefix)
     provider.mount_static(app, prefix)

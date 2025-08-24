@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
 """
+views
+
 Free Page Builder.
 
-Version: 1.0.0
+Version: 0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """
+
 from __future__ import annotations
 from ..core.site import AdminSite
 from ..core.settings import SettingsKey, system_config

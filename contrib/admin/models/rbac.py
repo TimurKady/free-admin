@@ -1,6 +1,12 @@
 # -*- coding: utf-8 -*-
 """
+rbac
+
 RBAC: groups and permissions (flat model without a separate Permission entity).
+
+Version: 0.1.0
+Author: Timur Kady
+Email: timurkady@yandex.com
 """
 
 from enum import Enum
@@ -31,8 +37,8 @@ class AdminGroup(Model):
 
     class Meta:
         table = "admin_group"
-        verbose_name = "User group"
-        verbose_name_plural = "User groups"
+        verbose_name = "Group"
+        verbose_name_plural = "Groups"
 
     def __str__(self) -> str:
         return self.name
@@ -84,3 +90,5 @@ class AdminGroupPermission(Model):
     def __str__(self) -> str:
         ctd = self.content_type.dotted if self.content_type_id else "*"
         return f"{self.group_id}:{ctd}:{self.action}"
+
+# The End

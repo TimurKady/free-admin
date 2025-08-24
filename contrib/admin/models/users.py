@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 """
+users
+
 Admin user models.
 
-Version: 1.0.0
+Version: 0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """
-
 
 from __future__ import annotations
 from tortoise import fields

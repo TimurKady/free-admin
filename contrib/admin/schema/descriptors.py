@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
+descriptors
+
 Admin schema descriptors.
 
-Pydantic models describing admin schema metadata.
-
-Version: 1.0.0
+Version: 0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """
@@ -38,9 +38,12 @@ class FieldDescriptor(BaseModel):
     name: str
     kind: FieldKind
     nullable: bool = False
+    required: bool = False
     primary_key: bool = False
     unique: bool = False
     default: Any | None = None
+
+    label: str | None = None
 
     max_length: int | None = None
     decimal_places: int | None = None
