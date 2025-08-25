@@ -51,3 +51,11 @@
 ## Roadmap
 - [Roadmap](roadmap/roadmap.md)
 
+## License
+
+MIT — do what you want, just keep the copyright.
+
+## Credits
+
+This work is built brick by brick and released as real Open Source.  If you find it useful, help me ship the next bricks faster — [become a sponsor](https://github.com/sponsors/TimurKady).
+I’m committed to production-grade, documented, and maintained tools.  Your support funds tests, docs, and releases.
