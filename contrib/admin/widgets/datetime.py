@@ -16,8 +16,8 @@ from . import BaseWidget, register_widget
 @register_widget("datetime")
 class DateTimeWidget(BaseWidget):
     """
-    Виджет для date/datetime/time.
-    JSON-Editor ожидает строку + format: "date" | "datetime" | "time".
+    Widget for ``date``/``datetime``/``time`` fields.
+    JSON-Editor expects a string plus format: "date" | "datetime" | "time".
     """
 
     def get_schema(self) -> Dict[str, Any]:
@@ -33,7 +33,7 @@ class DateTimeWidget(BaseWidget):
         v = super().get_startval()
         if v is None:
             return None
-        # Преобразуем к строке, пригодной для HTML5/JSON-Editor
+        # Convert to a string suitable for HTML5/JSON-Editor
         if isinstance(v, datetime):
             # 'YYYY-MM-DDTHH:MM:SS'
             return v.replace(microsecond=0).isoformat(timespec="seconds")
@@ -44,7 +44,7 @@ class DateTimeWidget(BaseWidget):
         return str(v)
 
     def to_storage(self, value: Any, options: Dict[str, Any] | None = None) -> Any:
-        # Оставляем строкой — парсинг сделаешь в слое модели/валидаторе
+        # Keep as string—the model layer/validator will parse it
         return value
 
 # The End

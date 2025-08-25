@@ -17,7 +17,7 @@ from .registry import register_widget, registry
 
 __all__ = ["BaseWidget", "register_widget", "registry"]
 
-# Импорт стандартных виджетов, чтобы они зарегистрировались:
+# Import built-in widgets so they register themselves:
 from .text import TextWidget      # noqa: F401
 from .textarea import TextAreaWidget  # noqa: F401
 from .relations import RelationsWidget  # noqa: F401

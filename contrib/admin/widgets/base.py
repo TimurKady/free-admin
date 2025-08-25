@@ -71,7 +71,7 @@ class BaseWidget(ABC):
             css.extend(getattr(meta, "css", ()))
             js.extend(getattr(meta, "js", ()))
 
-        # dedup c сохранением порядка
+        # dedup while preserving order
         def _uniq(seq):
             seen = set()
             for x in seq:
@@ -88,29 +88,29 @@ class BaseWidget(ABC):
         name = self.ctx.name.replace("_", "\u00A0")
         return name[:1].upper() + name[1:]
 
-    # === Формирование схем ===
+    # === Schema Generation ===
     @abstractmethod
     def get_schema(self) -> Dict[str, Any]:
-        """JSON Schema-фрагмент для конкретного поля."""
+        """JSON Schema fragment for a specific field."""
         raise NotImplementedError
 
     def merge_readonly(self, schema: Dict[str, Any]) -> Dict[str, Any]:
-        """Вставить флаг ``readonly`` в схему при необходимости."""
+        """Insert the ``readonly`` flag into the schema if needed."""
         if self.ctx.readonly:
             schema["readonly"] = True
         return schema
     
     def get_startval(self) -> Any:
-        """Стартовое значение для формы (edit) — по умолчанию из instance."""
+        """Start value for the form (edit) — defaults to ``instance``."""
         if self.ctx.instance is not None:
             return getattr(self.ctx.instance, self.ctx.name, None)
         return None
 
     async def prefetch(self) -> None:
-        """Заготовка для асинхронной подготовки данных перед генерацией схемы."""
+        """Stub for asynchronous data preparation before schema generation."""
         return None
 
-    # === Конвертеры значений ===
+    # === Value Converters ===
     def to_python(self, value: Any, options: Dict[str, Any] | None = None) -> Any:
         return value
 

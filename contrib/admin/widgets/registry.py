@@ -21,7 +21,7 @@ class WidgetRegistry:
         self._by_key: Dict[str, Type[BaseWidget]] = {}
 
     def register(self, key: str):
-        """Декоратор регистрации виджета по ключу."""
+        """Decorator to register a widget by key."""
         def _decorator(cls: Type[BaseWidget]) -> Type[BaseWidget]:
             cls.key = key
             self._by_key[key] = cls
@@ -32,10 +32,10 @@ class WidgetRegistry:
         return self._by_key.get(key)
 
     def resolve_for_field(self, fd: FieldDescriptor) -> str:
-        """Маппинг поля → ключ виджета."""
+        """Map a field to a widget key."""
         k = (fd.kind or "").lower()  # "string" | "int" | "bool" | "date" | "m2m" | "fk" | ...
     
-        # 1) булевы — всегда чекбокс (даже если заданы choices типа Yes/No)
+        # 1) Boolean fields — always a checkbox (even if choices like Yes/No are provided)
         if k in ("bool", "boolean"):
             return "checkbox"
 

@@ -17,8 +17,8 @@ from typing import TYPE_CHECKING
 from fastapi import HTTPException, status
 from fastapi.requests import Request
 
-# ВАЖНО: путь к твоей модели пользователя
-from ..models.users import AdminUser  # ← поправь под свой проект
+# IMPORTANT: path to your user model
+from ..models.users import AdminUser  # ← adjust for your project
 from ..models.rbac import AdminUserPermission, AdminGroupPermission, PermAction
 
 
@@ -93,7 +93,7 @@ def require_model_permission(
 
 def require_global_permission(action: PermAction):
     """
-    Dependency для глобальных страниц (Settings и т.п.).
+    Dependency for global pages (Settings, etc.).
     """
     async def _dep(request: Request):
         user: AdminUser | None = getattr(request.state, "user", None)

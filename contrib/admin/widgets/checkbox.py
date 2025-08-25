@@ -22,7 +22,7 @@ class CheckboxWidget(BaseWidget):
     def get_schema(self) -> Dict[str, Any]:
         title = self.get_title()
         
-        # Базовая схема
+        # Base schema
         schema = {
             "type": "boolean",
             "format": "checkbox",

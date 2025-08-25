@@ -16,19 +16,19 @@ from typing import TYPE_CHECKING, Any, Optional
 from ..schema.descriptors import ModelDescriptor, FieldDescriptor
 
 if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
-    from ..core.base import BaseModelAdmin  # тип для подсказок
+    from ..core.base import BaseModelAdmin  # type hints helper
 
 
 @dataclass(frozen=True)
 class WidgetContext:
-    """Всё, что виджет должен знать о себе и окружении."""
+    """Everything a widget needs to know about itself and its environment."""
     admin: BaseModelAdmin
-    descriptor: ModelDescriptor           # описание модели (единый слой)
-    field: FieldDescriptor                # описание поля (единый слой)
-    name: str                             # имя поля в форме
-    instance: Optional[Any]               # объект (None для add)
+    descriptor: ModelDescriptor           # model description (unified layer)
+    field: FieldDescriptor                # field description (unified layer)
+    name: str                             # field name in the form
+    instance: Optional[Any]               # instance (None for add)
     mode: str                             # "add" | "edit" | "list"
-    request: Any | None = None            # FastAPI Request (по необходимости)
-    readonly: bool = False                # поле только для чтения?
+    request: Any | None = None            # FastAPI Request (optional)
+    readonly: bool = False                # field read-only?
 
 # The End

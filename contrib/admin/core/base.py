@@ -32,12 +32,11 @@ from ..widgets.base import BaseWidget
 class BaseModelAdmin:
     """Basic interface of the model admin class.
 
-    Линия ответственности
-    ----------------------
-    * Все ``get_*_queryset`` возвращают :class:`~tortoise.queryset.QuerySet`.
-    * ``apply_row_level_security`` применяется для всех операций чтения и
-      редактирования.
-    * Хук ``allow`` влияет только на UI и не заменяет проверку прав (RBAC).
+    Responsibility lines
+    --------------------
+    * All ``get_*_queryset`` methods return :class:`~tortoise.queryset.QuerySet`.
+    * ``apply_row_level_security`` is applied to all read and edit operations.
+    * The ``allow`` hook only affects the UI and does not replace RBAC checks.
     """
 
     # Name for menu and headings (plural and singular)
@@ -380,7 +379,7 @@ class BaseModelAdmin:
         request=None,
     ) -> BaseWidget:
         fd = md.fields_map[name]
-        key = self._resolve_widget_key(fd, name)  # <-- единая точка истины
+        key = self._resolve_widget_key(fd, name)  # <-- single source of truth
         cls = widget_registry.get(key)
         if cls is None:
             model_name = getattr(md, "name", str(md))
@@ -535,7 +534,10 @@ class BaseModelAdmin:
             manager = getattr(obj, fname)
             await manager.clear()
             if ids:
-                await manager.add(*ids)
+                model_cls = manager.remote_model
+                pk_attr = model_cls._meta.pk_attr
+                related = await model_cls.filter(**{f"{pk_attr}__in": ids})
+                await manager.add(*related)
         return obj
 
     async def update(
@@ -556,7 +558,8 @@ class BaseModelAdmin:
         data, m2m_ops = self.clean(payload, for_update=True)
         for key, val in data.items():
             setattr(obj, key, val)
-        await obj.save()
+        if data:
+            await obj.save(update_fields=list(data.keys()))
         for fname, ids in m2m_ops:
             if ids is None:
                 continue
@@ -564,7 +567,10 @@ class BaseModelAdmin:
             manager = getattr(obj, fname)
             await manager.clear()
             if ids:
-                await manager.add(*ids)
+                model_cls = manager.remote_model
+                pk_attr = model_cls._meta.pk_attr
+                related = await model_cls.filter(**{f"{pk_attr}__in": ids})
+                await manager.add(*related)
         return obj
 
     def get_list_columns(self, md) -> Sequence[str]:
@@ -673,8 +679,9 @@ class BaseModelAdmin:
 
     def parse_filters(self, params, md):
         """
-        Разбор query-параметров вида filter.<field>[__op]=value -> список (field, op, coerced_value)
-        md: дескриптор модели (поля с типами), см. адаптер
+        Parse query parameters like ``filter.<field>[__op]=value`` into a list of
+        ``(field, op, coerced_value)`` tuples.
+        ``md``: model descriptor (fields with types), see adapter.
         """
         filters = []
         for key, raw in params.items():
@@ -707,7 +714,8 @@ class BaseModelAdmin:
 
     def _coerce_value_for_filter(self, fd, raw, op):
         """
-        Приведение типов значения фильтра по описателю поля (fd.kind: 'string'|'integer'|'number'|'boolean'|'datetime'|'date' и т.д.)
+        Coerce a filter value according to the field descriptor
+        (``fd.kind``: 'string'|'integer'|'number'|'boolean'|'datetime'|'date', etc.).
         """
         txt = str(raw).strip()
 
@@ -744,7 +752,7 @@ class BaseModelAdmin:
 
     def apply_filters_to_queryset(self, qs, flist):
         """
-        Применяем список фильтров к QuerySet (Tortoise ORM)
+        Apply a list of filters to a ``QuerySet`` (Tortoise ORM).
         """
         for fname, op, val in flist:
             if op == "eq":

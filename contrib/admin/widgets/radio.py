@@ -20,17 +20,17 @@ def _humanize(name: str) -> str:
 
 def _normalize_choices(choices) -> Tuple[list[Any], list[str]]:
     """
-    Поддерживаем:
+    Supported forms:
       - dict {value: label}
-      - iterable из пар (value, label)
-      - iterable из значений (value)
-      - класс Enum (EnumMeta) или iterable из элементов Enum
-    Возвращаем (enum_values, enum_titles).
+      - iterable of pairs (value, label)
+      - iterable of values (value)
+      - Enum class (EnumMeta) or iterable of Enum members
+    Returns ``(enum_values, enum_titles)``.
     """
     if not choices:
         return [], []
 
-    # Класс Enum
+    # Enum class
     if isinstance(choices, EnumMeta):
         vals, titles = [], []
         for m in choices:
@@ -39,7 +39,7 @@ def _normalize_choices(choices) -> Tuple[list[Any], list[str]]:
             titles.append(str(lbl))
         return vals, titles
 
-    # Словарь {value: label}
+    # Dict {value: label}
     if isinstance(choices, dict):
         vals, titles = [], []
         for k, v in choices.items():
@@ -62,10 +62,10 @@ def _normalize_choices(choices) -> Tuple[list[Any], list[str]]:
         # reuse ``choices_list`` in generic iterable processing below
         choices = choices_list
 
-    # Итерируемое
+    # Iterable
     vals, titles = [], []
     for item in choices:
-        # пара (value, label)
+        # pair (value, label)
         if isinstance(item, tuple) and len(item) == 2:
             v, lbl = item
             vals.append(v.value if isinstance(v, Enum) else v)
@@ -73,7 +73,7 @@ def _normalize_choices(choices) -> Tuple[list[Any], list[str]]:
                 lbl = getattr(lbl, "label", None) or getattr(lbl, "title", None) or _humanize(lbl.name)
             titles.append(str(lbl))
         else:
-            # одиночное значение (Enum или примитив)
+            # single value (Enum or primitive)
             if isinstance(item, Enum):
                 vals.append(item.value)
                 lbl = getattr(item, "label", None) or getattr(item, "title", None) or _humanize(item.name)
@@ -85,30 +85,30 @@ def _normalize_choices(choices) -> Tuple[list[Any], list[str]]:
 
 @register_widget("radio")
 class RadioWidget(BaseWidget):
-    """Радиокнопки для полей с choices (IntEnum/CharEnum и т.п.)."""
+    """Radio buttons for fields with choices (IntEnum/CharEnum etc.)."""
 
     def get_schema(self) -> Dict[str, Any]:
         fd = self.ctx.field
 
         enum_vals, titles = _normalize_choices(getattr(fd, "choices", None))
 
-        # тип по факту значений (если все ints → integer, иначе string)
+        # Type based on actual values (all ints → integer, otherwise string)
         typ = "integer" if enum_vals and all(isinstance(v, int) for v in enum_vals) else "string"
 
         return self.merge_readonly({
             "type": typ,
             "title":  self.get_title(),
             "format": "radio",
-            "enum": enum_vals,                    # ← только значения
-            "options": {"enum_titles": titles},   # ← подписи отдельно
+            "enum": enum_vals,                    # ← only values
+            "options": {"enum_titles": titles},   # ← labels separately
         })
 
     def get_startval(self) -> Any:
-        val = super().get_startval()  # берёт instance.<field> (см. BaseWidget)
+        val = super().get_startval()  # takes instance.<field> (see BaseWidget)
         if val is None:
             return None
-        raw = getattr(val, "value", val)  # Enum → его .value
-        # Приведём тип симметрично схеме
+        raw = getattr(val, "value", val)  # Enum → its .value
+        # Coerce type to match the schema
         return int(raw) if isinstance(raw, bool) is False and isinstance(raw, (int,)) else (str(raw) if not isinstance(raw, int) else raw)
 
     def to_storage(self, value: Any, options: Dict[str, Any] | None = None) -> Any:

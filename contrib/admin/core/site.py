@@ -87,8 +87,8 @@ class AdminSite:
             raise ValueError("Admin class is required")
 
         # Support both admin initializers:
-        #   AdminClass(self, app_label, model_slug)   — новый стиль
-        #   AdminClass(model_cls)                     — старый стиль
+        #   AdminClass(self, app_label, model_slug)   — new style
+        #   AdminClass(model_cls)                     — old style
         try:
             admin = admin_cls(self, app_label, model_slug)
         except TypeError:
@@ -100,7 +100,7 @@ class AdminSite:
         self.model_reg[(app_label.lower(), model_slug.lower())] = admin
         self.registry.register_view_entry(
             app=app_label,
-            model=model_slug,           # в реестре храним слаг
+            model=model_slug,           # store slug in registry
             admin_cls=admin_cls,
             settings=settings,
             icon=icon,

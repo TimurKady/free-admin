@@ -115,7 +115,7 @@ class AdminFormEditor {
 
     this.editor.showValidationErrors(list);
 
-    // Точечный сброс подсветки: при вводе в поле с ошибкой — убираем его из внешних ошибок
+    // Selective highlight reset: when typing into a field with an error, remove it from external errors
     list.forEach(({ path }) => {
       const ed = this.editor.getEditor(path);
       const holder = ed?.container || ed?.theme?.container || null;
@@ -196,9 +196,9 @@ class AdminFormEditor {
     }
   }
 
-  // Очистка пустых значений (бережно):
-  //  - удаляем '' и null для НЕ required полей
-  //  - НЕ удаляем пустые массивы (это важно для очистки M2M)
+  // Cleaning empty values (carefully):
+  //  - remove '' and null for non-required fields
+  //  - do NOT remove empty arrays (important for clearing M2M)
   cleanEmptyValues(obj) {
     const cleaned = { ...obj };
     const required = new Set(this.editor.schema.required || []);
@@ -214,7 +214,7 @@ class AdminFormEditor {
         delete cleaned[key];
         return;
       }
-      // Пустые массивы оставляем — это сигнал "очистить" для M2M
+      // Leave empty arrays—they signal "clear" for M2M
     });
 
     return cleaned;

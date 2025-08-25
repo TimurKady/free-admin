@@ -38,7 +38,7 @@ def _choices_from_fd(fd) -> tuple[list[str], list[str]]:
 
 @register_widget("relation")
 class RelationsWidget(BaseWidget):
-    """Простой select на enum/enum_titles."""
+    """Simple select based on enum/enum_titles."""
 
     async def prefetch(self) -> None:
         fd = self.ctx.field
@@ -85,7 +85,7 @@ class RelationsWidget(BaseWidget):
 
         enum, titles = _choices_from_fd(fd)
 
-        # плейсхолдер: только для одиночного и только если поле не обязательное
+        # Placeholder: only for single selects and only if the field is optional
         if not required and not is_many:
             if not enum or enum[0] != "":
                 enum = [""] + enum
@@ -121,7 +121,7 @@ class RelationsWidget(BaseWidget):
 
         # add
         if self.ctx.instance is None:
-            # одиночный селект: пусть явно выбрано пустое значение
+            # For single selects, explicitly include an empty value
             if not required and not is_many:
                 return ""
             return None
@@ -134,7 +134,7 @@ class RelationsWidget(BaseWidget):
             cur = getattr(self.ctx.instance, f"{self.ctx.name}_id", None)
             return "" if (cur is None and not required) else (str(cur) if cur is not None else None)
 
-        # простые поля
+        # simple fields
         return getattr(self.ctx.instance, self.ctx.name, None)
 
     def to_storage(self, value: Any, options: Dict[str, Any] | None = None) -> Any:
