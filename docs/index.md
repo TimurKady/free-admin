@@ -5,6 +5,26 @@
 - [First Login](getting-started/first-login.md)
 - [First Model](getting-started/first-model.md)
 
+## Explanations
+- [Architecture](explanations/architecture.md)
+- [Security](explanations/security.md)
+- [Performance](explanations/performance.md)
+- [Forms & UX](explanations/forms-ux.md)
+- [Operations](explanations/operations.md)
+
+## Reference
+- [AdminSite](reference/adminsite.md)
+- [ModelAdmin](reference/modeladmin.md)
+- [Adapters](reference/adapters.md)
+- [Widgets](reference/widgets.md)
+- [Routing](reference/routing.md)
+- [Endpoints](reference/endpoints.md)
+- [Permissions & Auth](reference/permissions-auth.md)
+- [Settings](reference/settings.md)
+- [Templates & Assets](reference/templates-assets.md)
+- [Errors & Logging](reference/errors-logging.md)
+- [Index by Symbols](reference/index-by-symbols.md)
+
 ## How-To
 - [Register Model](how-to/register-model.md)
 - [Customize List](how-to/customize-list.md)
@@ -20,26 +40,6 @@
 - [Deploy Reverse Proxy](how-to/deploy-reverse-proxy.md)
 - [Testing](how-to/testing.md)
 
-## Reference
-- [AdminSite](reference/adminsite.md)
-- [ModelAdmin](reference/modeladmin.md)
-- [Adapters](reference/adapters.md)
-- [Widgets](reference/widgets.md)
-- [Routing](reference/routing.md)
-- [Endpoints](reference/endpoints.md)
-- [Permissions & Auth](reference/permissions-auth.md)
-- [Settings](reference/settings.md)
-- [Templates & Assets](reference/templates-assets.md)
-- [Errors & Logging](reference/errors-logging.md)
-- [Index by Symbols](reference/index-by-symbols.md)
-
-## Explanations
-- [Architecture](explanations/architecture.md)
-- [Security](explanations/security.md)
-- [Performance](explanations/performance.md)
-- [Forms & UX](explanations/forms-ux.md)
-- [Operations](explanations/operations.md)
-
 ## Contributing
 - [Guide](contributing/guide.md)
 - [Changelog](contributing/changelog.md)
@@ -48,5 +48,6 @@
 ## Examples
 - [Demo App](examples/demo-app.md)
 
-# The End
+## Roadmap
+- [Roadmap](roadmap/roadmap.md)
 
