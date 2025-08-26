@@ -44,11 +44,6 @@
 - [Guide](contributing/guide.md)
 - [Changelog](contributing/changelog.md)
 - [Compatibility](contributing/compatibility.md)
-
-## Examples
-- [Demo App](examples/demo-app.md)
-
-## Roadmap
 - [Roadmap](roadmap/roadmap.md)
 
 ## License
