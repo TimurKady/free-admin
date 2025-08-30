@@ -1,4 +1,4 @@
-# Commercial License for FastAPI/Tortoise Admin
+# Commercial License for FastAPI FreeAdmin
 
 Copyright (c) 2025 Your Name
 
