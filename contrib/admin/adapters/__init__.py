@@ -9,4 +9,10 @@ Author: Timur Kady
 Email: timurkady@yandex.com
 """
 
+from .base import BaseAdapter
+from .registry import AdapterRegistry, registry
+
+__all__ = ["BaseAdapter", "AdapterRegistry", "registry"]
+
 # The End
+

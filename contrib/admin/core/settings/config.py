@@ -14,11 +14,10 @@ from __future__ import annotations
 from typing import Any
 import logging
 
-from tortoise.transactions import in_transaction
-
 from .defaults import DEFAULT_SETTINGS
 from .keys import SettingsKey
-from ...models.setting import SystemSetting
+from ...boot import admin as boot_admin
+SystemSetting = boot_admin.adapter.system_setting_model
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +33,12 @@ class SystemConfig:
     def __init__(self) -> None:
         self._cache: dict[str, Any] = {}
 
+    @property
+    def adapter(self):
+        from ...boot import admin as boot_admin
+
+        return boot_admin.adapter
+
     async def ensure_seed(self) -> None:
         """Ensure all default settings exist in the database.
 
@@ -41,7 +46,7 @@ class SystemConfig:
         cache afterwards.
         """
 
-        async with in_transaction():
+        async with self.adapter.in_transaction():
             # migrate legacy page-type keys if present
             mapping = {
                 "orm": SettingsKey.PAGE_TYPE_ORM,
@@ -49,25 +54,28 @@ class SystemConfig:
                 "settings": SettingsKey.PAGE_TYPE_SETTINGS,
             }
             for bad_key, enum_key in mapping.items():
-                record = await SystemSetting.get_or_none(key=bad_key)
+                record = await self.adapter.get_or_none(SystemSetting, key=bad_key)
                 if record is None:
                     continue
                 target_key = enum_key.value
-                if await SystemSetting.filter(key=target_key).exists():
+                if await self.adapter.exists(
+                    self.adapter.filter(SystemSetting, key=target_key)
+                ):
                     logger.warning(
                         "SystemSetting key '%s' exists; deleting stray '%s'", target_key, bad_key
                     )
-                    await record.delete()
+                    await self.adapter.delete(record)
                     continue
                 record.key = target_key
                 record.name = enum_key.label or target_key
-                await record.save()
+                await self.adapter.save(record)
 
             for key_enum, (value, value_type) in DEFAULT_SETTINGS.items():
                 key = key_enum.value
-                existing = await SystemSetting.get_or_none(key=key)
+                existing = await self.adapter.get_or_none(SystemSetting, key=key)
                 if existing is None:
-                    await SystemSetting.create(
+                    await self.adapter.create(
+                        SystemSetting,
                         key=key,
                         name=getattr(key_enum, "label", key),
                         value=value,
@@ -80,7 +88,8 @@ class SystemConfig:
 
         self._cache.clear()
         type_map = {k.value: t for k, (_, t) in DEFAULT_SETTINGS.items()}
-        for record in await SystemSetting.all().values("key", "value"):
+        qs = self.adapter.values(self.adapter.all(SystemSetting), "key", "value")
+        for record in await self.adapter.fetch_all(qs):
             key = record["key"]
             value_type = type_map.get(key, "string")
             self._cache[key] = self._cast(record["value"], value_type)
@@ -127,18 +136,23 @@ class SystemConfig:
         value_type = self._resolve_type(key_str, value)
         casted = self._cast(value, value_type)
 
-        existing = await SystemSetting.get_or_none(key=key_str)
+        existing = await self.adapter.get_or_none(SystemSetting, key=key_str)
         if existing is None:
-            await SystemSetting.create(
+            await self.adapter.create(
+                SystemSetting,
                 key=key_str,
-                name=getattr(key, "label", key_str) if isinstance(key, SettingsKey) else key_str,
+                name=(
+                    getattr(key, "label", key_str)
+                    if isinstance(key, SettingsKey)
+                    else key_str
+                ),
                 value=casted,
                 value_type=value_type,
             )
         else:
             existing.value = casted
             existing.value_type = value_type
-            await existing.save()
+            await self.adapter.save(existing)
 
         self._cache[key_str] = casted
 
@@ -184,3 +198,4 @@ system_config = SystemConfig()
 __all__ = ["SystemConfig", "system_config"]
 
 # The End
+

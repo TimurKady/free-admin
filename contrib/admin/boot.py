@@ -12,16 +12,115 @@ Email: timurkady@yandex.com
 from __future__ import annotations
 
 from fastapi import FastAPI
+from importlib import import_module
+import pkgutil
+from starlette.middleware.sessions import SessionMiddleware
 
-from .core.settings.config import system_config
+from config.settings import settings
+from .adapters import BaseAdapter, registry
 
 
-def register_startup(app: FastAPI) -> None:
-    """Register system configuration startup hooks."""
+class BootManager:
+    """Centralized application boot utilities."""
 
-    @app.on_event("startup")
-    async def _load_system_config() -> None:
-        await system_config.ensure_seed()
-        await system_config.reload()
+    def __init__(self, config=None, adapter_name: str | None = None) -> None:
+        self._config = config
+        self._default_adapter_name = adapter_name
+        self._adapter: BaseAdapter | None = None
+        self._model_modules: set[str] = set()
+
+    def _ensure_config(self) -> None:
+        if self._config is None:
+            from .core.settings.config import system_config
+
+            self._config = system_config
+
+    def _ensure_adapter(self) -> None:
+        """Load default adapter if configured."""
+        if self._adapter is None and self._default_adapter_name is not None:
+            self._adapter = self._find_adapter(self._default_adapter_name)
+            self._register_model_modules()
+
+    @property
+    def adapter(self) -> BaseAdapter:
+        """Return the ORM adapter, loading the default if necessary."""
+        if self._adapter is None:
+            name = self._default_adapter_name
+            if name is None:
+                raise RuntimeError("Admin adapter not configured")
+            self._adapter = self._find_adapter(name)
+            self._register_model_modules()
+        return self._adapter
+
+    @property
+    def user_model(self) -> type | None:
+        """Return adapter's user model if available."""
+        self._ensure_adapter()
+        if self._adapter is None:
+            return None
+        return getattr(self._adapter, "user_model", None)
+
+    @property
+    def model_modules(self) -> list[str]:
+        """Return adapter model modules when configured."""
+        self._ensure_adapter()
+        if self._adapter is None:
+            return []
+        return getattr(self._adapter, "model_modules", [])
+
+    def init(
+        self, app: FastAPI, adapter: str | None = None, packages: list[str] | None = None
+    ) -> None:
+        """Initialize the admin application on ``app``."""
+
+        if adapter is not None:
+            self._adapter = self._find_adapter(adapter)
+            self._register_model_modules()
+
+        from .middleware import AdminGuardMiddleware
+
+        app.add_middleware(AdminGuardMiddleware)
+        app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
+
+        from .pages.views import BuiltinPagesRegistrar
+        from .hub import hub
+        BuiltinPagesRegistrar().register(hub.admin_site)
+        hub.init_app(app, packages=packages)
+
+        @app.on_event("startup")
+        async def _finalize_admin_site() -> None:
+            await hub.admin_site.finalize()
+
+        self.register_startup(app)
+
+    def register_startup(self, app: FastAPI) -> None:
+        """Register system configuration startup hooks."""
+
+        @app.on_event("startup")
+        async def _load_system_config() -> None:
+            self._ensure_config()
+            await self._config.ensure_seed()
+            await self._config.reload()
+
+    def _find_adapter(self, name: str) -> BaseAdapter:
+        """Discover and return an adapter instance by ``name``."""
+        package = import_module(".adapters", __package__)
+        for _, modname, ispkg in pkgutil.iter_modules(package.__path__):
+            if ispkg:
+                import_module(f".adapters.{modname}.adapter", __package__)
+        return registry.get(name)
+
+    def _register_model_modules(self) -> None:
+        """Import adapter-provided model modules once."""
+        modules = getattr(self._adapter, "model_modules", [])
+        for dotted in modules:
+            if dotted not in self._model_modules:
+                import_module(dotted)
+                self._model_modules.add(dotted)
+
+
+admin = BootManager(adapter_name="tortoise")
+__all__ = ["BootManager", "admin"]
 
 # The End
+

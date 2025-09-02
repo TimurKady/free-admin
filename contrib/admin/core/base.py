@@ -11,22 +11,40 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
-
-from fastapi import HTTPException
-from tortoise import Tortoise, fields as tfields
-from tortoise.exceptions import IntegrityError
-from tortoise.expressions import Q
-from tortoise.fields.relational import (
-    ForeignKeyFieldInstance,
-    ManyToManyFieldInstance,
+from dataclasses import asdict
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    TYPE_CHECKING,
 )
-from tortoise.queryset import QuerySet
 
+from types import MappingProxyType
+
+from .exceptions import ActionNotFound, PermissionDenied, AdminIntegrityError
+from .filters import FilterSpec
+from ..adapters import BaseAdapter
 from ..widgets import registry as widget_registry
 from ..widgets.context import WidgetContext
 from ..widgets.base import BaseWidget
+from config.settings import settings
+from .settings import SettingsKey, system_config
 
+if TYPE_CHECKING:  # pragma: no cover
+    from ..boot import BootManager
+
+# Placeholder for the active ORM's QuerySet implementation
+QuerySet = Any
+
+from .actions import ActionResult, BaseAction  # noqa: E402
+from .actions.delete_selected import DeleteSelectedAction  # noqa: E402
+from .permissions import PermAction  # noqa: E402
 
 
 class BaseModelAdmin:
@@ -34,7 +52,7 @@ class BaseModelAdmin:
 
     Responsibility lines
     --------------------
-    * All ``get_*_queryset`` methods return :class:`~tortoise.queryset.QuerySet`.
+    * All ``get_*_queryset`` methods return :class:`QuerySet`.
     * ``apply_row_level_security`` is applied to all read and edit operations.
     * The ``allow`` hook only affects the UI and does not replace RBAC checks.
     """
@@ -47,28 +65,100 @@ class BaseModelAdmin:
     search_fields: Sequence[str] = ()
     list_filter: Sequence[str] | None = None
     ordering: Sequence[str] = ("id",)
-    fieldsets: tuple[tuple[str, dict[str, Any]], ...] | None = None
     fields: Sequence[str] | None = None
-    readonly_fields: set[str] = set()
+    readonly_fields: Sequence[str] = ()
     autocomplete_fields: Sequence[str] = ()
     list_use_only: bool = False
-    # Later: list_display, search_fields, list_filter, ordering, fieldsets, etc.
+    actions: tuple[type[BaseAction], ...] = (DeleteSelectedAction,)
+    # Later: list_display, search_fields, list_filter, ordering, etc.
     
     # Global Admin Assets
     admin_assets_css: tuple[str, ...] = ()
     admin_assets_js: tuple[str, ...] = ()
 
-    FILTER_OPS = {"": "eq", "icontains": "icontains", "gte": "gte", "lte": "lte", "gt": "gt", "lt": "lt", "in": "in"}
+    FILTER_OPS = {"": "eq", "eq": "eq", "icontains": "icontains", "gte": "gte", "lte": "lte", "gt": "gt", "lt": "lt", "in": "in"}
+    FILTER_PREFIX: str = "filter."
     widgets_overrides: dict[str, str] = {}
+
+    PARAM_TYPE_NAMES: dict[type, str] = {
+        bool: "boolean",
+        str: "string",
+        int: "integer",
+        float: "number",
+    }
+
+    def __init_subclass__(cls, **kwargs):  # type: ignore[override]
+        super().__init_subclass__(**kwargs)
+        collected: dict[str, Any] = {}
+        meta = getattr(cls, "Meta", None)
+        if meta is not None:
+            collected.update(getattr(meta, "widgets", {}) or {})
+        collected.update(getattr(cls, "widgets", {}) or {})
+
+        resolved: dict[str, str] = {}
+        for name, widget in collected.items():
+            if isinstance(widget, str):
+                key = widget
+            else:
+                w_cls = widget if isinstance(widget, type) else type(widget)
+                key = getattr(w_cls, "key", None)
+                if key is None:
+                    for reg_key, reg_cls in widget_registry._by_key.items():
+                        if reg_cls is w_cls:
+                            key = reg_key
+                            break
+                if key is None:
+                    raise RuntimeError(
+                        f"Widget {widget!r} for field '{name}' is not registered."
+                    )
+            resolved[name] = key
+        cls.widgets_overrides = resolved
+
+    @classmethod
+    def _schema_type_name(cls, typ: Any) -> str:
+        if isinstance(typ, str):
+            return typ
+        if isinstance(typ, type):
+            return cls.PARAM_TYPE_NAMES.get(typ, typ.__name__.lower())
+        return type(typ).__name__.lower()
 
     class Meta:
         """Meta class for BaseModelAdmin."""
 
         pass
 
-    def __init__(self, model: type[Any]):
-        """Save the model class administered by this instance."""
+    def __init__(self, model: type[Any], adapter_or_boot: BaseAdapter | "BootManager"):
+        """Save the model class and adapter for this admin instance."""
         self.model = model
+        self._adapter = (
+            adapter_or_boot.adapter
+            if hasattr(adapter_or_boot, "adapter")
+            else adapter_or_boot
+        )
+
+    # --- adapter helpers ----------------------------------------------------
+
+    @property
+    def adapter(self) -> BaseAdapter:
+        return self._adapter
+
+    def _qs_type(self):
+        return getattr(self.adapter, "QuerySet", None)
+
+    def _is_queryset(self, qs: Any) -> bool:
+        qs_type = self._qs_type()
+        if qs_type is None:
+            return True
+        try:
+            return isinstance(qs, qs_type)
+        except Exception:
+            return False
+
+    def _build_q(self, *args: Any, **kwargs: Any):
+        return self.adapter.Q(*args, **kwargs)
+
+    def _integrity_error(self):
+        return getattr(self.adapter, "IntegrityError", Exception)
 
     # --- attribute accessors -------------------------------------------------
 
@@ -88,13 +178,22 @@ class BaseModelAdmin:
         """Return configured list filters."""
         return self.list_filter or ()
 
-    def get_ordering(self) -> Sequence[str]:
-        """Return default ordering for list views."""
-        return self.ordering
+    def get_ordering(self, md) -> str:
+        """Determine default ordering field."""
+        ordering = self.ordering
+        if ordering:
+            return ordering[0]
+        md_ordering = getattr(md, "ordering", None)
+        if md_ordering:
+            return md_ordering[0]
+        meta_ordering = getattr(getattr(self.model, "Meta", None), "ordering", None)
+        if meta_ordering:
+            return meta_ordering[0]
+        return md.pk_attr
 
     def get_readonly_fields(self) -> Sequence[str]:
         """Return fields marked as read-only."""
-        return self.readonly_fields
+        return tuple(self.readonly_fields)
 
     def get_autocomplete_fields(self) -> Sequence[str]:
         """Return fields using autocomplete widgets."""
@@ -173,7 +272,118 @@ class BaseModelAdmin:
         """
         return True
 
+    # --- actions -----------------------------------------------------------
+
+    def _user_has_perm(self, user: Any, codename: PermAction | None) -> bool:
+        """Return ``True`` if ``user`` has ``codename`` permission."""
+        if codename is None:
+            return True
+        if getattr(user, "is_superuser", False):
+            return True
+        perms: set[str] = getattr(user, "permissions", set())
+        if not perms:
+            return False
+        action = codename.value if isinstance(codename, PermAction) else str(codename)
+        app_label = getattr(self, "app_label", "")
+        model_slug = getattr(self, "model_slug", getattr(self.model, "__name__", "").lower())
+        perm_key = f"{app_label}.{model_slug}.{action}".strip(".")
+        return perm_key in perms or action in perms
+
+    def _build_action_registry(self) -> Mapping[str, Type[BaseAction]]:
+        """Собираем {name -> ActionClass} c проверкой дублей."""
+        reg: dict[str, Type[BaseAction]] = {}
+        for cls in self.actions:
+            name = cls.spec.name
+            if name in reg:
+                raise ValueError(f"Duplicate action name: {name!r}")
+            reg[name] = cls
+        return MappingProxyType(reg)
+
+    @property
+    def _action_registry(self) -> Mapping[str, Type[BaseAction]]:
+        if not hasattr(self, "__action_registry"):
+            setattr(self, "__action_registry", self._build_action_registry())
+        return getattr(self, "__action_registry")
+
+    def get_actions(self) -> dict[str, BaseAction]:
+        """Instantiate and return available administrative actions."""
+        return {
+            name: cls().bind_admin(self)
+            for name, cls in self._action_registry.items()
+        }
+
+    def get_action(self, name: str) -> BaseAction | None:
+        """Return action instance registered under ``name``."""
+        cls = self._action_registry.get(name)
+        return cls().bind_admin(self) if cls else None
+
+    def list_actions(self) -> list[str]:
+        """List names of available actions."""
+        return list(self._action_registry.keys())
+
+    def get_action_specs(self, user: Any) -> list[dict[str, Any]]:
+        """Return action specifications permitted for ``user``."""
+        specs: list[dict[str, Any]] = []
+        for cls in self._action_registry.values():
+            spec = cls.spec
+            if self._user_has_perm(user, getattr(spec, "required_perm", None)):
+                spec_dict = asdict(spec)
+                schema = spec_dict.get("params_schema", {}) or {}
+                spec_dict["params_schema"] = {
+                    name: self._schema_type_name(tp) for name, tp in schema.items()
+                }
+                specs.append(spec_dict)
+        return specs
+
+    async def perform_action(
+        self, name: str, qs: QuerySet, params: dict[str, Any], user: Any
+    ) -> ActionResult:
+        """Execute named action on queryset ``qs`` in batches."""
+        action = self.get_action(name)
+        if action is None:
+            raise ActionNotFound("Unknown action")
+        spec = action.spec
+        if not self._user_has_perm(user, getattr(spec, "required_perm", None)):
+            raise PermissionDenied("Permission denied")
+        result = ActionResult(ok=True)
+        md = self.adapter.get_model_descriptor(self.model)
+        pk_attr = getattr(md, "pk_attr", "id")
+        ids = await self.adapter.fetch_values(qs, pk_attr, flat=True)
+        total = len(ids)
+        start = 0
+        while start < total:
+            end = start + action.batch_size
+            batch_ids = ids[start:end]
+            batch_qs = self.adapter.apply_filter_spec(
+                qs, [FilterSpec(pk_attr, "in", batch_ids)]
+            )
+            batch = await self.adapter.fetch_all(batch_qs)
+            items = list(batch)
+            if not items:
+                start = end
+                continue
+            batch_res = await action.run(items, params, user)
+            result.ok = result.ok and batch_res.ok
+            result.affected += batch_res.affected
+            result.skipped += batch_res.skipped
+            result.errors.extend(batch_res.errors)
+            if batch_res.report and not result.report:
+                result.report = batch_res.report
+            if batch_res.undo_token and not result.undo_token:
+                result.undo_token = batch_res.undo_token
+            start = end
+        return result
+
     # --- Assets -----------------------------------------------------------
+
+    def _prefix_static(self, path: str) -> str:
+        if path.startswith("/static/"):
+            prefix = system_config.get_cached(
+                SettingsKey.ADMIN_PREFIX, settings.ADMIN_PATH
+            ).rstrip("/")
+            if prefix:
+                return f"{prefix}{path}"
+        return path
 
     def collect_assets(self, md, mode: str, obj=None, request=None, fields: list[str] | None = None) -> dict:
         """Collect CSS/JS assets for all widgets used in a form.
@@ -184,8 +394,8 @@ class BaseModelAdmin:
         """
         fields = fields or self.get_fields(md)
 
-        css_ordered: list[str] = list(self.admin_assets_css)
-        js_ordered: list[str] = list(self.admin_assets_js)
+        css_ordered: list[str] = [self._prefix_static(h) for h in self.admin_assets_css]
+        js_ordered: list[str] = [self._prefix_static(s) for s in self.admin_assets_js]
         seen_css = set(css_ordered)
         seen_js = set(js_ordered)
 
@@ -196,10 +406,12 @@ class BaseModelAdmin:
             w = self._build_widget(md, name, mode, obj=obj, request=request)
             assets = w.get_assets() or {}
             for href in assets.get("css", []):
+                href = self._prefix_static(href)
                 if href not in seen_css:
                     seen_css.add(href)
                     css_ordered.append(href)
             for src in assets.get("js", []):
+                src = self._prefix_static(src)
                 if src not in seen_js:
                     seen_js.add(src)
                     js_ordered.append(src)
@@ -210,8 +422,8 @@ class BaseModelAdmin:
 
     def get_queryset(self) -> QuerySet:
         """Return base queryset for this admin."""
-        qs = self.model.all()
-        if not isinstance(qs, QuerySet):  # pragma: no cover - runtime safety
+        qs = self.adapter.all(self.model)
+        if not self._is_queryset(qs):  # pragma: no cover - runtime safety
             raise RuntimeError("get_queryset must return QuerySet")
         return qs
 
@@ -222,7 +434,7 @@ class BaseModelAdmin:
         keys from list columns rather than replace them.
         """
         qs = qs
-        if not isinstance(qs, QuerySet):  # pragma: no cover - runtime safety
+        if not self._is_queryset(qs):  # pragma: no cover - runtime safety
             raise RuntimeError("apply_select_related must return QuerySet")
         return qs
 
@@ -234,11 +446,14 @@ class BaseModelAdmin:
         field selection for list views.
         """
         if self.list_use_only:
-            only_fields = list(columns)
+            fd_map = getattr(md, "fields_map", {})
+            only_fields = [
+                c for c in columns if not (fd_map.get(c) and fd_map[c].relation)
+            ]
             if md.pk_attr not in only_fields:
                 only_fields.append(md.pk_attr)
-            qs = qs.only(*only_fields)
-        if not isinstance(qs, QuerySet):  # pragma: no cover - runtime safety
+            qs = self.adapter.only(qs, *only_fields)
+        if not self._is_queryset(qs):  # pragma: no cover - runtime safety
             raise RuntimeError("apply_only must return QuerySet")
         return qs
 
@@ -251,21 +466,17 @@ class BaseModelAdmin:
         for the substring ``q``.
         """
 
-        if hasattr(Tortoise, "get_model"):
-            rel_model = Tortoise.get_model(fd.relation.target)
-        else:  # pragma: no cover - older Tortoise versions
-            app_label, model_name = fd.relation.target.rsplit(".", 1)
-            rel_model = Tortoise.apps.get(app_label, {}).get(model_name)
-        qs = rel_model.all()
+        rel_model = self.adapter.get_model(fd.relation.target)
+        qs = self.adapter.all(rel_model)
         if q and search_fields:
             filters = {f"{sf}__icontains": q for sf in search_fields}
             cond = None
             for k, v in filters.items():
-                q_obj = Q(**{k: v})
+                q_obj = self._build_q(**{k: v})
                 cond = q_obj if cond is None else (cond | q_obj)
             if cond is not None:
-                qs = qs.filter(cond)
-        if not isinstance(qs, QuerySet):  # pragma: no cover - runtime safety
+                qs = self.adapter.filter(qs, cond)
+        if not self._is_queryset(qs):  # pragma: no cover - runtime safety
             raise RuntimeError("get_autocomplete_queryset must return QuerySet")
         return qs
 
@@ -276,7 +487,7 @@ class BaseModelAdmin:
         control.
         """
         qs = qs
-        if not isinstance(qs, QuerySet):  # pragma: no cover - runtime safety
+        if not self._is_queryset(qs):  # pragma: no cover - runtime safety
             raise RuntimeError("apply_row_level_security must return QuerySet")
         return qs
 
@@ -288,16 +499,17 @@ class BaseModelAdmin:
         qs = self.get_queryset()
         qs = self.apply_select_related(qs)
         qs = self.apply_row_level_security(qs, user)
-        if not isinstance(qs, QuerySet):  # pragma: no cover - runtime safety
+        if not self._is_queryset(qs):  # pragma: no cover - runtime safety
             raise RuntimeError("get_objects must return QuerySet")
         return qs
 
-    def handle_integrity_error(self, exc: IntegrityError) -> None:
+    def handle_integrity_error(self, exc: Exception) -> None:
         """Handle ``IntegrityError`` raised during save operations.
 
-        Subclasses may override this to provide custom responses.
+        Subclasses may override this to provide custom responses and may raise
+        :class:`AdminIntegrityError` with an appropriate message.
         """
-        raise HTTPException(status_code=400, detail="Integrity error.")
+        raise AdminIntegrityError("Integrity error.")
     
     def get_fields(self, md) -> list[str]:
         """Return field names for the admin form.
@@ -352,13 +564,26 @@ class BaseModelAdmin:
             cleaned.append(name)
         return cleaned
 
-    def get_fieldsets(self, md) -> tuple[tuple[str, dict[str, Any]], ...]:
-        """Return configured fieldsets for the admin form."""
+    def get_fieldsets(self, md) -> list[Mapping[str, Any]] | None:
+        """Return configured fieldsets for the admin form.
 
-        if self.fieldsets is not None:
-            return self.fieldsets
+        Each fieldset dictionary may contain:
 
-        return (("Main", {"fields": self.get_fields(md)}),)
+        ``title`` (str | None):
+            Heading for the fieldset. ``None`` merges fields into the root.
+        ``fields`` (Sequence[Any]):
+            Iterable of field names or tuples defining grid sub‑groups.
+        ``icon`` (str):
+            Bootstrap icon identifier.
+        ``hide_title`` (bool):
+            When ``True``, the title is hidden but the icon remains.
+        ``class`` (str):
+            CSS class applied to the fieldset container.
+        ``collapsed`` (bool):
+            Whether the group is initially collapsed.
+        """
+
+        return self.fieldsets
 
     # --- minimal public API -------------------------------------------------
 
@@ -368,7 +593,7 @@ class BaseModelAdmin:
         meta = getattr(fd, "meta", None) or {}
         if "widget" in meta:
             return str(meta["widget"])
-        return widget_registry.resolve_for_field(fd)
+        return widget_registry.resolve_for_field(fd, field_name, self)
     
     def _build_widget(
         self,
@@ -387,6 +612,9 @@ class BaseModelAdmin:
                 f"No widget registered for key '{key}' "
                 f"(field='{name}', model='{model_name}')"
             )
+        prefix = system_config.get_cached(
+            SettingsKey.ADMIN_PREFIX, settings.ADMIN_PATH
+        ).rstrip("/")
         ctx = WidgetContext(
             admin=self,
             descriptor=md,
@@ -396,15 +624,134 @@ class BaseModelAdmin:
             mode=mode,
             request=request,
             readonly=self.is_field_readonly(md, name, mode, obj),
+            prefix=prefix,
         )
         return cls(ctx)
+
+    def _build_fieldset_properties(
+        self,
+        fieldsets: Iterable[Mapping[str, Any]],
+        flat_properties: Mapping[str, Any],
+        flat_startval: dict[str, Any],
+    ) -> tuple[dict[str, Any], list[str], dict[str, Any]]:
+        result: dict[str, Any] = {}
+        order: list[str] = []
+        grouped_startval: dict[str, Any] = {}
+
+        for fs in fieldsets:
+            title = fs.get("title")
+            fields = fs.get("fields", ())
+            if title is None:
+                for idx, item in enumerate(fields):
+                    if isinstance(item, (list, tuple)):
+                        g_key = f"group_{idx}"
+                        names = list(item)
+                        result[g_key] = {
+                            "type": "object",
+                            "format": "grid",
+                            "title": "\u200B",
+                            "titleHidden": True,
+                            "options": {"headerTemplate": ""},
+                            "disable_collapse": True,
+                            "collapsed": False,
+                            "additionalProperties": False,
+                            "properties": {
+                                name: flat_properties[name] for name in names
+                            },
+                            "defaultProperties": names,
+                        }
+                        g_start: dict[str, Any] = {}
+                        for name in names:
+                            if name in flat_startval:
+                                g_start[name] = flat_startval.pop(name)
+                        if g_start:
+                            grouped_startval[g_key] = g_start
+                        order.append(g_key)
+                    else:
+                        result[item] = flat_properties[item]
+                        if item in flat_startval:
+                            grouped_startval[item] = flat_startval.pop(item)
+                        order.append(item)
+                continue
+
+            icon = fs.get("icon", "")
+            hide_title = bool(fs.get("hide_title", False))
+            container_class = fs.get("class")
+            collapsed_opt = fs.get("collapsed")
+            collapsed = bool(collapsed_opt) if collapsed_opt is not None else False
+            disable_collapse = collapsed_opt is None
+            header = f"<i class='bi bi-{icon}'></i>"
+
+            group_props: dict[str, Any] = {}
+            group_order: list[str] = []
+            group_start: dict[str, Any] = {}
+            for idx, item in enumerate(fields):
+                if isinstance(item, (list, tuple)):
+                    g_key = f"group_{idx}"
+                    names = list(item)
+                    group_props[g_key] = {
+                        "type": "object",
+                        "format": "grid",
+                        "title": "\u200B",
+                        "titleHidden": True,
+                        "options": {"headerTemplate": ""},
+                        "disable_collapse": True,
+                        "collapsed": False,
+                        "additionalProperties": False,
+                        "properties": {
+                            name: flat_properties[name] for name in names
+                        },
+                        "defaultProperties": names,
+                    }
+                    g_start: dict[str, Any] = {}
+                    for name in names:
+                        if name in flat_startval:
+                            g_start[name] = flat_startval.pop(name)
+                    if g_start:
+                        group_start[g_key] = g_start
+                    group_order.append(g_key)
+                else:
+                    group_props[item] = flat_properties[item]
+                    if item in flat_startval:
+                        group_start[item] = flat_startval.pop(item)
+                    group_order.append(item)
+
+            options: dict[str, Any] = {}
+            if container_class:
+                options["containerAttributes"] = {"class": container_class}
+            if hide_title:
+                fs_title = "\u200B"
+                options["headerTemplate"] = header
+            else:
+                fs_title = title
+                options["headerTemplate"] = (
+                    f"{header}<span class='ms-1'>{{title}}</span>"
+                )
+
+            key = str(title)
+            result[key] = {
+                "type": "object",
+                "format": "grid",
+                "title": fs_title,
+                "options": options,
+                "disable_collapse": disable_collapse,
+                "collapsed": collapsed,
+                "additionalProperties": False,
+                "properties": group_props,
+                "defaultProperties": group_order,
+            }
+            if group_start:
+                grouped_startval[key] = group_start
+            order.append(key)
+
+        return result, order, grouped_startval
 
     async def get_schema(self, request, user, md, mode: str, obj=None) -> dict:
         """Assemble JSON ``schema`` and ``startval`` for the form."""
 
         field_names: tuple[str, ...] = tuple(self.get_fields(md))
 
-        properties: dict = {}
+        flat_properties: dict[str, Any] = {}
         required: list[str] = []
         startval: dict = {}
 
@@ -418,14 +765,14 @@ class BaseModelAdmin:
                 if inspect.iscoroutinefunction(pf):
                     await pf()
 
-            properties[name] = w.get_schema()
+            flat_properties[name] = w.get_schema()
             if getattr(md.fields_map[name], "required", False) and not w.ctx.readonly:
                 required.append(name)
 
             sv = w.get_startval()
             if sv is not None:
                 try:
-                    sv = w.to_storage(sv)
+                    sv = w.to_python(sv)
                 except Exception:
                     pass
                 startval[name] = sv
@@ -443,16 +790,26 @@ class BaseModelAdmin:
                     else:
                         sv = default if default is not None else ""
                     try:
-                        sv = w.to_storage(sv)
+                        sv = w.to_python(sv)
                     except Exception:
                         pass
                     startval[name] = sv
+
+        fieldsets = getattr(self, "fieldsets", None)
+        if fieldsets:
+            properties, order, startval = self._build_fieldset_properties(
+                fieldsets, flat_properties, startval
+            )
+        else:
+            properties = flat_properties
+            order = list(field_names)
 
         schema = {
             "type": "object",
             "properties": properties,
             "required": required,
-            "defaultProperties": list(field_names),
+            "defaultProperties": order,
+            "additionalProperties": False,
         }
 
         return {"schema": schema, "startval": startval}
@@ -472,17 +829,20 @@ class BaseModelAdmin:
         validation fails.
         """
 
-        md = self.model._meta
-        readonly = {name for name in md.fields_map if self.is_field_readonly(md, name, "edit")}
+        md = self.adapter.get_model_descriptor(self.model)
+        readonly = {
+            name for name in md.fields_map if self.is_field_readonly(md, name, "edit")
+        }
         hidden = set(getattr(self, "hidden_fields", []) or [])
         blocked = readonly | hidden
 
         data: Dict[str, Any] = {}
         m2m_ops: List[Tuple[str, Iterable[Any] | None]] = []
         for name, fd in md.fields_map.items():
-            if getattr(fd, "pk", False) or name in blocked:
+            if getattr(fd, "primary_key", False) or name in blocked:
                 continue
-            if isinstance(fd, ManyToManyFieldInstance):
+            rel = getattr(fd, "relation", None)
+            if rel and rel.kind == "m2m":
                 ids = payload.get(name, None if for_update else [])
                 if ids is None:
                     if for_update:
@@ -490,25 +850,36 @@ class BaseModelAdmin:
                         continue
                     ids = []
                 if not isinstance(ids, (list, tuple)):
-                    ids = [ids]  # normalize str or single value
+                    ids = [ids]
                 m2m_ops.append((name, ids))
                 continue
-            if isinstance(fd, ForeignKeyFieldInstance):
-                data[f"{name}_id"] = payload.get(name, None)
+            if rel and rel.kind == "fk":
+                val = payload.get(name, None)
+                if val == "" and getattr(fd, "nullable", False):
+                    val = None
+                data[f"{name}_id"] = val
                 continue
             if name in payload:
                 val = payload[name]
+                w = self._build_widget(md, name, mode="edit")
+                try:
+                    val = w.to_storage(val)
+                except (AttributeError, NotImplementedError):
+                    pass
                 if (
                     val == ""
-                    and (
-                        getattr(fd, "nullable", False)
-                        or getattr(fd, "null", False)
-                    )
-                    and isinstance(fd, (tfields.CharField, tfields.TextField))
+                    and getattr(fd, "nullable", False)
+                    and getattr(fd, "kind", None) in {"string", "text"}
                 ):
                     val = None
                 data[name] = val
         return data, m2m_ops
+
+    async def m2m_clear(self, manager):
+        await self.adapter.m2m_clear(manager)
+
+    async def m2m_add(self, manager, objs: Iterable[Any]):
+        await self.adapter.m2m_add(manager, objs)
 
     async def create(
         self,
@@ -526,18 +897,25 @@ class BaseModelAdmin:
         """
 
         data, m2m_ops = self.clean(payload, for_update=False)
-        obj = await self.model.create(**data)
+        try:
+            obj = await self.adapter.create(self.model, **data)
+        except self._integrity_error() as exc:
+            self.handle_integrity_error(exc)
+            raise
         for fname, ids in m2m_ops:
             if ids is None:
                 continue
-            await obj.fetch_related(fname)
+            await self.adapter.fetch_related(obj, fname)
             manager = getattr(obj, fname)
-            await manager.clear()
+            await self.m2m_clear(manager)
             if ids:
                 model_cls = manager.remote_model
-                pk_attr = model_cls._meta.pk_attr
-                related = await model_cls.filter(**{f"{pk_attr}__in": ids})
-                await manager.add(*related)
+                pk_attr = self.adapter.get_pk_attr(model_cls)
+                related_qs = self.adapter.apply_filter_spec(
+                    model_cls, [FilterSpec(pk_attr, "in", ids)]
+                )
+                related = await self.adapter.fetch_all(related_qs)
+                await self.m2m_add(manager, related)
         return obj
 
     async def update(
@@ -559,31 +937,47 @@ class BaseModelAdmin:
         for key, val in data.items():
             setattr(obj, key, val)
         if data:
-            await obj.save(update_fields=list(data.keys()))
+            try:
+                await self.adapter.save(obj, update_fields=list(data.keys()))
+            except self._integrity_error() as exc:
+                self.handle_integrity_error(exc)
+                raise
         for fname, ids in m2m_ops:
             if ids is None:
                 continue
-            await obj.fetch_related(fname)
+            await self.adapter.fetch_related(obj, fname)
             manager = getattr(obj, fname)
-            await manager.clear()
+            await self.m2m_clear(manager)
             if ids:
                 model_cls = manager.remote_model
-                pk_attr = model_cls._meta.pk_attr
-                related = await model_cls.filter(**{f"{pk_attr}__in": ids})
-                await manager.add(*related)
+                pk_attr = self.adapter.get_pk_attr(model_cls)
+                related_qs = self.adapter.apply_filter_spec(
+                    model_cls, [FilterSpec(pk_attr, "in", ids)]
+                )
+                related = await self.adapter.fetch_all(related_qs)
+                await self.m2m_add(manager, related)
         return obj
 
     def get_list_columns(self, md) -> Sequence[str]:
         """Return column names used by list views.
 
-        Defaults to :meth:`get_list_display` or the model's primary key.  Override
-        this to supply custom dynamic column sets.
+        When ``list_display`` is provided it is respected. Otherwise all model
+        fields except the primary key are returned so that the ``id`` column is
+        not shown by default.
         """
 
         cols = list(self.get_list_display())
-        if not cols:
-            cols = [md.pk_attr]
-        return cols
+        if cols:
+            return cols
+        fields = [f for f in self.get_fields(md) if f not in {md.pk_attr, "id"}]
+        if not fields:
+            fields = [md.pk_attr]
+        return fields
+
+    def get_orderable_fields(self, md) -> set[str]:
+        """Return field names that are allowed for ordering in list views."""
+        columns = self.get_list_columns(md)
+        return {c["key"] for c in self.columns_meta(md, columns) if c["sortable"]}
 
     def get_search_fields(self, md) -> list[str]:
         """Return field names used for text search in list views.
@@ -602,14 +996,8 @@ class BaseModelAdmin:
             fd = fd_map.get(name)
             if not fd:
                 continue
-            kind = getattr(fd, "kind", None)
-            if kind is not None:
-                if kind in {"text", "string"} and not getattr(fd, "choices", None):
-                    result.append(name)
-            elif (
-                isinstance(fd, (tfields.TextField, tfields.CharField))
-                and not getattr(fd, "choices", None)
-                and getattr(fd, "enum_type", None) is None
+            if getattr(fd, "kind", None) in {"text", "string"} and not getattr(
+                fd, "choices", None
             ):
                 result.append(name)
         return result
@@ -626,24 +1014,30 @@ class BaseModelAdmin:
         if not list_filter:
             return specs
 
-        fields = getattr(md, "fields", {}) or {}
         for item in list_filter:
-            fname = item if isinstance(item, str) else None
-            if not fname:
+            path = item if isinstance(item, str) else None
+            if not path:
                 continue
+            parts = path.split(".")
+            cur_md = md
             fd = None
-            if isinstance(fields, dict):
-                fd = fields.get(fname)
-            else:
-                for f in fields:
-                    if getattr(f, "name", None) == fname:
-                        fd = f
+            for i, part in enumerate(parts):
+                fd_map = getattr(cur_md, "fields_map", {}) or {}
+                fd = fd_map.get(part)
+                if fd is None:
+                    break
+                if i < len(parts) - 1:
+                    rel = getattr(fd, "relation", None)
+                    if rel is None:
+                        fd = None
                         break
+                    rel_model = self.adapter.get_model(rel.target)
+                    cur_md = self.adapter.get_model_descriptor(rel_model)
             if fd is None:
                 continue
 
             kind = getattr(fd, "kind", "")
-            label = getattr(fd, "verbose_name", fname.replace("_", " ").title())
+            label = getattr(fd, "label", None) or parts[-1].replace("_", " ").title()
 
             if kind == "integer":
                 kind = "number"
@@ -664,52 +1058,67 @@ class BaseModelAdmin:
                 ops = ["eq"]
 
             spec: Dict[str, Any] = {
-                "name": fname,
+                "name": path,
                 "label": label,
                 "kind": kind,
                 "ops": ops,
             }
             if kind == "choice":
-                spec["choices"] = [
-                    {"value": v, "label": str(lbl)}
-                    for v, lbl in getattr(fd, "choices", [])
-                ]
+                choices = []
+                for ch in getattr(fd, "choices", []) or []:
+                    try:
+                        val, lbl = ch
+                    except Exception:  # pragma: no cover - fallback
+                        val = getattr(ch, "const", getattr(ch, "value", ch))
+                        lbl = getattr(ch, "title", getattr(ch, "label", str(ch)))
+                    choices.append({"value": val, "label": str(lbl)})
+                spec["choices"] = choices
             specs.append(spec)
         return specs
 
     def parse_filters(self, params, md):
-        """
-        Parse query parameters like ``filter.<field>[__op]=value`` into a list of
-        ``(field, op, coerced_value)`` tuples.
-        ``md``: model descriptor (fields with types), see adapter.
-        """
-        filters = []
+        """Parse query parameters into :class:`FilterSpec` objects."""
+        filters: list[FilterSpec] = []
+        prefix = self.FILTER_PREFIX
         for key, raw in params.items():
-            if not key.startswith("filter."):
+            if not key.startswith(prefix):
                 continue
-            frag = key[7:]
-            if "__" in frag:
-                fname, op = frag.split("__", 1)
+            frag = key[len(prefix):]
+            parts = frag.split(".") if frag else []
+            if not parts:
+                continue
+            op_key = parts[-1]
+            if op_key in self.FILTER_OPS and op_key != "":
+                field_parts = parts[:-1]
+                op = self.FILTER_OPS[op_key]
             else:
-                fname, op = frag, ""
+                field_parts = parts
+                op = "eq"
+            if not field_parts:
+                continue
+            fname = ".".join(field_parts)
+            root = field_parts[0]
             fd = None
             if hasattr(md, "fields"):
                 try:
-                    fd = md.fields.get(fname)
+                    fd = md.fields.get(root)
                 except AttributeError:
                     for f in md.fields or []:
-                        if getattr(f, "name", None) == fname:
+                        if getattr(f, "name", None) == root:
                             fd = f
                             break
             if fd is None:
-                fd = getattr(md, "fields_map", {}).get(fname)
+                fd = getattr(md, "fields_map", {}).get(root)
             if fd is None:
                 continue
-            op = self.FILTER_OPS.get(op, "eq")
-            val = self._coerce_value_for_filter(fd, raw, op)
+            val = (
+                self._coerce_value_for_filter(fd, raw, op)
+                if len(field_parts) == 1
+                else str(raw).strip()
+            )
             raw_txt = str(raw).strip().lower()
-            if (val is not None) or (op == "eq" and raw_txt == "null"):
-                filters.append((fname, op, val))
+            if (val is not None and val != "") or (op == "eq" and raw_txt == "null"):
+                filters.append(FilterSpec(fname, op, val))
         return filters
 
     def _coerce_value_for_filter(self, fd, raw, op):
@@ -750,29 +1159,11 @@ class BaseModelAdmin:
 
         return txt
 
-    def apply_filters_to_queryset(self, qs, flist):
-        """
-        Apply a list of filters to a ``QuerySet`` (Tortoise ORM).
-        """
-        for fname, op, val in flist:
-            if op == "eq":
-                if isinstance(val, str) and val.lower() == "null":
-                    qs = qs.filter(**{f"{fname}__isnull": True})
-                else:
-                    qs = qs.filter(**{fname: val})
-            elif op == "icontains":
-                qs = qs.filter(**{f"{fname}__icontains": val})
-            elif op == "gte":
-                qs = qs.filter(**{f"{fname}__gte": val})
-            elif op == "lte":
-                qs = qs.filter(**{f"{fname}__lte": val})
-            elif op == "gt":
-                qs = qs.filter(**{f"{fname}__gt": val})
-            elif op == "lt":
-                qs = qs.filter(**{f"{fname}__lt": val})
-            elif op == "in":
-                qs = qs.filter(**{f"{fname}__in": val})
-        return qs
+    def apply_filters_to_queryset(
+        self, qs: QuerySet, flist: Sequence[FilterSpec]
+    ) -> QuerySet:
+        """Apply :class:`FilterSpec` objects to ``qs`` via the adapter."""
+        return self.adapter.apply_filter_spec(qs, list(flist))
 
     def get_list_queryset(self, request, user, md, params: Dict[str, Any]) -> QuerySet:
         """Construct the queryset for list views.
@@ -796,26 +1187,21 @@ class BaseModelAdmin:
             cond = None
             for sf in search_fields:
                 lookup = f"{sf}__icontains"
-                q_obj = Q(**{lookup: search})
+                q_obj = self._build_q(**{lookup: search})
                 cond = q_obj if cond is None else (cond | q_obj)
             if cond is not None:
-                qs = qs.filter(cond)
+                qs = self.adapter.filter(qs, cond)
 
         if not order:
-            ordering = self.get_ordering()
-            if ordering:
-                order = ordering[0]
-            else:
-                order = f"-{md.pk_attr}"
+            order = self.get_ordering(md)
 
-        columns = self.get_list_columns(md)
-        sortable_keys = {c["key"] for c in self.columns_meta(md, columns) if c["sortable"]}
         ord_field = order[1:] if order.startswith("-") else order
-        if ord_field not in sortable_keys:
-            order = f"-{md.pk_attr}"
-        qs = qs.order_by(order)
+        if ord_field not in self.get_orderable_fields(md):
+            order = self.get_ordering(md)
+        qs = self.adapter.order_by(qs, order)
         params["order"] = order
 
+        columns = self.get_list_columns(md)
         fk_to_select: List[str] = []
         fd_map = getattr(md, "fields_map", {})
         for col in columns:
@@ -825,10 +1211,10 @@ class BaseModelAdmin:
         qs = self.apply_select_related(qs)
         # ``fk_to_select`` is appended after ``apply_select_related``
         if fk_to_select:
-            qs = qs.select_related(*fk_to_select)
+            qs = self.adapter.select_related(qs, *fk_to_select)
 
         qs = self.apply_only(qs, columns, md)
-        if not isinstance(qs, QuerySet):  # pragma: no cover - runtime safety
+        if not self._is_queryset(qs):  # pragma: no cover - runtime safety
             raise RuntimeError("get_list_queryset must return QuerySet")
         return qs
 
@@ -841,29 +1227,49 @@ class BaseModelAdmin:
         """
 
         fd_map = getattr(md, "fields_map", {})
-        row: Dict[str, Any] = {md.pk_attr: getattr(obj, md.pk_attr)}
+        row: Dict[str, Any] = {}
         for col in columns:
-            fd = fd_map.get(col)
-            val = getattr(obj, col, None)
+            relation_name = col[:-3] if col.endswith("_id") else col
+            fd = fd_map.get(relation_name)
             if fd and fd.relation:
                 try:
                     if fd.relation.kind == "fk":
-                        rel_obj = getattr(obj, col)
+                        rel_obj = getattr(obj, relation_name, None)
+                        if rel_obj is not None and hasattr(rel_obj, "__await__"):
+                            try:
+                                rel_obj = await rel_obj
+                            except Exception:
+                                rel_obj = None
                         row[col] = str(rel_obj) if rel_obj is not None else None
                     elif fd.relation.kind == "m2m":
                         try:
-                            cnt = await getattr(obj, col).count()
+                            cnt = await self.adapter.count(
+                                getattr(obj, relation_name)
+                            )
                             row[col] = f"{cnt} items"
                         except Exception:
                             row[col] = None
                 except Exception:
                     row[col] = None
             else:
+                val = getattr(obj, col, None)
                 if val is not None and hasattr(val, "isoformat"):
                     row[col] = val.isoformat()
                 else:
                     row[col] = val
+        row["row_pk"] = getattr(obj, md.pk_attr)
+        row["row_str"] = str(obj)
         return row
+
+    def _related_model_verbose_name(self, md, field: str) -> str | None:
+        """Return verbose name for related model referenced by ``field``."""
+        fd = getattr(md, "fields_map", {}).get(field)
+        rel = getattr(fd, "relation", None) if fd else None
+        if rel is not None:
+            rel_model = self.adapter.get_model(rel.target)
+            rel_md = self.adapter.get_model_descriptor(rel_model)
+            return getattr(rel_md, "model_name", None) or getattr(rel_model, "__name__", None)
+        return None
 
     def columns_meta(self, md, columns: Sequence[str]) -> List[Dict[str, Any]]:
         """Return metadata for list ``columns``.
@@ -893,10 +1299,14 @@ class BaseModelAdmin:
         meta: List[Dict[str, Any]] = []
         for col in columns:
             fd = fd_map.get(col)
+            label = getattr(fd, "verbose_name", None) or col.replace("_", " ").title()
+            if col.endswith("_id"):
+                rel_label = self._related_model_verbose_name(md, col[:-3])
+                if rel_label:
+                    label = rel_label
             entry = {
                 "key": col,
-                "label": getattr(fd, "verbose_name", None)
-                or col.replace("_", " ").title(),
+                "label": label,
                 "type": _col_type(fd),
                 "sortable": False
                 if fd is None or (fd.relation and fd.relation.kind == "m2m")
@@ -905,14 +1315,12 @@ class BaseModelAdmin:
             if fd and getattr(fd, "choices", None):
                 ch_map = {}
                 for ch in fd.choices:
-                    try:
-                        key, label = ch
-                    except Exception:
-                        key = getattr(ch, "value", ch)
-                        label = getattr(ch, "label", str(ch))
+                    key = getattr(ch, "const", getattr(ch, "value", ch))
+                    label = getattr(ch, "title", getattr(ch, "label", str(ch)))
                     ch_map[str(key)] = str(label)
                 entry["choices_map"] = ch_map
             meta.append(entry)
         return meta
 
 # The End
+

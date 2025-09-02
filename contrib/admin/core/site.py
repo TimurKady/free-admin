@@ -12,32 +12,28 @@ Email: timurkady@yandex.com
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any, Callable, Dict, List
 
-from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from tortoise.exceptions import IntegrityError
-from tortoise.models import Model
+from urllib.parse import urlparse
 from config.settings import settings
 
-from ..adapters.tortoise import get_model_descriptor
-
-from .auth import (
-    AdminUserDTO,
-    build_auth_router,
-    get_current_admin_user,
-    require_permissions,
-)
-from .permissions import require_global_permission, PermAction
+from ..adapters import BaseAdapter
+from .auth import AdminUserDTO, admin_auth_service
+from .permissions import PermAction, permissions_service
 from .base import BaseModelAdmin
 from .pages import FreeViewPage, SettingsPage
 from .settings import SettingsKey, system_config
 from .registry import PageRegistry, MenuItem
-from ..models.content_type import AdminContentType
+from .exceptions import AdminModelNotFound
 from ..crud import CrudRouterBuilder
 from ..api import API_PREFIX, router as api_router
 from ..provider import TemplateProvider
+
+Model = Any
 
 logger = logging.getLogger(__name__)
 
@@ -46,19 +42,68 @@ logger = logging.getLogger(__name__)
 class AdminSite:
     """Admin registry: models, pages and menus."""
 
-    def __init__(self, *, title: str | None = None, templates: Jinja2Templates | None = None) -> None:
-        """Initialize the admin site with optional title and templates."""
-        if title is None:
-            title = system_config.get_cached(
-                SettingsKey.DEFAULT_ADMIN_TITLE, "Admin"
-            )
-        self.title = title
+    def __init__(
+        self,
+        adapter: BaseAdapter,
+        *,
+        title: str | None = None,
+        templates: Jinja2Templates | None = None,
+    ) -> None:
+        """Initialize the admin site with required adapter."""
+        self.adapter = adapter
+        self.AdminContentType = adapter.content_type_model
+        self.IntegrityError = getattr(adapter, "IntegrityError", Exception)
+        self._title_override = title
         # key: (app_label, model_slug) in lowercase
         self.model_reg: Dict[tuple[str, str], BaseModelAdmin] = {}
         self.registry = PageRegistry()
         self.templates = templates
         # in-process map: (app.lower(), model.lower()) -> ct_id
         self.ct_map: Dict[tuple[str, str], int] = {}
+
+    @staticmethod
+    def _resolve_icon_path(icon_path: str, prefix: str, static_segment: str) -> str:
+        parsed = urlparse(icon_path)
+        if parsed.scheme or icon_path.startswith("/"):
+            return icon_path
+        static_pos = icon_path.find("static/")
+        if static_pos != -1:
+            icon_path = icon_path[static_pos + len("static/") :]
+        return (
+            f"{prefix.rstrip('/')}{static_segment.rstrip('/')}/"
+            f"{icon_path.lstrip('/')}"
+        )
+
+    @property
+    def title(self) -> str:
+        """Return configured admin site title."""
+        if self._title_override is not None:
+            return self._title_override
+        return system_config.get_cached(
+            SettingsKey.DEFAULT_ADMIN_TITLE, settings.ADMIN_SITE_TITLE
+        )
+
+    @property
+    def brand_icon(self) -> str:
+        """Return URL to the brand icon."""
+        icon_path = system_config.get_cached(
+            SettingsKey.BRAND_ICON, settings.BRAND_ICON
+        )
+        prefix = system_config.get_cached(
+            SettingsKey.ADMIN_PREFIX, settings.ADMIN_PATH
+        )
+        static_segment = system_config.get_cached(
+            SettingsKey.STATIC_URL_SEGMENT, "/static"
+        )
+        return self._resolve_icon_path(icon_path, prefix, static_segment)
+
+    @staticmethod
+    async def _allow(_: Request) -> None:
+        return None
+
+    @staticmethod
+    def _model_to_slug(name: str) -> str:
+        return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
 
     # ==== Registration ====
     def register(
@@ -74,25 +119,25 @@ class AdminSite:
 
         Args:
             app: application label, e.g. "streams"
-            model: Tortoise ORM model class
+            model: ORM model class
             admin_cls: admin class for this model
             settings: register under /settings (True) or /orm (False)
             icon: Bootstrap icon class for menu (e.g. "bi-gear")
         """
         app_label = app
         model_cls = model
-        model_slug = model_cls.__name__.lower()
+        model_slug = self._model_to_slug(model_cls.__name__)
 
         if admin_cls is None:
             raise ValueError("Admin class is required")
 
         # Support both admin initializers:
-        #   AdminClass(self, app_label, model_slug)   — new style
-        #   AdminClass(model_cls)                     — old style
+        #   AdminClass(self, app_label, model_slug, adapter)   — new style
+        #   AdminClass(model_cls, adapter)                     — old style
         try:
-            admin = admin_cls(self, app_label, model_slug)
+            admin = admin_cls(self, app_label, model_slug, self.adapter)
         except TypeError:
-            admin = admin_cls(model_cls)
+            admin = admin_cls(model_cls, self.adapter)
             setattr(admin, "app_label", app_label)
             setattr(admin, "model_slug", model_slug)
         display_name = admin.get_verbose_name_plural()
@@ -127,22 +172,31 @@ class AdminSite:
         """Return admin for given model or raise 404."""
         admin = self.model_reg.get((app.lower(), model.lower()))
         if not admin:
-            raise HTTPException(status_code=404, detail="Unknown admin model")
+            raise AdminModelNotFound("Unknown admin model")
         return admin
 
     async def finalize(self) -> None:
         """Idempotent upsert of ContentType records for registered models."""
         for app, model in self.model_reg.keys():
             dotted = f"{app}.{model}"
-            ct = await AdminContentType.get_or_none(app_label=app, model=model)
+            ct = await self.adapter.get_or_none(
+                self.AdminContentType, dotted=dotted
+            )
             if ct is None:
+                ct = self.AdminContentType(app_label=app, model=model, dotted=dotted)
                 try:
-                    ct = await AdminContentType.create(app_label=app, model=model, dotted=dotted)
-                except IntegrityError:
-                    ct = await AdminContentType.get(app_label=app, model=model)
-            elif ct.dotted != dotted:
+                    await self.adapter.save(ct)
+                except self.IntegrityError:
+                    ct = await self.adapter.get(
+                        self.AdminContentType, dotted=dotted
+                    )
+            elif (
+                ct.app_label != app or ct.model != model or ct.dotted != dotted
+            ):
+                ct.app_label = app
+                ct.model = model
                 ct.dotted = dotted
-                await ct.save()
+                await self.adapter.save(ct)
             self.ct_map[(app.lower(), model.lower())] = ct.id
 
     def get_ct_id(self, app: str, model: str) -> int | None:
@@ -160,7 +214,9 @@ class AdminSite:
         """
 
         path = request.url.path
-        prefix = settings.ADMIN_PATH.rstrip("/")
+        prefix = system_config.get_cached(
+            SettingsKey.ADMIN_PREFIX, settings.ADMIN_PATH
+        ).rstrip("/")
         if prefix and path.startswith(prefix):
             path = path[len(prefix) :]
 
@@ -263,11 +319,15 @@ class AdminSite:
         orm_prefix = system_config.get_cached(SettingsKey.ORM_PREFIX, "/orm")
         settings_prefix = system_config.get_cached(SettingsKey.SETTINGS_PREFIX, "/settings")
         views_prefix = system_config.get_cached(SettingsKey.VIEWS_PREFIX, "/views")
+        admin_prefix = system_config.get_cached(
+            SettingsKey.ADMIN_PREFIX, settings.ADMIN_PATH
+        ).rstrip("/")
         ctx: Dict[str, Any] = {
             "request": request,
             "user": user,
             "site_title": self.title,
-            "prefix": settings.ADMIN_PATH,
+            "brand_icon": self.brand_icon,
+            "prefix": admin_prefix,
             "ORM_PREFIX": orm_prefix,
             "SETTINGS_PREFIX": settings_prefix,
             "VIEWS_PREFIX": views_prefix,
@@ -281,16 +341,6 @@ class AdminSite:
             ctx["page_title"] = page_title
         if extra:
             ctx.update(extra)
-
-        # Collect form widget assets for add/edit pages
-        last_segment = request.url.path.rstrip("/").split("/")[-1]
-        if last_segment in {"add", "edit"} and app_label and model_name:
-            admin = self.model_reg.get((app_label.lower(), model_name.lower()))
-            if admin is not None:
-                md = get_model_descriptor(admin.model)
-                ctx["assets"] = admin.collect_assets(
-                    md, mode=last_segment, obj=None, request=request
-                )
         return ctx
 
     def register_view(self, *, path: str, name: str, icon: str | None = None):
@@ -323,23 +373,24 @@ class AdminSite:
         router = APIRouter()
         templates = self.templates or template_provider.get_templates()
         setattr(router, "templates", templates)
+        admin_prefix = system_config.get_cached(
+            SettingsKey.ADMIN_PREFIX, settings.ADMIN_PATH
+        ).rstrip("/")
 
         def get_admin_api() -> dict[str, str]:
             """Expose fully-qualified API paths for templates."""
 
             api_prefix = system_config.get_cached(SettingsKey.API_PREFIX, "/api")
-            schema_path = system_config.get_cached(
-                SettingsKey.API_SCHEMA, f"{api_prefix}/schema"
+            schema_rel = system_config.get_cached(SettingsKey.API_SCHEMA, "/schema")
+            list_filters_rel = system_config.get_cached(
+                SettingsKey.API_LIST_FILTERS, "/list_filters"
             )
-            list_filters_path = system_config.get_cached(
-                SettingsKey.API_LIST_FILTERS, f"{api_prefix}/list_filters"
-            )
-            base = settings.ADMIN_PATH.rstrip("/")
+            base = admin_prefix
 
             return {
                 "prefix": f"{base}{api_prefix}",
-                "schema": f"{base}{schema_path}",
-                "list_filters": f"{base}{list_filters_path}",
+                "schema": f"{base}{api_prefix}{schema_rel}",
+                "list_filters": f"{base}{api_prefix}{list_filters_rel}",
             }
 
         templates.env.globals.update(
@@ -361,6 +412,7 @@ class AdminSite:
             settings_prefix,
             views_prefix,
             page_type_settings,
+            admin_prefix,
         )
         self._attach_api_routes(router)
         self._attach_crud_routes(router, orm_prefix, settings_prefix)
@@ -370,7 +422,9 @@ class AdminSite:
     def _attach_auth_routes(
         self, router: APIRouter, templates: Jinja2Templates
     ) -> None:
-        router.include_router(build_auth_router(templates), tags=["admin-auth"])
+        router.include_router(
+            admin_auth_service.build_auth_router(templates), tags=["admin-auth"]
+        )
 
     def _attach_page_routes(
         self,
@@ -380,11 +434,14 @@ class AdminSite:
         settings_prefix: str,
         views_prefix: str,
         page_type_settings: str,
+        admin_prefix: str,
     ) -> None:
         @router.get("/", response_class=HTMLResponse)
         async def admin_index(
             request: Request,
-            user: AdminUserDTO = Depends(require_permissions((), admin_site=self)),
+            user: AdminUserDTO = Depends(
+                admin_auth_service.require_permissions((), admin_site=self)
+            ),
         ) -> HTMLResponse:
             dash_title = await system_config.get(SettingsKey.DASHBOARD_PAGE_TITLE)
             return templates.TemplateResponse(
@@ -394,7 +451,7 @@ class AdminSite:
                     "site_title": self.title,
                     "user": user,
                     "page_title": dash_title,
-                    "prefix": settings.ADMIN_PATH,
+                    "prefix": admin_prefix,
                     "ORM_PREFIX": orm_prefix,
                     "SETTINGS_PREFIX": settings_prefix,
                     "VIEWS_PREFIX": views_prefix,
@@ -403,21 +460,21 @@ class AdminSite:
 
         for page in [p for p in self.registry.page_list if isinstance(p, FreeViewPage)]:
             user_dep = (
-                get_current_admin_user
+                admin_auth_service.get_current_admin_user
                 if page.page_type == page_type_settings
-                else require_permissions((), admin_site=self)
+                else admin_auth_service.require_permissions((), admin_site=self)
             )
             perm_dep = (
-                require_global_permission(PermAction.view)
+                permissions_service.require_global_permission(PermAction.view)
                 if page.page_type == page_type_settings
-                else (lambda: None)
+                else self._allow
             )
 
             async def view_handler(
                 request: Request,
                 page: FreeViewPage = Depends(lambda page=page: page),
                 user: AdminUserDTO = Depends(user_dep),
-                _: None = Depends(perm_dep),
+                _ = Depends(perm_dep),
             ) -> HTMLResponse:
                 ctx: Dict[str, Any] = {}
                 if page.handler:
@@ -485,3 +542,4 @@ class AdminSite:
         self.registry.make_menu()
 
 # The End
+

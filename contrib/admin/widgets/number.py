@@ -13,10 +13,11 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from . import BaseWidget, register_widget
+from .base import BaseWidget
+from .registry import registry
 
 
-@register_widget("number")
+@registry.register("number")
 class NumberWidget(BaseWidget):
     """Render numeric values using JSON Schema number/integer types."""
 
@@ -29,3 +30,4 @@ class NumberWidget(BaseWidget):
         })
 
 # The End
+

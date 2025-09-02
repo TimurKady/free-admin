@@ -30,7 +30,7 @@ class BaseWidget(ABC):
         css: tuple[str, ...] = ()
         js: tuple[str, ...] = ()
 
-    def __init__(self, ctx: WidgetContext) -> None:
+    def __init__(self, ctx: WidgetContext | None = None) -> None:
         self.ctx = ctx
 
     def get_assets(self) -> Dict[str, list[str]]:
@@ -82,6 +82,8 @@ class BaseWidget(ABC):
         return {"css": list(_uniq(css)), "js": list(_uniq(js))}
     
     def get_title(self) -> str:
+        if not self.ctx:
+            return ""
         label = getattr(self.ctx.field, "label", None)
         if label:
             return label
@@ -96,13 +98,13 @@ class BaseWidget(ABC):
 
     def merge_readonly(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         """Insert the ``readonly`` flag into the schema if needed."""
-        if self.ctx.readonly:
+        if self.ctx and self.ctx.readonly:
             schema["readonly"] = True
         return schema
     
     def get_startval(self) -> Any:
         """Start value for the form (edit) — defaults to ``instance``."""
-        if self.ctx.instance is not None:
+        if self.ctx and self.ctx.instance is not None:
             return getattr(self.ctx.instance, self.ctx.name, None)
         return None
 
@@ -118,3 +120,4 @@ class BaseWidget(ABC):
         return value
 
 # The End
+

@@ -9,4 +9,8 @@ Author: Timur Kady
 Email: timurkady@yandex.com
 """
 
+from .filters import FilterSpec
+
+__all__ = ["FilterSpec"]
+
 # The End

@@ -11,9 +11,10 @@ from __future__ import annotations
 from typing import Any, Dict
 from datetime import date, datetime, time
 
-from . import BaseWidget, register_widget
+from .base import BaseWidget
+from .registry import registry
 
-@register_widget("datetime")
+@registry.register("datetime")
 class DateTimeWidget(BaseWidget):
     """
     Widget for ``date``/``datetime``/``time`` fields.
@@ -48,3 +49,4 @@ class DateTimeWidget(BaseWidget):
         return value
 
 # The End
+

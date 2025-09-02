@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field as PField
 # Unified field types forming the basis for JSON Schema
 FieldKind = Literal[
     "string", "text", "integer", "bigint", "float", "decimal",
-    "boolean", "date", "datetime", "uuid", "json", "binary"
+    "boolean", "date", "datetime", "uuid", "json", "file", "binary"
 ]
 
 
@@ -81,3 +81,4 @@ class ModelDescriptor(BaseModel):
         return {f.name: f for f in self.fields}
 
 # The End
+

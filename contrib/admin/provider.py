@@ -17,6 +17,7 @@ from fastapi import FastAPI
 from fastapi.templating import Jinja2Templates
 from starlette.staticfiles import StaticFiles
 
+from config.settings import settings
 from .core.settings import SettingsKey, system_config
 
 class TemplateProvider:
@@ -29,6 +30,7 @@ class TemplateProvider:
     def get_templates(self) -> Jinja2Templates:
         """Return a configured ``Jinja2Templates`` instance."""
         templates = Jinja2Templates(directory=self.templates_dir)
+        templates.env.globals["settings"] = settings
         return templates
 
     def mount_static(self, app: FastAPI, prefix: str) -> None:

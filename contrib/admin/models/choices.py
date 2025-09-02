@@ -11,9 +11,7 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 from enum import Enum, IntEnum
-from typing import Any, List, Tuple, TypeVar
-
-_E = TypeVar("_E", bound="ChoicesMixin")
+from typing import Any, Iterable, List, Tuple, cast
 
 
 class ChoicesMixin:
@@ -23,28 +21,31 @@ class ChoicesMixin:
 
     @classmethod
     def choices(cls) -> List[Tuple[Any, str]]:
-        return [(m.value, m.label) for m in cls]  # type: ignore[attr-defined]
+        members = cast(Iterable[Any], cls)
+        return [(m.value, m.label) for m in members]  # type: ignore[attr-defined]
 
     @classmethod
     def values(cls) -> List[Any]:
-        return [m.value for m in cls]
+        members = cast(Iterable[Any], cls)
+        return [m.value for m in members]
 
     @classmethod
     def labels(cls) -> List[str]:
-        return [m.label for m in cls]  # type: ignore[attr-defined]
+        members = cast(Iterable[Any], cls)
+        return [m.label for m in members]  # type: ignore[attr-defined]
 
     @classmethod
     def get_label(cls, value: Any) -> str | None:
-        for m in cls:  # type: ignore[assignment]
+        for m in cast(Iterable[Any], cls):  # type: ignore[assignment]
             if m.value == value:
                 return getattr(m, "label", str(m))
         return None
 
     @classmethod
-    def from_value(cls: type[_E], value: Any) -> _E:
-        for m in cls:  # type: ignore[assignment]
-            if m.value == value:
-                return m  # type: ignore[return-value]
+    def from_value(cls, value: Any) -> ChoicesMixin:
+        for m in cast(Iterable[Any], cls):  # type: ignore[assignment]
+            if getattr(m, "value", None) == value:
+                return cast(ChoicesMixin, m)
         raise ValueError(f"{cls.__name__}: no member with value {value!r}")
 
 
@@ -74,3 +75,4 @@ class IntChoices(ChoicesMixin, IntEnum):
         return str(self.value)
 
 # The End
+

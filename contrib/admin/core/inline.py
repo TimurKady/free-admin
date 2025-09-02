@@ -15,7 +15,7 @@ from typing import Any, Optional, Type, Literal
 from .base import BaseModelAdmin
 
 
-class InlineAdmin(BaseModelAdmin):
+class InlineModelAdmin(BaseModelAdmin):
     """Base class for building an inline model."""
 
     model: Type[Any]
@@ -24,4 +24,9 @@ class InlineAdmin(BaseModelAdmin):
     can_delete: bool = True
     display: Literal["tabular", "stacked"] = "tabular"
 
+
+# Backward compatibility alias
+InlineAdmin = InlineModelAdmin
+
 # The End
+

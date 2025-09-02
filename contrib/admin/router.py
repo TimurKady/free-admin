@@ -14,6 +14,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from config.settings import settings
 
+from .core.settings import SettingsKey, system_config
 from .core.site import AdminSite
 from .provider import TemplateProvider
 
@@ -21,22 +22,34 @@ ASSETS_DIR = Path(__file__).parent / "static"
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
 
-def mount_admin(app: FastAPI, site: AdminSite, prefix: str = settings.ADMIN_PATH) -> None:
-    """Mount the admin interface onto the application."""
+class AdminRouter:
+    """Encapsulates mounting the admin interface onto an application."""
 
-    # "prefix" may be supplied with a trailing slash; remove it for
-    # consistency so paths can be concatenated safely.
-    prefix = prefix.rstrip("/")
+    def __init__(
+        self,
+        site: AdminSite,
+        prefix: str = system_config.get_cached(
+            SettingsKey.ADMIN_PREFIX, settings.ADMIN_PATH
+        ),
+    ) -> None:
+        # "prefix" may be supplied with a trailing slash; remove it for
+        # consistency so paths can be concatenated safely.
+        self.site = site
+        self.prefix = prefix.rstrip("/")
+        self._provider = TemplateProvider(
+            templates_dir=str(TEMPLATES_DIR), static_dir=str(ASSETS_DIR)
+        )
 
-    provider = TemplateProvider(
-        templates_dir=str(TEMPLATES_DIR), static_dir=str(ASSETS_DIR)
-    )
-    if site.templates is None:
-        site.templates = provider.get_templates()
+    def mount(self, app: FastAPI) -> None:
+        """Mount the admin interface onto the given application."""
+        if self.site.templates is None:
+            self.site.templates = self._provider.get_templates()
 
-    app.state.admin_site = site
-    router = site.build_router(provider)
-    app.include_router(router, prefix=prefix)
-    provider.mount_static(app, prefix)
+        app.state.admin_site = self.site
+        router = self.site.build_router(self._provider)
+        app.include_router(router, prefix=self.prefix)
+        self._provider.mount_static(app, self.prefix)
+
 
 # The End
+

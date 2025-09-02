@@ -13,32 +13,33 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from tortoise import Tortoise
+from ..boot import admin as boot_admin
+from .base import BaseWidget
+from .registry import registry
 
-from . import BaseWidget, register_widget
-
-
-def _choices_from_fd(fd) -> tuple[list[str], list[str]]:
-    """Extract ``enum`` and ``titles`` from a field descriptor.
-
-    Some ``FieldDescriptor`` instances might not have the ``meta`` attribute
-    populated (e.g. when ``prefetch`` was not executed or the field does not
-    require additional metadata).  Accessing ``fd.meta`` directly in those
-    cases raises ``AttributeError`` which breaks schema generation.  To make
-    the widget more robust we gracefully handle missing ``meta`` and simply
-    return empty choices.
-    """
-
-    meta = getattr(fd, "meta", None) or {}
-    cm = meta.get("choices_map") or {}
-    enum = list(cm.keys())
-    titles = list(cm.values())
-    return enum, titles
+_ = boot_admin.adapter
 
 
-@register_widget("relation")
+@registry.register("relation")
 class RelationsWidget(BaseWidget):
     """Simple select based on enum/enum_titles."""
+
+    def _choices_from_fd(self, fd) -> tuple[list[str], list[str]]:
+        """Extract ``enum`` and ``titles`` from a field descriptor.
+
+        Some ``FieldDescriptor`` instances might not have the ``meta`` attribute
+        populated (e.g. when ``prefetch`` was not executed or the field does not
+        require additional metadata).  Accessing ``fd.meta`` directly in those
+        cases raises ``AttributeError`` which breaks schema generation.  To make
+        the widget more robust we gracefully handle missing ``meta`` and simply
+        return empty choices.
+        """
+
+        meta = getattr(fd, "meta", None) or {}
+        cm = meta.get("choices_map") or {}
+        enum = list(cm.keys())
+        titles = list(cm.values())
+        return enum, titles
 
     async def prefetch(self) -> None:
         fd = self.ctx.field
@@ -46,16 +47,14 @@ class RelationsWidget(BaseWidget):
         if not rel:
             return
 
-        if hasattr(Tortoise, "get_model"):
-            RelModel = Tortoise.get_model(rel.target)
-        else:  # pragma: no cover - older versions
-            app_label, model_name = rel.target.rsplit(".", 1)
-            RelModel = Tortoise.apps.get(app_label, {}).get(model_name)
+        RelModel = boot_admin.adapter.get_model(rel.target)
         if RelModel is None:
             return
 
-        pk_attr = RelModel._meta.pk_attr
-        objs = await RelModel.all().order_by(pk_attr)
+        pk_attr = boot_admin.adapter.get_pk_attr(RelModel)
+        qs = boot_admin.adapter.all(RelModel)
+        qs = boot_admin.adapter.order_by(qs, pk_attr)
+        objs = await boot_admin.adapter.fetch_all(qs)
         choices_map = {str(getattr(o, pk_attr)): str(o) for o in objs}
 
         meta = dict(getattr(fd, "meta", {}) or {})
@@ -63,13 +62,19 @@ class RelationsWidget(BaseWidget):
         object.__setattr__(fd, "meta", meta)
 
         inst = self.ctx.instance
+        if getattr(rel, "kind", "") == "m2m" and inst is not None:
+            await boot_admin.adapter.fetch_related(inst, self.ctx.name)
+            related = getattr(inst, self.ctx.name) or []
+            ids = [getattr(o, pk_attr) for o in sorted(related, key=lambda o: getattr(o, pk_attr))]
+            setattr(inst, f"{self.ctx.name}_ids", ids)
+
         if inst is not None:
             cur = getattr(inst, f"{self.ctx.name}_id", None)
             if cur is not None:
                 key = str(cur)
                 if key not in choices_map:
                     try:
-                        obj = await RelModel.get(**{pk_attr: cur})
+                        obj = await boot_admin.adapter.get(RelModel, **{pk_attr: cur})
                         choices_map[key] = str(obj)
                     except Exception:
                         choices_map[key] = key
@@ -83,7 +88,7 @@ class RelationsWidget(BaseWidget):
         is_many = bool(getattr(fd, "many", False) or (rel and getattr(rel, "kind", "") == "m2m"))
         required = bool(getattr(fd, "required", False))
 
-        enum, titles = _choices_from_fd(fd)
+        enum, titles = self._choices_from_fd(fd)
 
         # Placeholder: only for single selects and only if the field is optional
         if not required and not is_many:
@@ -148,3 +153,4 @@ class RelationsWidget(BaseWidget):
         return str(value)
 
 # The End
+

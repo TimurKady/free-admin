@@ -15,7 +15,6 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 
 from config.settings import settings
-from contrib.admin.models.users import AdminUser as AdminUserORM
 
 from .core.settings import SettingsKey, system_config
 
@@ -29,7 +28,9 @@ class AdminGuardMiddleware(BaseHTTPMiddleware):
 
     def __init__(self, app):
         super().__init__(app)
-        self.prefix = settings.ADMIN_PATH.rstrip("/")
+        self.prefix = system_config.get_cached(
+            SettingsKey.ADMIN_PREFIX, settings.ADMIN_PATH
+        ).rstrip("/")
         self._login_path: str | None = None
         self._logout_path: str | None = None
         self._setup_path: str | None = None
@@ -40,6 +41,8 @@ class AdminGuardMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
+        from .boot import admin as boot_admin
+
         path = request.url.path
         if not path.startswith(self.prefix):
             return await call_next(request)
@@ -76,9 +79,10 @@ class AdminGuardMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         if self._has_superuser is not True:
-            self._has_superuser = await AdminUserORM.filter(
-                is_staff=True, is_superuser=True
-            ).exists()
+            qs = boot_admin.adapter.filter(
+                boot_admin.adapter.user_model, is_staff=True, is_superuser=True
+            )
+            self._has_superuser = await boot_admin.adapter.exists(qs)
         if not self._has_superuser:
             return RedirectResponse(f"{self.prefix}{setup_path}", status_code=307)
 
@@ -86,7 +90,9 @@ class AdminGuardMiddleware(BaseHTTPMiddleware):
         if not user_id:
             return RedirectResponse(f"{self.prefix}{login_path}", status_code=307)
 
-        user = await AdminUserORM.get_or_none(id=user_id)
+        user = await boot_admin.adapter.get_or_none(
+            boot_admin.adapter.user_model, id=user_id
+        )
         if not user or not user.is_active or not user.is_staff:
             return RedirectResponse(f"{self.prefix}{login_path}", status_code=307)
 
@@ -94,3 +100,4 @@ class AdminGuardMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 # The End
+

@@ -11,7 +11,8 @@ Email: timurkady@yandex.com
 
 from contrib.admin.core.model import ModelAdmin
 from contrib.admin.hub import admin_site
-from ..models.setting import SystemSetting
+from ..boot import admin as boot_admin
+SystemSetting = boot_admin.adapter.system_setting_model
 
 
 class SystemSettingAdmin(ModelAdmin):

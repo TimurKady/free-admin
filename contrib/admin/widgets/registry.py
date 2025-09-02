@@ -31,15 +31,27 @@ class WidgetRegistry:
     def get(self, key: str) -> Type[BaseWidget] | None:
         return self._by_key.get(key)
 
-    def resolve_for_field(self, fd: FieldDescriptor) -> str:
+    def resolve_for_field(
+        self,
+        fd: FieldDescriptor,
+        field_name: str | None = None,
+        admin=None,
+    ) -> str:
         """Map a field to a widget key."""
+        meta = getattr(fd, "meta", None) or {}
+        if "widget" in meta:
+            return str(meta["widget"])
+
         k = (fd.kind or "").lower()  # "string" | "int" | "bool" | "date" | "m2m" | "fk" | ...
-    
+
         # 1) Boolean fields — always a checkbox (even if choices like Yes/No are provided)
         if k in ("bool", "boolean"):
             return "checkbox"
 
         if fd.relation is not None:
+            name = field_name or getattr(fd, "name", "")
+            if admin is not None and name in admin.get_autocomplete_fields():
+                return "select2"
             return "relation"
 
         if fd.choices is not None:
@@ -53,11 +65,13 @@ class WidgetRegistry:
             return "textarea"
         if k == "string":
             return "text"
+        if k == "file":
+            return "filepath"
+        if k in ("binary", "bytes", "blob"):
+            return "textarea"
         return "text"
 
 registry = WidgetRegistry()
 
-def register_widget(key: str):
-    return registry.register(key)
-
 # The End
+

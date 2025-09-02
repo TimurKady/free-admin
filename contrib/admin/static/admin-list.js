@@ -1,17 +1,104 @@
+class ActionModal {
+  constructor() {
+    this.el = document.getElementById('actionModal');
+    this.modal = this.el ? new bootstrap.Modal(this.el) : null;
+    this.form = document.getElementById('action-form');
+    this.title = document.getElementById('action-title');
+    this.fields = document.getElementById('action-fields');
+    this.errors = document.getElementById('action-errors');
+    this.callback = null;
+    this.form?.addEventListener('submit', e => {
+      e.preventDefault();
+      this.submit();
+    });
+  }
+
+  open(spec, cb) {
+    this.callback = cb;
+    if (!this.modal) { this.callback({}); return; }
+    this.title.textContent = spec.label || spec.name;
+    this.buildFields(spec.params_schema || {});
+    this.errors.textContent = '';
+    this.modal.show();
+  }
+
+  buildFields(schema) {
+    this.fields.innerHTML = '';
+    for (const [key, type] of Object.entries(schema)) {
+      const wrap = document.createElement('div');
+      if (type === 'boolean') {
+        wrap.className = 'form-check';
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.id = `param-${key}`;
+        input.className = 'form-check-input';
+        const label = document.createElement('label');
+        label.className = 'form-check-label';
+        label.htmlFor = input.id;
+        label.textContent = key.replace(/_/g, ' ');
+        wrap.appendChild(input);
+        wrap.appendChild(label);
+      } else {
+        wrap.className = 'mb-3';
+        const label = document.createElement('label');
+        label.className = 'form-label';
+        label.htmlFor = `param-${key}`;
+        label.textContent = key.replace(/_/g, ' ');
+        const input = document.createElement('input');
+        input.type = (type === 'number' || type === 'integer') ? 'number' : 'text';
+        input.id = `param-${key}`;
+        input.className = 'form-control';
+        wrap.appendChild(label);
+        wrap.appendChild(input);
+      }
+      this.fields.appendChild(wrap);
+    }
+  }
+
+  collect() {
+    const params = {};
+    this.fields.querySelectorAll('input').forEach(inp => {
+      const key = inp.id.replace(/^param-/, '');
+      let value = inp.type === 'checkbox'
+        ? inp.checked
+        : (inp.type === 'number' ? (inp.value === '' ? null : Number(inp.value)) : inp.value);
+      if (value !== null && value !== '') {
+        params[key] = value;
+      }
+    });
+    return params;
+  }
+
+  submit() {
+    if (this.callback) {
+      const params = this.collect();
+      this.modal?.hide();
+      this.callback(params);
+    }
+  }
+}
+
 class AdminList {
+  static OPS = ['eq','icontains','gte','lte','gt','lt','in'];
+  static FILTER_PREFIX = 'filter.';
   constructor() {
     const path = window.location.pathname.replace(/\/$/, '');
     this.base = path;
     // explicit list API endpoint
     this.api = `${path}/_list`;
 
-    this.state = { search: '', page: 1, per_page: 20, order: '', id_field: 'id' };
+    const usp = new URLSearchParams(window.location.search);
+    const order = usp.get('order') ?? '';
+
+    this.state = { search: '', page: 1, per_page: 20, order, id_field: 'id' };
 
     this.input = document.getElementById('search');
     this.btn = document.getElementById('btn-search');
     this.perPage = document.getElementById('per-page');
     this.rangeInfo = document.getElementById('range-info');
     this.thead = document.getElementById('thead-row');
+    this.selectAll = document.getElementById('select-all');
+    this.selectedIds = new Set();
     this.tbody = document.getElementById('tbody');
     this.table = document.getElementById('list-table');
     this.pager = document.getElementById('pager');
@@ -22,17 +109,41 @@ class AdminList {
     this.filtersCount = document.getElementById('filters-count');
     this.confirmDelete = document.getElementById('confirm-delete');
     this.deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
-    this.delId = document.getElementById('del-id');
+    this.delObj = document.getElementById('del-obj');
     this.deleteId = null;
+    this.actionsWrap = document.getElementById('actions-wrapper');
+    this.actionSelect = document.getElementById('action-select');
+    this.actionApply = document.getElementById('action-apply');
+    this.hasActions = false;
+    this.actions = {};
+    this.actionModal = new ActionModal();
 
     this.btn?.addEventListener('click', () => this.doSearch());
     this.input?.addEventListener('keydown', e => { if (e.key === 'Enter') this.doSearch(); });
     this.input?.addEventListener('input', this.debounce(() => this.doSearch(), 300));
-    this.perPage.addEventListener('change', () => { this.state.per_page = parseInt(this.perPage.value); this.state.page = 1; this.load(); });
-    this.clearFiltersBtn?.addEventListener('click', () => window._filters?.reset());
+    this.perPage?.addEventListener('change', () => { this.state.per_page = parseInt(this.perPage.value); this.state.page = 1; this.load(); });
+    this.clearFiltersBtn?.addEventListener('click', () => this.clearFilters());
     this.confirmDelete?.addEventListener('click', () => this.onConfirmDelete());
-
+    this.actionApply?.addEventListener('click', () => this.runAction());
+    this.selectAll?.addEventListener('change', () => {
+      this.toggleAll(this.selectAll.checked);
+      this.updateActionVisibility();
+    });
     this.renderFilterChips();
+    this.loadActions();
+  }
+
+  onSort(key){
+    const current = this.state.order || '';
+    const isThis = current.replace(/^-/, '') === key;
+    const next = !isThis ? key : (current.startsWith('-') ? key : `-${key}`);
+    this.state.order = next;
+    this.state.page = 1;
+    const url = new URL(window.location);
+    url.searchParams.set('order', next);
+    url.searchParams.delete('page_num');
+    history.replaceState(null, '', url);
+    this.load();
   }
 
   qs(params){
@@ -54,28 +165,39 @@ class AdminList {
   renderFilterChips(){
     this.filterChips.innerHTML = '';
     const usp = new URLSearchParams(window.location.search);
-    let count = 0;
-    for(const [k,v] of usp.entries()){
-      if(!k.startsWith('filter.')) continue;
-      count++;
+    const prefix = AdminList.FILTER_PREFIX;
+    const groups = new Map();
+    for (const [k, v] of usp.entries()) {
+      if (!k.startsWith(prefix)) continue;
+      const parts = k.slice(prefix.length).split('.');
+      const last = parts[parts.length - 1];
+      const fieldParts = AdminList.OPS.includes(last) ? parts.slice(0, -1) : parts;
+      const fieldKey = fieldParts.join('.');
+      const entry = groups.get(fieldKey) || [];
+      entry.push({ key: k, value: v, label: fieldParts.join('.').replace(/_/g, ' ') });
+      groups.set(fieldKey, entry);
+    }
+    for (const entries of groups.values()) {
       const badge = document.createElement('span');
       badge.className = 'badge bg-secondary';
-      const lbl = k.slice(7).split('__')[0].replace(/_/g,' ');
-      badge.textContent = `${lbl}: ${v} `;
+      const lbl = entries[0].label;
+      const vals = entries.map(e => e.value).join(', ');
+      badge.textContent = `${lbl}: ${vals} `;
       const close = document.createElement('span');
       close.style.cursor = 'pointer';
       close.innerHTML = '&times;';
-      close.addEventListener('click', ()=>{
+      close.addEventListener('click', () => {
         const url = new URL(location.href);
-        url.searchParams.delete(k);
+        for (const e of entries) url.searchParams.delete(e.key);
         url.searchParams.delete('page_num');
         location.href = url.toString();
       });
       badge.appendChild(close);
       this.filterChips.appendChild(badge);
     }
-    this.filterChips.classList.toggle('d-none', count===0);
-    if(this.filtersCount){
+    const count = groups.size;
+    this.filterChips.classList.toggle('d-none', count === 0);
+    if (this.filtersCount) {
       this.filtersCount.textContent = count;
       this.filtersCount.hidden = count === 0;
     }
@@ -88,8 +210,9 @@ class AdminList {
     const baseParams = { search: this.state.search, page_num: this.state.page, per_page: this.state.per_page, order: this.state.order };
     const usp = new URLSearchParams();
     for (const [k, v] of Object.entries(baseParams)) if (v !== '' && v != null) usp.set(k, v);
+    const prefix = AdminList.FILTER_PREFIX;
     for (const k of Array.from(pageQS.keys())) {
-      if (k.startsWith('filter.')) usp.set(k, pageQS.get(k));
+      if (k.startsWith(prefix)) usp.set(k, pageQS.get(k));
     }
     const url = `${this.api}?${usp.toString()}`;
     try {
@@ -103,6 +226,17 @@ class AdminList {
     } finally {
       this.spinner.style.display = 'none';
     }
+  }
+
+  clearFilters(){
+    window._filters?.reset?.();
+    const url = new URL(location.href);
+    const prefix = AdminList.FILTER_PREFIX;
+    for (const k of Array.from(url.searchParams.keys())) {
+      if (k.startsWith(prefix)) url.searchParams.delete(k);
+    }
+    url.searchParams.delete('page_num');
+    location.href = url.toString();
   }
 
   fmtCell(val, meta){
@@ -127,9 +261,14 @@ class AdminList {
     this.state.per_page = per_page;
     this.state.id_field = id_field;
     this.perPage.value = String(per_page);
+    this.selectedIds.clear();
 
     // header
-    this.thead.innerHTML = '';
+    while(this.thead.children.length > 1) this.thead.removeChild(this.thead.lastChild);
+    const thSel = this.thead.children[0];
+    thSel.style.width = '1%';
+    thSel.style.whiteSpace = 'nowrap';
+    this.selectAll.checked = false;
     const metaMap = Object.fromEntries(columns_meta.map(m=>[m.key, m]));
     columns.forEach((col, idx)=>{
       const meta = metaMap[col] || {};
@@ -137,12 +276,7 @@ class AdminList {
       th.textContent = meta.label || col;
       if(meta.sortable){
         th.style.cursor = 'pointer';
-        th.addEventListener('click', ()=>{
-          const current = this.state.order || '';
-          const isThis = current.replace(/^-/, '') === meta.key;
-          const next = !isThis ? meta.key : (current.startsWith('-') ? meta.key : `-${meta.key}`);
-          this.state.order = next; this.state.page = 1; this.load();
-        });
+        th.addEventListener('click', ()=>this.onSort(meta.key));
       }
       const ordField = (order||'').replace(/^-/, '');
       if(ordField === meta.key){
@@ -180,6 +314,19 @@ class AdminList {
       } else {
         tr.style.cursor = 'default';
       }
+      const tdSel = document.createElement('td');
+      tdSel.className = 'text-center';
+      tdSel.style.width = '1%';
+      tdSel.style.whiteSpace = 'nowrap';
+      const chk = document.createElement('input');
+      chk.type = 'checkbox';
+      chk.className = 'row-select';
+      chk.dataset.id = id;
+      chk.checked = this.selectedIds.has(String(id));
+      chk.addEventListener('click', e=>e.stopPropagation());
+      chk.addEventListener('change', e=>this.onRowSelect(id, e.target.checked));
+      tdSel.appendChild(chk);
+      tr.appendChild(tdSel);
       columns.forEach((col, idx)=>{
         const meta = metaMap[col] || {};
         const td = document.createElement('td');
@@ -190,24 +337,20 @@ class AdminList {
       const tdAct = document.createElement('td');
       tdAct.className = 'text-end';
       tdAct.style.whiteSpace = 'nowrap';
-      if(row.can_change){
-        const editBtn = document.createElement('a');
-        editBtn.className = 'btn btn-sm btn-primary me-1';
-        editBtn.textContent = 'Edit';
-        editBtn.href = `${this.base}/${id}/edit`;
-        editBtn.addEventListener('click', e=>e.stopPropagation());
-        tdAct.appendChild(editBtn);
-      }
       if(row.can_delete){
         const delBtn = document.createElement('button');
         delBtn.className = 'btn btn-sm btn-danger';
-        delBtn.textContent = 'Delete';
-        delBtn.addEventListener('click', e=>{ e.stopPropagation(); this.showDeleteModal(id); });
+        delBtn.innerHTML = '<i class="bi bi-trash"></i>';
+        delBtn.setAttribute('aria-label', 'Delete');
+        delBtn.addEventListener('click', e=>{ e.stopPropagation(); this.showDeleteModal(id, row.row_str ?? id); });
         tdAct.appendChild(delBtn);
       }
       tr.appendChild(tdAct);
       this.tbody.appendChild(tr);
     });
+    this.updateSelectAllState();
+
+    this.updateActionVisibility();
 
     // range info
     const start = total ? (page-1)*per_page + 1 : 0;
@@ -216,6 +359,37 @@ class AdminList {
 
     // pager
     this.renderPager(page, pages);
+  }
+
+  onRowSelect(id, checked){
+    this.toggleSelection(id, checked);
+    this.updateSelectAllState();
+    this.updateActionVisibility();
+  }
+
+  toggleSelection(id, checked){
+    if(id==null) return;
+    const key = String(id);
+    if(checked) this.selectedIds.add(key); else this.selectedIds.delete(key);
+  }
+
+  toggleAll(checked){
+    const boxes = this.tbody.querySelectorAll('input.row-select');
+    boxes.forEach(cb=>{
+      cb.checked = checked;
+      this.toggleSelection(cb.dataset.id, checked);
+    });
+    this.updateSelectAllState();
+  }
+
+  updateSelectAllState(){
+    const boxes = this.tbody.querySelectorAll('input.row-select');
+    const all = boxes.length>0 && Array.from(boxes).every(cb=>cb.checked);
+    this.selectAll.checked = all;
+  }
+
+  getSelectedIds(){
+    return Array.from(this.selectedIds);
   }
 
   renderPager(page, pages){
@@ -239,9 +413,9 @@ class AdminList {
     this.pager.appendChild(mk('»', pages, page>=pages));
   }
 
-  showDeleteModal(id){
+  showDeleteModal(id, repr){
     this.deleteId = id;
-    this.delId.textContent = id;
+    if(this.delObj) this.delObj.textContent = repr;
     this.deleteModal.show();
   }
 
@@ -252,6 +426,70 @@ class AdminList {
     if(res.ok){ this.deleteModal.hide(); this.load(); }
     else{ console.log(await res.text()); }
   }
+
+  async loadActions(){
+    if(!this.actionSelect) return;
+    try{
+      const res = await fetch(`${this.base}/_actions`, {credentials:'same-origin'});
+      if(!res.ok){ console.log(await res.text()); return; }
+      const data = await res.json();
+      this.actionSelect.innerHTML = '';
+      this.actions = {};
+      for(const spec of data){
+        this.actions[spec.name] = spec;
+        const opt = document.createElement('option');
+        opt.value = spec.name;
+        opt.textContent = spec.label || spec.name;
+        this.actionSelect.appendChild(opt);
+      }
+      this.hasActions = data.length > 0;
+      this.updateActionVisibility();
+    }catch(err){
+      console.log('Error loading actions:', err);
+    }
+  }
+
+  updateActionVisibility(){
+    if(!this.actionsWrap) return;
+    const show = this.hasActions && this.selectedIds.size > 0;
+    this.actionsWrap.hidden = !show;
+  }
+
+  runAction(){
+    const name = this.actionSelect?.value;
+    if(!name || this.selectedIds.size === 0) return;
+    const spec = this.actions?.[name] || {};
+    const proceed = params => this.executeAction(name, params);
+    if(spec.params_schema && Object.keys(spec.params_schema).length>0){
+      this.actionModal.open(spec, proceed);
+    }else{
+      proceed({});
+    }
+  }
+
+  async executeAction(name, params){
+    const url = `${this.base}/_actions/${encodeURIComponent(name)}`;
+    try{
+      const res = await fetch(url, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        credentials:'same-origin',
+        body: JSON.stringify({ids: this.getSelectedIds(), params})
+      });
+      if(!res.ok){ console.log(await res.text()); return; }
+      const result = await res.json();
+      const msgs = [];
+      if(result.report) msgs.push(result.report);
+      if(result.errors && result.errors.length) msgs.push(result.errors.join('\n'));
+      if(msgs.length) alert(msgs.join('\n'));
+      this.selectedIds.clear();
+      this.updateActionVisibility();
+      this.load();
+    }catch(err){
+      console.log('Error running action:', err);
+    }
+  }
 }
 
 // # The End
+

@@ -12,7 +12,8 @@ Email: timurkady@yandex.com
 from contrib.admin.core.model import ModelAdmin
 from contrib.admin.hub import admin_site
 
-from ..models.users import AdminUser
+from ..boot import admin as boot_admin
+AdminUser = boot_admin.adapter.user_model
 
 class AdminUserAdmin(ModelAdmin):
     """Admin configuration for :class:`AdminUser`."""

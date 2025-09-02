@@ -34,6 +34,7 @@ class AdminFormEditor {
       },
       debug: false,
     }, config);
+
   }
 
   async load() {
@@ -46,6 +47,10 @@ class AdminFormEditor {
       }
 
       this.spinner.style.display = 'none';
+
+      if (window.FilePathUploader) {
+        window.FilePathUploader.init(schema);
+      }
 
       this.editor = new JSONEditor(this.root, {
         schema,
@@ -82,7 +87,6 @@ class AdminFormEditor {
     const { schema, startval } = await res.json();
     return { schema, startval };
   }
-
 
   hideRootHeader() {
     const rootEditor = this.editor.getEditor('root');

@@ -13,10 +13,11 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from . import BaseWidget, register_widget
+from .base import BaseWidget
+from .registry import registry
 
 
-@register_widget("textarea")
+@registry.register("textarea")
 class TextAreaWidget(BaseWidget):
     assets_js = (
         "https://cdn.jsdelivr.net/npm/ace-builds@latest/src-noconflict/ace.min.js",
@@ -38,7 +39,6 @@ class TextAreaWidget(BaseWidget):
             schema["options"] = {"ace": {"mode": syntax, "theme": theme}}
 
         return self.merge_readonly(schema)
-
 
 # The End
 

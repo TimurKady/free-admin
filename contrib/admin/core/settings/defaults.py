@@ -12,14 +12,18 @@ Email: timurkady@yandex.com
 from .keys import SettingsKey
 
 DEFAULT_SETTINGS: dict[SettingsKey, tuple[object, str]] = {
+    # Admin path
+    SettingsKey.ADMIN_PREFIX:         ("/panel", "string"),
+
     # Titles / Pages
-    SettingsKey.DEFAULT_ADMIN_TITLE:   ("Admin", "string"),
+    SettingsKey.DEFAULT_ADMIN_TITLE:   ("FastAPI FreeAdmin", "string"),
     SettingsKey.DASHBOARD_PAGE_TITLE:  ("Dashboard", "string"),
     SettingsKey.VIEWS_PAGE_TITLE:      ("Views", "string"),
     SettingsKey.ORM_PAGE_TITLE:        ("ORM", "string"),
     SettingsKey.SETTINGS_PAGE_TITLE:   ("Settings", "string"),
 
     # Page icons
+    SettingsKey.BRAND_ICON:            ("icon-36x36.png", "string"),
     SettingsKey.VIEWS_PAGE_ICON:       ("bi-eye", "string"),
     SettingsKey.ORM_PAGE_ICON:         ("bi-diagram-3", "string"),
     SettingsKey.SETTINGS_PAGE_ICON:    ("bi-gear", "string"),
@@ -37,10 +41,14 @@ DEFAULT_SETTINGS: dict[SettingsKey, tuple[object, str]] = {
     SettingsKey.DEFAULT_PER_PAGE:      (20, "int"),
     SettingsKey.MAX_PER_PAGE:          (100, "int"),
 
+    # Admin actions
+    SettingsKey.ACTION_BATCH_SIZE:     (100, "int"),
+
     # API endpoints
     SettingsKey.API_PREFIX:            ("/api", "string"),
-    SettingsKey.API_SCHEMA:            ("/api/schema", "string"),
-    SettingsKey.API_LIST_FILTERS:      ("/api/list_filters", "string"),
+    SettingsKey.API_SCHEMA:            ("/schema", "string"),
+    SettingsKey.API_LIST_FILTERS:      ("/list_filters", "string"),
+    SettingsKey.API_LOOKUP:            ("/lookup", "string"),
 
     # Auth / Session
     SettingsKey.LOGIN_PATH:            ("/login", "string"),
@@ -57,6 +65,10 @@ DEFAULT_SETTINGS: dict[SettingsKey, tuple[object, str]] = {
     SettingsKey.STATIC_PATH:           ("/static", "string"),
     SettingsKey.STATIC_URL_SEGMENT:    ("/static", "string"),
     SettingsKey.STATIC_ROUTE_NAME:     ("admin-static", "string"),
+
+    # Media
+    SettingsKey.MEDIA_ROOT:           ("media", "string"),
 }
 
 # The End
+

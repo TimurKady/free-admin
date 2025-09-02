@@ -12,7 +12,7 @@ Email: timurkady@yandex.com
 from __future__ import annotations
 
 from .base import BaseModelAdmin
-from .inline import InlineAdmin
+from .inline import InlineModelAdmin
 
 
 class ModelAdmin(BaseModelAdmin):
@@ -20,6 +20,7 @@ class ModelAdmin(BaseModelAdmin):
 
     # IMPORTANT: use a tuple + forward-link string;
     # It's the most trouble-free option at runtime
-    inlines: tuple[type["InlineAdmin"], ...] = ()
+    inlines: tuple[type["InlineModelAdmin"], ...] = ()
 
 # The End
+

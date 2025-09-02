@@ -11,9 +11,10 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 from typing import Any, Dict
-from . import BaseWidget, register_widget
+from .base import BaseWidget
+from .registry import registry
 
-@register_widget("text")
+@registry.register("text")
 class TextWidget(BaseWidget):
     def get_schema(self) -> Dict[str, Any]:
         return self.merge_readonly({
@@ -22,3 +23,4 @@ class TextWidget(BaseWidget):
         })
 
 # The End
+

@@ -30,5 +30,7 @@ class WidgetContext:
     mode: str                             # "add" | "edit" | "list"
     request: Any | None = None            # FastAPI Request (optional)
     readonly: bool = False                # field read-only?
+    prefix: str = ""                      # admin site prefix
 
 # The End
+

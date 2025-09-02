@@ -17,13 +17,14 @@ class SettingsKey(StrChoices):
     """Available settings keys for the system."""
 
     # --- Titles / Pages ---
-    DEFAULT_ADMIN_TITLE   = ("DEFAULT_ADMIN_TITLE", "Admin panel title")
+    DEFAULT_ADMIN_TITLE   = ("DEFAULT_ADMIN_TITLE", "FastAPI FreeAdmin")
     DASHBOARD_PAGE_TITLE  = ("DASHBOARD_PAGE_TITLE", "Dashboard page title")
     VIEWS_PAGE_TITLE      = ("VIEWS_PAGE_TITLE", "Views section title")
     ORM_PAGE_TITLE        = ("ORM_PAGE_TITLE", "ORM section title")
     SETTINGS_PAGE_TITLE   = ("SETTINGS_PAGE_TITLE", "Settings section title")
 
     # --- Page icons ---
+    BRAND_ICON           = ("BRAND_ICON", "Brand icon path")
     VIEWS_PAGE_ICON       = ("VIEWS_PAGE_ICON", "Views icon (Bootstrap 5 class)")
     ORM_PAGE_ICON         = ("ORM_PAGE_ICON", "ORM icon (Bootstrap 5 class)")
     SETTINGS_PAGE_ICON    = ("SETTINGS_PAGE_ICON", "Settings icon (Bootstrap 5 class)")
@@ -41,10 +42,20 @@ class SettingsKey(StrChoices):
     DEFAULT_PER_PAGE      = ("DEFAULT_PER_PAGE", "Default page size")
     MAX_PER_PAGE          = ("MAX_PER_PAGE", "Max page size")
 
+    # --- Admin actions ---
+    ACTION_BATCH_SIZE = (
+        "ACTION_BATCH_SIZE",
+        "Batch size for admin actions",
+    )
+
     # --- API endpoints ---
     API_PREFIX            = ("API_PREFIX", "API prefix")
     API_SCHEMA            = ("API_SCHEMA", "Schema endpoint")
     API_LIST_FILTERS      = ("API_LIST_FILTERS", "List filters endpoint")
+    API_LOOKUP            = ("API_LOOKUP", "Lookup endpoint")
+
+    # --- Admin path ---
+    ADMIN_PREFIX         = ("ADMIN_PREFIX", "Admin site prefix")
 
     # --- Auth / Session ---
     LOGIN_PATH            = ("LOGIN_PATH", "Login path")
@@ -62,4 +73,8 @@ class SettingsKey(StrChoices):
     STATIC_URL_SEGMENT    = ("STATIC_URL_SEGMENT", "Static URL segment")
     STATIC_ROUTE_NAME     = ("STATIC_ROUTE_NAME", "Static route name")
 
+    # --- Media ---
+    MEDIA_ROOT           = ("MEDIA_ROOT", "Directory for uploaded files")
+
 # The End
+

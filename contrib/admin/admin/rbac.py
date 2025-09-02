@@ -12,7 +12,10 @@ Email: timurkady@yandex.com
 from contrib.admin.core.model import ModelAdmin
 from contrib.admin.hub import admin_site
 
-from ..models.rbac import AdminGroup, AdminGroupPermission, AdminUserPermission
+from ..boot import admin as boot_admin
+AdminGroup = boot_admin.adapter.group_model
+AdminGroupPermission = boot_admin.adapter.group_permission_model
+AdminUserPermission = boot_admin.adapter.user_permission_model
 
 
 class AdminGroupAdmin(ModelAdmin):
@@ -40,3 +43,4 @@ admin_site.register(app="admin", model=AdminUserPermission, admin_cls=AdminUserP
 admin_site.register(app="admin", model=AdminGroupPermission, admin_cls=AdminGroupPermissionAdmin, settings=True, icon="bi-shield-lock")
 
 # The End
+
