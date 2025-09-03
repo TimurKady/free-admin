@@ -303,6 +303,6 @@ MIT — do what you want, just keep the copyright.
 ---
 
 ## Credits
-This work is built brick by brick and released as real Open Source.  If you find it useful, help me ship the next bricks faster, you can support the development via [GitHub Sponsors](https://github.com/sponsors/your-username) or [OpenCollective](https://opencollective.com/free-admin).
+This work is built brick by brick and released as real Open Source.  If you find it useful, help me ship the next bricks faster, you can support the development via [GitHub Sponsors](https://github.com/sponsors/your-username).
 I’m committed to production-grade, documented, and maintained tools.  Your support funds tests, docs, and releases.
 
