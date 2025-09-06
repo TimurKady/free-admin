@@ -9,6 +9,39 @@ class FilePathUploader {
     this.callbacks = callbacks || {};
   }
 
+  _updateLink(url) {
+    const prefix = this.editor?.schema?.options?.upload?.media_prefix || '/media/';
+    const base = prefix.replace(/\/$/, '');
+    if (!url) {
+      if (this.editor?.schema) {
+        this.editor.schema.links = [];
+      }
+      const input = this.editor?.input;
+      if (input && input.parentNode) {
+        const existing = input.parentNode.querySelector('a[data-filepath-link]');
+        existing?.remove();
+      }
+      return;
+    }
+    const href = `${base}/${url}`.replace(/\/{2,}/g, '/');
+    const text = url.replace(/^\/+/, '');
+    if (this.editor?.schema) {
+      this.editor.schema.links = [{ href, title: text }];
+    }
+    const input = this.editor?.input;
+    if (input && input.parentNode) {
+      let link = input.parentNode.querySelector('a[data-filepath-link]');
+      if (!link) {
+        link = document.createElement('a');
+        link.setAttribute('data-filepath-link', '1');
+        link.target = '_blank';
+        input.parentNode.appendChild(link);
+      }
+      link.href = href;
+      link.textContent = text;
+    }
+  }
+
   send() {
     const url = this.editor?.schema?.options?.upload?.endpoint;
     if (!url) {
@@ -24,7 +57,11 @@ class FilePathUploader {
       if (xhr.status >= 200 && xhr.status < 300) {
         let body = {};
         try { body = JSON.parse(xhr.responseText); } catch {}
-        this.callbacks.success?.(body.url || body);
+        const urlVal = body.url || body;
+        if (urlVal) {
+          this._updateLink(urlVal);
+        }
+        this.callbacks.success?.(urlVal);
       } else {
         this.callbacks.failure?.(xhr.statusText || 'Upload failed');
       }

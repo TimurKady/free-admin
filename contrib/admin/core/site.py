@@ -12,7 +12,6 @@ Email: timurkady@yandex.com
 from __future__ import annotations
 
 import logging
-import re
 from typing import Any, Callable, Dict, List
 
 from fastapi import APIRouter, Depends, Request
@@ -103,7 +102,8 @@ class AdminSite:
 
     @staticmethod
     def _model_to_slug(name: str) -> str:
-        return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
+        """Return lowercase model name as slug without regex."""
+        return name.lower()
 
     # ==== Registration ====
     def register(
@@ -139,7 +139,6 @@ class AdminSite:
         except TypeError:
             admin = admin_cls(model_cls, self.adapter)
             setattr(admin, "app_label", app_label)
-            setattr(admin, "model_slug", model_slug)
         display_name = admin.get_verbose_name_plural()
 
         self.model_reg[(app_label.lower(), model_slug.lower())] = admin
@@ -450,6 +449,7 @@ class AdminSite:
                     "request": request,
                     "site_title": self.title,
                     "user": user,
+                    "brand_icon": self.brand_icon,
                     "page_title": dash_title,
                     "prefix": admin_prefix,
                     "ORM_PREFIX": orm_prefix,
@@ -524,7 +524,6 @@ class AdminSite:
                 admin_cls=entry.admin_cls,
                 perms="model",
                 app_label=entry.app,
-                model_name=entry.model,
             )
 
         for entry in self.registry.iter_settings():
@@ -536,7 +535,6 @@ class AdminSite:
                 admin_cls=entry.admin_cls,
                 perms="global",
                 app_label=entry.app,
-                model_name=entry.model,
             )
 
         self.registry.make_menu()

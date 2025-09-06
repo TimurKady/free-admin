@@ -36,7 +36,17 @@ class RelationsWidget(BaseWidget):
         """
 
         meta = getattr(fd, "meta", None) or {}
-        cm = meta.get("choices_map") or {}
+        cm = meta.get("choices_map")
+        if not cm and getattr(fd, "relation", None) is None and getattr(fd, "choices", None):
+            cm = {}
+            for ch in fd.choices:
+                key = getattr(ch, "const", getattr(ch, "value", ch))
+                label = getattr(ch, "title", getattr(ch, "label", str(ch)))
+                cm[str(key)] = str(label)
+            meta["choices_map"] = cm
+            object.__setattr__(fd, "meta", meta)
+        elif not cm:
+            cm = {}
         enum = list(cm.keys())
         titles = list(cm.values())
         return enum, titles

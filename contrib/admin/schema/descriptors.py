@@ -43,6 +43,10 @@ class FieldDescriptor(BaseModel):
     unique: bool = False
     default: Any | None = None
 
+    auto_now: bool = False
+    auto_now_add: bool = False
+    generated: bool = False
+
     label: str | None = None
 
     max_length: int | None = None

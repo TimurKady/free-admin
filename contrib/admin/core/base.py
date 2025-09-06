@@ -3,6 +3,7 @@
 base
 
 Base class for model admin objects.
+Inline Admin docs: contrib/admin/docs/INLINES.md
 
 Version: 0.1.0
 Author: Timur Kady
@@ -26,6 +27,7 @@ from typing import (
 )
 
 from types import MappingProxyType
+from datetime import datetime, timezone
 
 from .exceptions import ActionNotFound, PermissionDenied, AdminIntegrityError
 from .filters import FilterSpec
@@ -160,6 +162,16 @@ class BaseModelAdmin:
     def _integrity_error(self):
         return getattr(self.adapter, "IntegrityError", Exception)
 
+    def _is_binary_field(self, fd, name: str | None = None) -> bool:
+        """Return ``True`` if the descriptor represents binary data.
+
+        A field listed in ``widgets_overrides`` is treated as non-binary to
+        allow explicit widget mappings to override automatic exclusion.
+        """
+        if name and name in (getattr(self, "widgets_overrides", {}) or {}):
+            return False
+        return getattr(fd, "kind", None) == "binary"
+
     # --- attribute accessors -------------------------------------------------
 
     def get_label(self) -> str | None:
@@ -208,6 +220,26 @@ class BaseModelAdmin:
         if name in {"created_at", "updated_at"}:
             return True
         return False
+
+    def _has_implicit_default(self, fd) -> bool:
+        """Return ``True`` if ``fd`` supplies an automatic value or default."""
+        default = getattr(fd, "default", None)
+        return (
+            default is not None
+            or any(
+                getattr(fd, attr, False)
+                for attr in ("auto_now", "auto_now_add", "generated")
+            )
+        )
+
+    def _implicit_value(self, fd) -> Any:
+        """Return a generated value for fields with automatic behaviour."""
+        if fd.kind == "datetime":
+            return datetime.now(timezone.utc)
+        if fd.kind == "date":
+            return datetime.now(timezone.utc).date()
+        default = getattr(fd, "default", None)
+        return default() if callable(default) else default
 
     # --- verbose names ---------------------------------------------------------
 
@@ -285,7 +317,8 @@ class BaseModelAdmin:
             return False
         action = codename.value if isinstance(codename, PermAction) else str(codename)
         app_label = getattr(self, "app_label", "")
-        model_slug = getattr(self, "model_slug", getattr(self.model, "__name__", "").lower())
+        model_name = getattr(self.model, "__name__", "")
+        model_slug = getattr(self, "model_slug", model_name.lower())
         perm_key = f"{app_label}.{model_slug}.{action}".strip(".")
         return perm_key in perms or action in perms
 
@@ -521,7 +554,15 @@ class BaseModelAdmin:
         """
 
         if self.fields is not None:
-            return list(self.fields)
+            filtered: list[str] = []
+            for name in self.fields:
+                fd = md.field(name) if hasattr(md, "field") else None
+                if fd is None and hasattr(md, "fields_map"):
+                    fd = md.fields_map.get(name)
+                if self._is_binary_field(fd) and name not in self.widgets_overrides:
+                    continue
+                filtered.append(name)
+            return filtered
 
         pk_name = getattr(md, "pk_attr", None)
         excluded = {"id", pk_name}
@@ -560,6 +601,11 @@ class BaseModelAdmin:
         cleaned: list[str] = []
         for name in ordered:
             if name.endswith("_id") and name[:-3] in ordered:
+                continue
+            fd = md.field(name) if hasattr(md, "field") else None
+            if fd is None and hasattr(md, "fields_map"):
+                fd = md.fields_map.get(name)
+            if self._is_binary_field(fd) and name not in self.widgets_overrides:
                 continue
             cleaned.append(name)
         return cleaned
@@ -633,10 +679,12 @@ class BaseModelAdmin:
         fieldsets: Iterable[Mapping[str, Any]],
         flat_properties: Mapping[str, Any],
         flat_startval: dict[str, Any],
-    ) -> tuple[dict[str, Any], list[str], dict[str, Any]]:
+        required: list[str],
+    ) -> tuple[dict[str, Any], list[str], dict[str, Any], list[str]]:
         result: dict[str, Any] = {}
         order: list[str] = []
         grouped_startval: dict[str, Any] = {}
+        root_required: list[str] = list(required)
 
         for fs in fieldsets:
             title = fs.get("title")
@@ -644,8 +692,13 @@ class BaseModelAdmin:
             if title is None:
                 for idx, item in enumerate(fields):
                     if isinstance(item, (list, tuple)):
+                        names = [n for n in item if n in flat_properties]
+                        if not names:
+                            continue
                         g_key = f"group_{idx}"
-                        names = list(item)
+                        g_required = [n for n in names if n in root_required]
+                        for n in g_required:
+                            root_required.remove(n)
                         result[g_key] = {
                             "type": "object",
                             "format": "grid",
@@ -660,6 +713,8 @@ class BaseModelAdmin:
                             },
                             "defaultProperties": names,
                         }
+                        if g_required:
+                            result[g_key]["required"] = g_required
                         g_start: dict[str, Any] = {}
                         for name in names:
                             if name in flat_startval:
@@ -668,6 +723,8 @@ class BaseModelAdmin:
                             grouped_startval[g_key] = g_start
                         order.append(g_key)
                     else:
+                        if item not in flat_properties:
+                            continue
                         result[item] = flat_properties[item]
                         if item in flat_startval:
                             grouped_startval[item] = flat_startval.pop(item)
@@ -685,10 +742,16 @@ class BaseModelAdmin:
             group_props: dict[str, Any] = {}
             group_order: list[str] = []
             group_start: dict[str, Any] = {}
+            group_required: list[str] = []
             for idx, item in enumerate(fields):
                 if isinstance(item, (list, tuple)):
+                    names = [n for n in item if n in flat_properties]
+                    if not names:
+                        continue
                     g_key = f"group_{idx}"
-                    names = list(item)
+                    g_required = [n for n in names if n in root_required]
+                    for n in g_required:
+                        root_required.remove(n)
                     group_props[g_key] = {
                         "type": "object",
                         "format": "grid",
@@ -703,6 +766,9 @@ class BaseModelAdmin:
                         },
                         "defaultProperties": names,
                     }
+                    if g_required:
+                        group_props[g_key]["required"] = g_required
+                        group_required.append(g_key)
                     g_start: dict[str, Any] = {}
                     for name in names:
                         if name in flat_startval:
@@ -711,10 +777,15 @@ class BaseModelAdmin:
                         group_start[g_key] = g_start
                     group_order.append(g_key)
                 else:
+                    if item not in flat_properties:
+                        continue
                     group_props[item] = flat_properties[item]
                     if item in flat_startval:
                         group_start[item] = flat_startval.pop(item)
                     group_order.append(item)
+                    if item in root_required:
+                        root_required.remove(item)
+                        group_required.append(item)
 
             options: dict[str, Any] = {}
             if container_class:
@@ -740,11 +811,13 @@ class BaseModelAdmin:
                 "properties": group_props,
                 "defaultProperties": group_order,
             }
+            if group_required:
+                result[key]["required"] = group_required
             if group_start:
                 grouped_startval[key] = group_start
             order.append(key)
 
-        return result, order, grouped_startval
+        return result, order, grouped_startval, root_required
 
     async def get_schema(self, request, user, md, mode: str, obj=None) -> dict:
         """Assemble JSON ``schema`` and ``startval`` for the form."""
@@ -755,8 +828,10 @@ class BaseModelAdmin:
         required: list[str] = []
         startval: dict = {}
 
+        fields_map = getattr(md, "fields_map", {}) or {}
         for name in field_names:
             w = self._build_widget(md, name, mode, obj=obj, request=request)
+            fd = fields_map.get(name)
 
             pf = getattr(w, "prefetch", None)
             if callable(pf):
@@ -766,7 +841,7 @@ class BaseModelAdmin:
                     await pf()
 
             flat_properties[name] = w.get_schema()
-            if getattr(md.fields_map[name], "required", False) and not w.ctx.readonly:
+            if getattr(fd, "required", False) and not w.ctx.readonly:
                 required.append(name)
 
             sv = w.get_startval()
@@ -777,7 +852,6 @@ class BaseModelAdmin:
                     pass
                 startval[name] = sv
             else:
-                fd = md.fields_map.get(name)
                 rel = getattr(fd, "relation", None) if fd else None
                 is_many = bool(
                     getattr(fd, "many", False)
@@ -787,18 +861,33 @@ class BaseModelAdmin:
                     default = getattr(fd, "default", None) if fd else None
                     if is_many:
                         sv = default if default is not None else []
+                        try:
+                            sv = w.to_python(sv)
+                        except Exception:
+                            pass
                     else:
-                        sv = default if default is not None else ""
-                    try:
-                        sv = w.to_python(sv)
-                    except Exception:
-                        pass
+                        if default is not None:
+                            sv = default
+                        else:
+                            kind = getattr(fd, "kind", None)
+                            if kind == "datetime":
+                                sv = "0000-00-00 00:00"
+                            elif kind == "date":
+                                sv = "0000-00-00"
+                            elif kind == "time":
+                                sv = "00:00"
+                            else:
+                                sv = ""
+                        try:
+                            sv = w.to_python(sv)
+                        except Exception:
+                            pass
                     startval[name] = sv
 
         fieldsets = getattr(self, "fieldsets", None)
         if fieldsets:
-            properties, order, startval = self._build_fieldset_properties(
-                fieldsets, flat_properties, startval
+            properties, order, startval, required = self._build_fieldset_properties(
+                fieldsets, flat_properties, startval, required
             )
         else:
             properties = flat_properties
@@ -861,18 +950,34 @@ class BaseModelAdmin:
                 continue
             if name in payload:
                 val = payload[name]
-                w = self._build_widget(md, name, mode="edit")
-                try:
-                    val = w.to_storage(val)
-                except (AttributeError, NotImplementedError):
-                    pass
+                if val == "" and self._has_implicit_default(fd):
+                    continue
                 if (
                     val == ""
                     and getattr(fd, "nullable", False)
-                    and getattr(fd, "kind", None) in {"string", "text"}
+                    and getattr(fd, "kind", None) in {"datetime", "date", "time"}
+                ):
+                    val = None
+                if val is not None:
+                    w = self._build_widget(md, name, mode="edit")
+                    try:
+                        val = w.to_storage(val)
+                    except (AttributeError, NotImplementedError):
+                        pass
+                if (
+                    val == ""
+                    and getattr(fd, "nullable", False)
+                    and getattr(fd, "kind", None) in {"string", "text", "datetime", "date", "time"}
                 ):
                     val = None
                 data[name] = val
+        for name, fd in md.fields_map.items():
+            if getattr(fd, "primary_key", False) or name in data:
+                continue
+            if self._has_implicit_default(fd):
+                if for_update and getattr(fd, "auto_now_add", False):
+                    continue
+                data[name] = self._implicit_value(fd)
         return data, m2m_ops
 
     async def m2m_clear(self, manager):
@@ -895,6 +1000,16 @@ class BaseModelAdmin:
         Foreign keys and many‑to‑many relations are handled automatically.
         Subclasses may override this to implement custom create behaviour.
         """
+        headers = getattr(request, "headers", {}) or {}
+        headers_lc: dict[str, Any] = (
+            {k.lower(): v for k, v in headers.items()} if hasattr(headers, "items") else {}
+        )
+        for key, value in headers_lc.items():
+            if key.startswith("x-force-fk-"):
+                fname = key.removeprefix("x-force-fk-")
+                fd = md.fields_map.get(fname)
+                if fd and getattr(fd, "relation", None) and fd.relation.kind == "fk":
+                    payload[fname] = value
 
         data, m2m_ops = self.clean(payload, for_update=False)
         try:

@@ -67,8 +67,6 @@ class WidgetRegistry:
             return "text"
         if k == "file":
             return "filepath"
-        if k in ("binary", "bytes", "blob"):
-            return "textarea"
         return "text"
 
 registry = WidgetRegistry()

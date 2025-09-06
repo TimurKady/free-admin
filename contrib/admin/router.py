@@ -49,7 +49,8 @@ class AdminRouter:
         router = self.site.build_router(self._provider)
         app.include_router(router, prefix=self.prefix)
         self._provider.mount_static(app, self.prefix)
-
+        self._provider.mount_favicon(app)
+        self._provider.mount_media(app)
 
 # The End
 

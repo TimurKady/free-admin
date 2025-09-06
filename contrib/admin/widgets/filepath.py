@@ -11,9 +11,12 @@ Email: timurkady@yandex.com
 """
 
 from __future__ import annotations
-from pathlib import PurePosixPath
+import os
+from pathlib import PurePath, PurePosixPath
 from typing import Any, Dict
+from urllib.parse import urlparse
 
+from config.settings import settings
 from ..core.settings import SettingsKey, system_config
 
 from .base import BaseWidget
@@ -27,9 +30,17 @@ class FilePathWidget(BaseWidget):
     assets_js = ("/static/widgets/filepath.js",)
     upload_handler: str = "FilePathUploader"
 
+    def _has_value(self) -> bool:
+        if not self.ctx or not self.ctx.instance:
+            return False
+        return bool(getattr(self.ctx.instance, self.ctx.name, ""))
+
     def get_schema(self) -> Dict[str, Any]:
         prefix = (self.ctx.prefix if self.ctx else "").rstrip("/")
         orm_prefix = system_config.get_cached(SettingsKey.ORM_PREFIX, "/orm").strip("/")
+        media_prefix = system_config.get_cached(
+            SettingsKey.MEDIA_ROOT, settings.MEDIA_ROOT
+        ).strip("/")
         md = self.ctx.descriptor if self.ctx else None
         admin = self.ctx.admin if self.ctx else None
 
@@ -46,14 +57,22 @@ class FilePathWidget(BaseWidget):
 
         endpoint = str(PurePosixPath(prefix) / orm_prefix / app / name / "upload")
 
-        schema = {
+        schema: Dict[str, Any] = {
             "type": "string",
             "title": self.get_title(),
             "format": "url",
-            "options": {"upload": {"upload_handler": self.upload_handler}},
-            "links": [{"href": "{{self}}"}],
+            "options": {
+                "upload": {
+                    "upload_handler": self.upload_handler,
+                    "media_prefix": f"/{media_prefix}/",
+                }
+            },
             "upload_endpoint": endpoint,
         }
+        if self._has_value():
+            schema["links"] = [
+                {"href": f"/{media_prefix}/{{{{self}}}}", "title": "{{self}}"}
+            ]
         return self.merge_readonly(schema)
 
     def to_python(self, value: Any, options: Dict[str, Any] | None = None) -> str:
@@ -62,9 +81,36 @@ class FilePathWidget(BaseWidget):
         return str(value)
 
     def to_storage(self, value: Any, options: Dict[str, Any] | None = None) -> str | None:
+        # 1) Приводим к строке, если это поддерживаемый тип
+        path_str: str | None = None
         if isinstance(value, str) and value:
-            return str(PurePosixPath(value)).lstrip("/")
-        return None
+            path_str = value
+        elif isinstance(value, PurePath):
+            path_str = value.as_posix()
+        elif isinstance(value, os.PathLike):
+            path_str = os.fspath(value)
+
+        if not path_str:
+            return None
+
+        # 2) Если пришёл абсолютный URL — берём только path-часть
+        parts = urlparse(path_str)
+        if parts.scheme and parts.netloc:
+            path_str = parts.path
+
+        # 3) Нормализуем в POSIX
+        path_str = str(PurePosixPath(path_str))
+
+        media_prefix = system_config.get_cached(
+            SettingsKey.MEDIA_ROOT, settings.MEDIA_ROOT
+        ).strip("/")
+        if path_str.startswith(f"/{media_prefix}"):
+            path_str = path_str[len(f"/{media_prefix}") :]
+
+        # 4) Делаем относительным (без ведущего '/')
+        path_str = path_str.lstrip("/")
+
+        return path_str or None
 
 # The End
 

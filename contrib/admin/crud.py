@@ -43,7 +43,6 @@ class CrudRouterBuilder:
         admin_cls: type[BaseModelAdmin],
         perms: Literal["model", "global"],
         app_label: str,
-        model_name: str,
     ) -> APIRouter:
         """Mount standard CRUD routes for ``admin_cls`` on ``router``.
 
@@ -63,7 +62,7 @@ class CrudRouterBuilder:
             adapter = boot_admin.adapter
         admin = admin_cls(admin_cls.model, adapter)
         setattr(admin, "app_label", app_label)
-        setattr(admin, "model_slug", model_name)
+        model_slug = admin_site._model_to_slug(admin_cls.model.__name__)
         service = AdminService(admin)
         md = service.md
 
@@ -82,16 +81,16 @@ class CrudRouterBuilder:
             )
         else:
             perm_view = permissions_service.require_model_permission(
-                PermAction.view, app_value=app_label, model_value=model_name
+                PermAction.view, app_value=app_label, model_value=model_slug
             )
             perm_add = permissions_service.require_model_permission(
-                PermAction.add, app_value=app_label, model_value=model_name
+                PermAction.add, app_value=app_label, model_value=model_slug
             )
             perm_change = permissions_service.require_model_permission(
-                PermAction.change, app_value=app_label, model_value=model_name
+                PermAction.change, app_value=app_label, model_value=model_slug
             )
             perm_delete = permissions_service.require_model_permission(
-                PermAction.delete, app_value=app_label, model_value=model_name
+                PermAction.delete, app_value=app_label, model_value=model_slug
             )
 
         # model descriptor already provided by the service
@@ -109,7 +108,7 @@ class CrudRouterBuilder:
                 request,
                 user,
                 app_label=app_label,
-                model_name=model_name,
+                model_name=model_slug,
                 is_settings=(perms == "global"),
                 extra={
                     "can_add": can_add,
@@ -133,7 +132,7 @@ class CrudRouterBuilder:
                 user,
                 page_title=title,
                 app_label=app_label,
-                model_name=model_name,
+                model_name=model_slug,
                 is_settings=(perms == "global"),
             )
             md = admin.adapter.get_model_descriptor(admin.model)
@@ -160,7 +159,7 @@ class CrudRouterBuilder:
                 user,
                 page_title=title,
                 app_label=app_label,
-                model_name=model_name,
+                model_name=model_slug,
                 is_settings=(perms == "global"),
                 extra={"pk": pk},
             )
@@ -168,6 +167,21 @@ class CrudRouterBuilder:
             assets = admin.collect_assets(md, mode="edit", obj=obj, request=request)
             ctx["assets"] = assets
             return templates.TemplateResponse("context/form.html", ctx)
+
+        @router.get(prefix + "/{pk}/_inlines")
+        async def inline_specs(
+            request: Request,
+            pk: str,
+            user: AdminUserDTO = Depends(
+                admin_auth_service.get_current_admin_user
+            ),
+            _ = Depends(perm_change),
+        ):
+            try:
+                obj = await service.get_object(request, user, pk)
+            except HTTPError as exc:
+                raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+            return await admin.get_inlines_spec(request, user, obj)
 
         # form schema served via global API; no local endpoint
 
@@ -212,7 +226,7 @@ class CrudRouterBuilder:
         ):
             try:
                 return await service.run_action(
-                    request, user, name, payload, app_label, model_name
+                    request, user, name, payload, app_label, model_slug
                 )
             except HTTPError as exc:
                 raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
@@ -235,7 +249,7 @@ class CrudRouterBuilder:
             media_root = Path(
                 system_config.get_cached(SettingsKey.MEDIA_ROOT, settings.MEDIA_ROOT)
             )
-            rel_dir = Path(app_label) / model_name
+            rel_dir = Path(app_label) / model_slug
             target = media_root / rel_dir
             target.mkdir(parents=True, exist_ok=True)
             filename = Path(file.filename or "upload").name
