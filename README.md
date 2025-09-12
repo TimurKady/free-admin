@@ -55,7 +55,7 @@ from apps.blog.models import Post
 
 
 class PostAdmin(ModelAdmin):
-    list_display = ["id", "title", "created_at"]
+    list_display = ("id", "title", "created_at")
 
 
 admin_site.register(Post, PostAdmin)
