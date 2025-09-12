@@ -114,6 +114,7 @@ FreeAdmin makes use of the following open-source projects:
 * [Bootstrap 5](https://getbootstrap.com/) — frontend UI.
 * [Bootstrap Icons](https://icons.getbootstrap.com/).
 * [JSON-Editor](https://github.com/json-editor/json-editor) — JSON Schema editor.
+* [Ace Editor](https://ace.c9.io/) — code editor integration.
 * [OpenPyXL](https://openpyxl.readthedocs.io/) — Excel support.
 * [Click](https://click.palletsprojects.com/) — CLI.
 * [Jinja2](https://palletsprojects.com/p/jinja/) — templating.
