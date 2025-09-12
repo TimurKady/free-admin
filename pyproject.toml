@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "free-admin"
+dynamic = ["version"]
+description = "Admin panel for FastAPI/Tortoise-ORM"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Timur Kady", email = "timurkady@yandex.com" }
+]
+dependencies = [
+    "fastapi",
+    "tortoise-orm",
+    "jinja2",
+    "python-multipart",
+]
+
+[project.scripts]
+free-admin = "contrib.admin.utils.create_superuser:SuperuserCreator.main"
+
+[tool.setuptools.packages.find]
+namespaces = true
+include = ["contrib.*"]
+
+[tool.setuptools.dynamic]
+version = { attr = "contrib.admin.__version__" }
