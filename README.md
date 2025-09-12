@@ -129,7 +129,7 @@ FreeAdmin is **dual-licensed**:
 
 * **Commercial License**: Available for organizations that wish to use FreeAdmin without the copyleft requirements of AGPL-3.0.
   This option allows proprietary, closed-source, or commercial use of the software.
-  To obtain a commercial license, contact **[timurkady@yandex.com](mailto:timurkady@yandex.com)**.
+  To obtain a commercial license, contact with [me](https://github.com/TimurKady).
 
 ## Open Source Acknowledgements
 
