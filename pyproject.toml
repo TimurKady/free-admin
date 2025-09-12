@@ -29,4 +29,4 @@ namespaces = true
 include = ["contrib.*"]
 
 [tool.setuptools.dynamic]
-version = { attr = "contrib.admin.__version__" }
+version = { attr = "contrib.admin.version.__version__" }
