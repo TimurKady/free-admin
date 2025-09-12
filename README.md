@@ -8,7 +8,7 @@ FreeAdmin is a modern, ORM-agnostic administration panel inspired by Django Admi
 
 ## Features
 
-* **Two modes of operation**: standard ORM CRUD and system configuration panels.
+* **Three modes of operation**: ORM CRUD, system configuration panels, and custom views rendered as Bootstrap 5 cards with ready-made HTML (for example, assembled from database queries).
 * **JSON-Schema forms** powered by [JSON-Editor](https://github.com/json-editor/json-editor).
 * **Role-based access control (RBAC)** with fine-grained permissions at global and model levels.
 * **Import/Export wizard** with Excel (via OpenPyXL) and other formats.
