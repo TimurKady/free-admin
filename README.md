@@ -46,26 +46,34 @@ pip install free-admin
 
 Here is the minimal setup to get started with FreeAdmin:
 
+### 1. Create an Admin class
+
 ```python
-from fastapi import FastAPI
-from tortoise import Tortoise
-from contrib.admin.core.site import AdminSite
-from apps.models import Character
+from contrib.admin.core.model import ModelAdmin
+from contrib.admin.hub import admin_site
+from apps.blog.models import Post
 
-app = FastAPI()
 
-# Initialize ORM
-Tortoise.init(
-    db_url="postgres://user:password@localhost:5432/mydb",
-    modules={"models": ["apps.models"]},
-)
+class PostAdmin(ModelAdmin):
+    list_display = ["id", "title", "created_at"]
 
-# Setup admin
-admin = AdminSite(app)
-admin.register(Character)
+
+admin_site.register(Post, PostAdmin)
 ```
 
-Run your FastAPI application with Uvicorn:
+### 2. Mount the panel in the main application
+
+```python
+from fastapi import FastAPI
+from contrib.admin.boot import admin
+from my_project.adapters import MyAdapter
+
+
+app = FastAPI()
+admin.init(app, adapter=MyAdapter(), packages=["apps"])
+```
+
+### 3. Run the server
 
 ```bash
 uvicorn main:app --reload
