@@ -21,6 +21,9 @@ dependencies = [
 [project.scripts]
 free-admin = "contrib.admin.utils.create_superuser:SuperuserCreator.main"
 
+[tool.setuptools]
+include-package-data = true
+
 [tool.setuptools.packages.find]
 namespaces = true
 include = ["contrib.*"]
