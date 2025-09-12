@@ -103,7 +103,7 @@ Then open [http://127.0.0.1:8000/admin](http://127.0.0.1:8000/admin).
 
 ## Documentation
 
-Full documentation is available in the [docs/](docs/index.md) folder. Topics include:
+Full documentation is available in the [Documentation/](docs/index.md). Topics include:
 
 * Getting Started
 * ModelAdmin API
