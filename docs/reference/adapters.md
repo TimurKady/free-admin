@@ -1,4 +1,0 @@
-# Adapters
-
-# The End
-

@@ -1,4 +1,0 @@
-# Templates Assets
-
-# The End
-
