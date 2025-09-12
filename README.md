@@ -1,9 +1,5 @@
 # Admin panel for FastAPI/Tortoise-ORM
 
-> ⚠️ This project is in an early experimental stage.  
-> It is under active development and may change at any time.  
-> Nothing is guaranteed to work as expected — use at your own risk.
-
 A modular, Django-Admin–grade admin for **FastAPI** + **Tortoise ORM** without monoliths or client-side “magic”.
 Bootstrap 5 UI, JSON-Editor forms, clean layering, two modes (ORM/Settings), strict RBAC, and pluggable widgets.
 
@@ -32,6 +28,7 @@ Bootstrap 5 UI, JSON-Editor forms, clean layering, two modes (ORM/Settings), str
 ## Contents
 
 * [Quickstart](#quickstart)
+* [Installation & CLI](#installation--cli)
 * [Architecture](#architecture)
 * [Registering admins](#registering-admins)
 * [System configuration](#system-configuration)
@@ -73,6 +70,15 @@ register_startup(app)
 ```
 
 Run the app and open `http://localhost:8000/panel/`.
+
+---
+
+## Installation & CLI
+
+```bash
+pip install free-admin
+free-admin --help
+```
 
 ---
 
