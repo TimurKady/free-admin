@@ -1,309 +1,130 @@
-# Free-Admin
-**A modular admin panel for FastAPI and Tortoise ORM.**
+# FreeAdmin
 
-**free-admin** brings a powerful, extensible, and secure administration interface to your FastAPI projects.
-Designed with modularity in mind, it cleanly separates architecture into distinct layers:
+*Modular admin panel for FastAPI and Tortoise ORM*
 
-* **Core** — the foundation (`AdminSite`, `PageRegistry`, `CrudRouterBuilder`) plus authentication and templating services.
-* **ModelAdmin Layer** — declarative CRUD logic, filters, validation, and ORM bindings.
-* **RBAC Security** — fine-grained access control with roles and permissions.
-* **Infrastructure** — adapters (e.g., for Tortoise ORM), a CLI toolkit, and reusable widgets.
-* **Frontend** — clean Bootstrap 5 UI, JSON-Editor integration, ready-to-use templates and static assets.
+## Overview
 
-**Key Features**
+FreeAdmin is a modern, ORM-agnostic administration panel inspired by Django Admin, but built for the FastAPI ecosystem. It provides a powerful, extensible interface for managing your application data and settings with minimal boilerplate.
 
-* **Two operation modes** — ORM-based CRUD interface or global system settings.
-* **JSON Schema forms** with filters and pagination — no hidden “magic” on the client.
-* **Extensible by design** — build custom widgets and adapters.
-* **RBAC permissions** at both model level and global scope.
-* **Batteries included** — CLI commands, templates, and static files out of the box.
+## Features
 
----
-
-## Contents
-
-* [Quickstart](#quickstart)
-* [Installation & CLI](#installation--cli)
-* [Architecture](#architecture)
-* [Registering admins](#registering-admins)
-* [System configuration](#system-configuration)
-* [Permissions (RBAC)](#permissions-rbac)
-* [Templates & UI](#templates--ui)
-* [Filters & query syntax](#filters--query-syntax)
-* [Widgets](#widgets)
-* [Create superuser CLI](#create-superuser-cli)
-* [Roadmap](#roadmap)
-* [License](#license)
-
----
-
-## Quickstart
-
-```bash
-pip install fastapi tortoise-orm jinja2 python-multipart
-# install this package (local path or pip)
-pip install -e .
-```
-
-```python
-# app.py
-from fastapi import FastAPI
-from admin.core.site import AdminSite
-from admin.core.boot import register_startup  # seeds defaults + warms cache
-from admin.core.template_provider import TemplateProvider
-
-app = FastAPI()
-
-site = AdminSite(template_provider=TemplateProvider())
-# Register your admins here (see example below)
-
-# Mount the admin under /panel
-app.include_router(site.build_router(prefix="/panel"))
-
-# Ensure settings defaults are seeded and cache is loaded at startup
-register_startup(app)
-```
-
-Run the app and open `http://localhost:8000/panel/`.
-
----
-
-## Installation & CLI
-
-```bash
-pip install free-admin
-free-admin --help
-```
-
----
+* **Two modes of operation**: standard ORM CRUD and system configuration panels.
+* **JSON-Schema forms** powered by [JSON-Editor](https://github.com/json-editor/json-editor).
+* **Role-based access control (RBAC)** with fine-grained permissions at global and model levels.
+* **Import/Export wizard** with Excel (via OpenPyXL) and other formats.
+* **Inline editing** and reusable widgets.
+* **Command-line interface (CLI)** for scaffolding and admin management.
+* **Bootstrap 5 frontend** with ready-to-use templates, icons, and static assets.
+* **Extensible architecture** with modular adapters for multiple ORMs (starting with Tortoise ORM).
 
 ## Architecture
 
-* **AdminSite (Core/Coordinator)**
-  Slim registry of model admins, content-type map, route composition. No domain logic.
-* **PageRegistry**
-  Knows about ORM/Settings registrations, menu tree, unique paths.
-* **CrudRouterBuilder**
-  Builds CRUD for `/orm/...` and `/settings/...` prefixes with consistent permission dependencies.
-* **ApiController**
-  `/api/schema`, `/api/uiconfig`, `/api/list_filters`, `/api/autocomplete` — proxied to the relevant `BaseModelAdmin`, auth via `Depends` (`view`).
-* **TemplateProvider**
-  Ships templates and static assets; `AdminSite` is path-agnostic.
-* **BaseModelAdmin (Domain)**
+FreeAdmin is organized into clear layers:
 
-  * JSON-Schema + UI schema; server-side validation
-  * List/filters/columns
-  * Query hooks: `get_base_queryset`, `get_list_queryset`, `get_object_queryset`,
-    `apply_select_related/only`, `apply_row_level_security`
-  * Business/UI hook: `allow(user, action, obj=None)`
-* **Adapter (Tortoise)**
-  Model introspection → descriptor (fields, types, relations).
+* **Core** — AdminSite, PageRegistry, CrudRouterBuilder, authentication and template services.
+* **ModelAdmin** — Encapsulates CRUD logic, filters, validation, and ORM bindings.
+* **RBAC** — Role and permission system for secure access control.
+* **Infrastructure** — ORM adapters, CLI tools, and widget framework.
+* **Frontend** — Bootstrap-based UI, JSON-Editor integration, and static assets.
 
----
+This modular design makes FreeAdmin both powerful and flexible, suitable for projects of any scale.
 
-## Registering admins
-
-`AdminSite.register` has **one** clear signature:
-
-```python
-site.register(
-    app: str,
-    model: type,                 # Tortoise ORM model
-    admin_cls: type,             # subclass of BaseModelAdmin
-    *,
-    settings: bool = False,      # register under /settings
-    icon: str | None = None,     # Bootstrap icon class (e.g., "bi-gear")
-    name: str | None = None      # display name
-)
-```
-
-Example — register a settings model in the **Settings** area:
-
-```python
-from admin.core.site import AdminSite
-from admin.core.base import BaseModelAdmin
-from myapp.models import SystemSetting
-
-class SystemSettingAdmin(BaseModelAdmin):
-    class Meta:
-        pass  # columns/filters as needed
-
-site.register(
-    app="core",
-    model=SystemSetting,
-    admin_cls=SystemSettingAdmin,
-    settings=True,
-    icon="bi-gear",
-    name="System Settings",
-)
-```
-
----
-
-## System configuration
-
-The admin uses a **key–value settings store** backed by DB.
-
-* **Keys** live in `SettingsKey(StrChoices)` (one enum to rule them all).
-* **Defaults** live in `DEFAULT_SETTINGS: dict[SettingsKey, (value, type)]`.
-* **SystemConfig** is the access layer.
-
-At startup we **seed missing keys** and **warm the cache**:
-
-```python
-from admin.core.boot import register_startup
-register_startup(app)  # ensure_seed() + reload() on app startup
-```
-
-Usage in code:
-
-```python
-from admin.core.config import system_config
-from admin.core.keys import SettingsKey
-
-title = await system_config.get(SettingsKey.DEFAULT_ADMIN_TITLE)
-per_page = system_config.get_cached(SettingsKey.DEFAULT_PER_PAGE, 20)  # cache-only, after startup
-```
-
-> Old hardcoded constants are **deprecated**. Always read through `system_config`.
-
----
-
-## Permissions (RBAC)
-
-* **Model-scoped**: `view`, `add`, `change`, `delete` (for ORM area)
-* **Global-scoped**: `view`, `change` (for Settings area)
-* Enforced via FastAPI dependencies:
-
-  * `require_model_permission(PermAction.view)` etc.
-  * `require_global_permission(...)`
-* `BaseModelAdmin.apply_row_level_security(qs, user)` for RLS.
-
----
-
-## Templates & UI
-
-Uniform layout for ORM and Settings:
-
-* **Left**: accordion with apps → models
-* **Right**: list/table or form
-* **Filters**: off-canvas panel (server-driven schema)
-
-Templates (shipped):
-
-```
-templates/
-  base.html
-  orm.html
-  settings.html
-  list.html
-  form.html
-  includes/
-    sidebar.html
-    section.html
-static/
-  admin-form.js
-  ...
-```
-
-JSON-Editor contract from `/api/schema`:
-
-```json
-{
-  "schema": {
-    "type": "object",
-    "properties": { ... },
-    "required": [ ... ],
-    "additionalProperties": false
-  },
-  "startval": { ... },          // never null
-  "schema_version": "1"
-}
-```
-
-UI assets (widget JS/CSS/partials) are provided via `/api/uiconfig`.
-
----
-
-## Filters & query syntax
-
-Server-side filters follow a simple pattern:
-
-```
-?filter.<field>[__op]=<value>
-```
-
-Supported ops depend on field type (`__icontains`, `__in`, `__gte`, etc.).
-The filter panel is rendered from `/api/list_filters` and kept in sync with server logic.
-
----
-
-## Widgets
-
-Two distinct widget types:
-
-* **Field widgets** (for JSON-Editor fields)
-
-  * Provide `schema_fragment` and `ui_fragment`, plus optional endpoints
-* **Free widgets** (Bootstrap cards on pages)
-
-  * Page slots (e.g., `home.main`, `list.right`), data via `initial_data()`
-
-Both share a minimal base for **asset delivery** (JS/CSS/partials) and optional **endpoints** under `/api/widgets/<key>/…`.
-
----
-
-## Create superuser CLI
-
-Django-style interactive utility:
+## Installation
 
 ```bash
-# interactive
-python -m admin.utils.create_superuser
-
-# non-interactive
-python -m admin.utils.create_superuser --no-input \
-  --username admin --email admin@example.com --password secret
-
-# update existing
-python -m admin.utils.create_superuser --username admin --update-if-exists --reset-password-if-exists --no-input --password newpass
+pip install free-admin
 ```
 
-* Prompts for username/email/password (with confirmation).
-* `--no-input` + env (`ADMIN_USERNAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`) supported.
-* Uses the same PBKDF2 hashing settings as the admin (`SystemConfig` → `security.password_*`).
+### Requirements
 
----
+* Python 3.10+
+* FastAPI
+* Tortoise ORM
+* PostgreSQL (recommended)
+
+## Quickstart
+
+Here is the minimal setup to get started with FreeAdmin:
+
+```python
+from fastapi import FastAPI
+from tortoise import Tortoise
+from contrib.admin.core.site import AdminSite
+from apps.models import Character
+
+app = FastAPI()
+
+# Initialize ORM
+Tortoise.init(
+    db_url="postgres://user:password@localhost:5432/mydb",
+    modules={"models": ["apps.models"]},
+)
+
+# Setup admin
+admin = AdminSite(app)
+admin.register(Character)
+```
+
+Run your FastAPI application with Uvicorn:
+
+```bash
+uvicorn main:app --reload
+```
+
+Then open [http://127.0.0.1:8000/admin](http://127.0.0.1:8000/admin).
+
+## Documentation
+
+Full documentation is available in the [docs/](docs) folder. Topics include:
+
+* Getting Started
+* ModelAdmin API
+* RBAC configuration
+* Import/Export wizard
+* Widgets and Inline forms
+* CLI usage
+* Advanced customization
 
 ## Roadmap
 
-* **Widgets**
-
-  * Default field widgets: `text`, `textarea`, `boolean`, `number`, `select`, `autocomplete`, `datetime`, `date`, `time`
-  * Free widgets: dashboard cards, list-right panels
-* **UX sugar**
-
-  * Active filter chips, badges, friendly empty states
-  * Choice/bool/datetime formatting, `choices_map` in `columns_meta`
-* **Performance**
-
-  * QS profiling hooks, explicit `select_related/only` helpers
-* **Docs & packaging**
-
-  * Detailed `BaseModelAdmin` contracts, examples, cookbook
-* **Testing**
-
-  * Smoke tests: RBAC matrix, schema snapshot, RLS, ORM/Settings routers
-
----
+* Support for additional ORMs (SQLAlchemy, GINO).
+* Extended set of built-in widgets.
+* Nested inline support.
+* Internationalization (i18n).
 
 ## License
 
-MIT — do what you want, just keep the copyright.
+FreeAdmin is **dual-licensed**:
 
----
+* **AGPL-3.0** (default): You are free to use, modify, and distribute this project under the terms of the GNU Affero General Public License v3.0.
+  Any software or service that uses FreeAdmin, including SaaS and internal platforms, **must make its complete source code available under AGPL-3.0**.
+
+* **Commercial License**: Available for organizations that wish to use FreeAdmin without the copyleft requirements of AGPL-3.0.
+  This option allows proprietary, closed-source, or commercial use of the software.
+  To obtain a commercial license, contact **[timurkady@yandex.com](mailto:timurkady@yandex.com)**.
+
+## Open Source Acknowledgements
+
+FreeAdmin makes use of the following open-source projects:
+
+* [FastAPI](https://fastapi.tiangolo.com/) — web framework.
+* [Tortoise ORM](https://tortoise.github.io/) — ORM.
+* [Starlette](https://www.starlette.io/) — ASGI toolkit.
+* [Pydantic](https://docs.pydantic.dev/) — data validation.
+* [Bootstrap 5](https://getbootstrap.com/) — frontend UI.
+* [Bootstrap Icons](https://icons.getbootstrap.com/).
+* [JSON-Editor](https://github.com/json-editor/json-editor) — JSON Schema editor.
+* [OpenPyXL](https://openpyxl.readthedocs.io/) — Excel support.
+* [Click](https://click.palletsprojects.com/) — CLI.
+* [Jinja2](https://palletsprojects.com/p/jinja/) — templating.
+* [Uvicorn](https://www.uvicorn.org/) — ASGI server.
+* [aiofiles](https://github.com/Tinche/aiofiles) — async file I/O.
 
 ## Credits
+
 This work is built brick by brick and released as real Open Source.  If you find it useful, help me ship the next bricks faster, you can support the development via [GitHub Sponsors](https://github.com/sponsors/your-username).
 I’m committed to production-grade, documented, and maintained tools.  Your support funds tests, docs, and releases.
 
+---
+
+*This project is under active development. Contributions are welcome!*
