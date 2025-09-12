@@ -89,7 +89,7 @@ Full documentation is available in the [docs/](docs) folder. Topics include:
 
 * Support for additional ORMs (SQLAlchemy, GINO).
 * Extended set of built-in widgets.
-* Nested inline support.
+* Multy-nested inline support.
 * Internationalization (i18n).
 
 ## License
