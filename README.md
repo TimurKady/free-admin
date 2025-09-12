@@ -73,7 +73,27 @@ app = FastAPI()
 admin.init(app, adapter=MyAdapter(), packages=["apps"])
 ```
 
-### 3. Run the server
+### 3. What is `apps`?
+
+The `apps` package is a common convention: each subpackage represents a separate application or domain area (e.g. `apps.blog`, `apps.users`, `apps.orders`).
+It’s recommended to place your models inside their respective app folders instead of keeping all models in one large file.
+
+Example structure:
+
+```
+my_project/
+    apps/
+        blog/
+            models.py
+            admin.py
+        users/
+            models.py
+            admin.py
+```
+
+This makes it easier to maintain and scale larger projects.
+
+### 4. Run the server
 
 ```bash
 uvicorn main:app --reload
