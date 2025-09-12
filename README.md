@@ -137,17 +137,17 @@ FreeAdmin makes use of the following open-source projects:
 
 * [FastAPI](https://fastapi.tiangolo.com/) — web framework.
 * [Tortoise ORM](https://tortoise.github.io/) — ORM.
-* [Starlette](https://www.starlette.io/) — ASGI toolkit.
 * [Pydantic](https://docs.pydantic.dev/) — data validation.
+* [JSON-Editor](https://github.com/json-editor/json-editor) — JSON Schema editor.
 * [Bootstrap 5](https://getbootstrap.com/) — frontend UI.
 * [Bootstrap Icons](https://icons.getbootstrap.com/).
-* [JSON-Editor](https://github.com/json-editor/json-editor) — JSON Schema editor.
+* [Jinja2](https://palletsprojects.com/p/jinja/) — templating.
 * [Ace Editor](https://ace.c9.io/) — code editor integration.
+* [Starlette](https://www.starlette.io/) — ASGI toolkit.
 * [OpenPyXL](https://openpyxl.readthedocs.io/) — Excel support.
 * [Click](https://click.palletsprojects.com/) — CLI.
-* [Jinja2](https://palletsprojects.com/p/jinja/) — templating.
-* [Uvicorn](https://www.uvicorn.org/) — ASGI server.
 * [aiofiles](https://github.com/Tinche/aiofiles) — async file I/O.
+* [Uvicorn](https://www.uvicorn.org/) — ASGI server.
 
 ## Credits
 
