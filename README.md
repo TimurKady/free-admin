@@ -10,7 +10,7 @@ Designed with modularity in mind, it cleanly separates architecture into distinc
 * **Infrastructure** — adapters (e.g., for Tortoise ORM), a CLI toolkit, and reusable widgets.
 * **Frontend** — clean Bootstrap 5 UI, JSON-Editor integration, ready-to-use templates and static assets.
 
-### Key Features
+**Key Features**
 
 * **Two operation modes** — ORM-based CRUD interface or global system settings.
 * **JSON Schema forms** with filters and pagination — no hidden “magic” on the client.
