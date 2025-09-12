@@ -10,6 +10,7 @@ Email: timurkady@yandex.com
 """
 
 from importlib import import_module
+from .version import __version__
 
 
 def __getattr__(name: str):  # pragma: no cover - simple proxy
@@ -22,9 +23,7 @@ def __getattr__(name: str):  # pragma: no cover - simple proxy
     raise AttributeError(name)
 
 
-__all__ = ["AdminSite", "BaseModelAdmin", "AdminRouter"]
-
-__version__ = "0.1.0-dev"
+__all__ = ["AdminSite", "BaseModelAdmin", "AdminRouter", "__version__"]
 
 # The End
 
