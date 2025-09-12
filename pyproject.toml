@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.scripts]
-free-admin = "contrib.admin.utils.create_superuser:SuperuserCreator.main"
+free-admin = "contrib.admin.cli:main"
 
 [tool.setuptools]
 include-package-data = true
