@@ -12,12 +12,12 @@ Email: timurkady@yandex.com
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any, Callable, Dict, List
 
-from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Depends, Request, UploadFile, File, HTTPException, Form, status
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
-from urllib.parse import urlparse
 from config.settings import settings
 
 from ..adapters import BaseAdapter
@@ -31,6 +31,9 @@ from .exceptions import AdminModelNotFound
 from ..crud import CrudRouterBuilder
 from ..api import API_PREFIX, router as api_router
 from ..provider import TemplateProvider
+from .services import ExportService, ImportService
+from .actions import ScopeQueryService, ScopeTokenService
+from ..utils.icon import IconPathMixin
 
 Model = Any
 
@@ -38,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 
 
-class AdminSite:
+class AdminSite(IconPathMixin):
     """Admin registry: models, pages and menus."""
 
     def __init__(
@@ -59,19 +62,7 @@ class AdminSite:
         self.templates = templates
         # in-process map: (app.lower(), model.lower()) -> ct_id
         self.ct_map: Dict[tuple[str, str], int] = {}
-
-    @staticmethod
-    def _resolve_icon_path(icon_path: str, prefix: str, static_segment: str) -> str:
-        parsed = urlparse(icon_path)
-        if parsed.scheme or icon_path.startswith("/"):
-            return icon_path
-        static_pos = icon_path.find("static/")
-        if static_pos != -1:
-            icon_path = icon_path[static_pos + len("static/") :]
-        return (
-            f"{prefix.rstrip('/')}{static_segment.rstrip('/')}/"
-            f"{icon_path.lstrip('/')}"
-        )
+        self._import_service = ImportService()
 
     @property
     def title(self) -> str:
@@ -367,6 +358,19 @@ class AdminSite:
             return func
         return decorator
 
+    def register_user_menu(
+        self, *, title: str, path: str, icon: str | None = None
+    ) -> None:
+        """Register a user menu item."""
+        self.registry.register_user_menu_item(title=title, path=path, icon=icon)
+
+    def get_user_menu(self) -> List[Dict[str, str | None]]:
+        """Return user menu entries for the current site."""
+        return [
+            {"label": item.title, "url": item.path, "icon": item.icon}
+            for item in self.registry.make_user_menu()
+        ]
+
     # ==== Router ====
     def build_router(self, template_provider: TemplateProvider) -> APIRouter:
         router = APIRouter()
@@ -396,6 +400,7 @@ class AdminSite:
             iter_settings_entries=self.registry.iter_settings,
             iter_orm_entries=self.registry.iter_orm,
             get_admin_api=get_admin_api,
+            get_user_menu=self.get_user_menu,
         )
 
         orm_prefix = system_config.get_cached(SettingsKey.ORM_PREFIX, "/orm")
@@ -421,6 +426,8 @@ class AdminSite:
     def _attach_auth_routes(
         self, router: APIRouter, templates: Jinja2Templates
     ) -> None:
+        logout_path = system_config.get_cached(SettingsKey.LOGOUT_PATH, "/logout")
+        self.register_user_menu(title="Logout", path=logout_path)
         router.include_router(
             admin_auth_service.build_auth_router(templates), tags=["admin-auth"]
         )
@@ -515,27 +522,462 @@ class AdminSite:
     def _attach_crud_routes(
         self, router: APIRouter, orm_prefix: str, settings_prefix: str
     ) -> None:
+        templates = getattr(router, "templates", None)
+        if templates is None:
+            base_dir = Path(__file__).resolve().parents[2]
+            templates = Jinja2Templates(directory=str(base_dir / "templates"))
         for entry in self.registry.iter_orm():
-            prefix = f"{orm_prefix}/{entry.app}/{entry.model}"
+            app_label = entry.app
+            model_slug = entry.model
+            prefix = f"{orm_prefix}/{app_label}/{model_slug}"
             CrudRouterBuilder.mount(
                 router,
                 admin_site=self,
                 prefix=prefix,
                 admin_cls=entry.admin_cls,
                 perms="model",
-                app_label=entry.app,
+                app_label=app_label,
             )
+            admin = self.model_reg.get((app_label.lower(), model_slug.lower()))
+            if admin is None:
+                continue
+            export_endpoint_name = f"{app_label}_{model_slug}_export_wizard"
+            export_preview_endpoint_name = f"{app_label}_{model_slug}_export_preview"
+            export_run_endpoint_name = f"{app_label}_{model_slug}_export_run"
+            export_done_endpoint_name = f"{app_label}_{model_slug}_export_done"
+            admin.export_endpoint_name = export_endpoint_name
+            admin.export_preview_endpoint_name = export_preview_endpoint_name
+            admin.export_run_endpoint_name = export_run_endpoint_name
+            admin.export_done_endpoint_name = export_done_endpoint_name
+            export_service = ExportService(self.adapter)
+            scope_query_service = ScopeQueryService(self.adapter)
+            scope_token_service = ScopeTokenService()
+            scope_token_service = ScopeTokenService()
+            if admin.perm_export:
+                perm_export = permissions_service.require_model_permission(
+                    admin.perm_export, app_value=app_label, model_value=model_slug
+                )
+            else:
+                async def perm_export(request: Request) -> None:
+                    return None
+            if admin.perm_import:
+                perm_import = permissions_service.require_model_permission(
+                    admin.perm_import, app_value=app_label, model_value=model_slug
+                )
+            else:
+                async def perm_import(request: Request) -> None:
+                    return None
+
+            @router.api_route(
+                prefix + "/export/",
+                methods=["GET", "POST"],
+                response_class=HTMLResponse,
+                name=export_endpoint_name,
+            )
+            async def export_step1(
+                request: Request,
+                user: AdminUserDTO = Depends(
+                    admin_auth_service.get_current_admin_user
+                ),
+                _=Depends(perm_export),
+                admin=admin,
+                app_label: str = app_label,
+                model_slug: str = model_slug,
+            ) -> HTMLResponse:
+                request.state.user_dto = user
+                if not (user.is_superuser or admin.has_export_perm(request)):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Export not permitted",
+                    )
+                ctx = self.build_template_ctx(
+                    request,
+                    user,
+                    page_title="Export",
+                    app_label=app_label,
+                    model_name=model_slug,
+                )
+                ctx["fields"] = list(admin.get_export_fields())
+                return templates.TemplateResponse(
+                    "context/export.html", ctx
+                )
+
+            @router.post(prefix + "/export/preview", name=export_preview_endpoint_name)
+            async def export_preview(
+                request: Request,
+                user: AdminUserDTO = Depends(
+                    admin_auth_service.get_current_admin_user
+                ),
+                _=Depends(perm_export),
+                admin=admin,
+                export_service: ExportService = Depends(lambda: export_service),
+                scope_query_service: ScopeQueryService = Depends(
+                    lambda: scope_query_service
+                ),
+            ) -> Dict[str, Any]:
+                request.state.user_dto = user
+                if not (user.is_superuser or admin.has_export_perm(request)):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Export not permitted",
+                    )
+                payload = await request.json()
+                allowed = list(admin.get_export_fields())
+                fields = [f for f in payload.get("fields", allowed) if f in allowed]
+                md = self.adapter.get_model_descriptor(admin.model)
+                scope = payload.get("scope")
+                if scope is None:
+                    token = payload.get("scope_token")
+                    if token is None:
+                        raise HTTPException(status_code=400, detail="Missing scope")
+                    try:
+                        scope = scope_token_service.verify(token)
+                    except ValueError:
+                        raise HTTPException(status_code=400, detail="Invalid scope_token")
+                qs = scope_query_service.build_queryset(
+                    admin, md, request, user, scope
+                )
+                rows = await export_service.preview(qs, fields)
+                return {"count": len(rows), "rows": rows}
+
+            @router.post(prefix + "/export/run", name=export_run_endpoint_name)
+            async def export_run(
+                request: Request,
+                user: AdminUserDTO = Depends(
+                    admin_auth_service.get_current_admin_user
+                ),
+                _=Depends(perm_export),
+                admin=admin,
+                export_service: ExportService = Depends(lambda: export_service),
+                scope_query_service: ScopeQueryService = Depends(
+                    lambda: scope_query_service
+                ),
+            ) -> Dict[str, Any]:
+                request.state.user_dto = user
+                if not (user.is_superuser or admin.has_export_perm(request)):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Export not permitted",
+                    )
+                payload = await request.json()
+                allowed = list(admin.get_export_fields())
+                fields = [f for f in payload.get("fields", allowed) if f in allowed]
+                fmt = payload.get("fmt", "json")
+                md = self.adapter.get_model_descriptor(admin.model)
+                scope = payload.get("scope")
+                if scope is None:
+                    token = payload.get("scope_token")
+                    if token is None:
+                        raise HTTPException(status_code=400, detail="Missing scope")
+                    try:
+                        scope = scope_token_service.verify(token)
+                    except ValueError:
+                        raise HTTPException(status_code=400, detail="Invalid scope_token")
+                qs = scope_query_service.build_queryset(
+                    admin, md, request, user, scope
+                )
+                token = await export_service.run(
+                    qs, fields, fmt, model_name=admin.model.__name__
+                )
+                return {"token": token}
+
+            @router.get(prefix + "/export/done/{token}", name=export_done_endpoint_name)
+            async def export_done(
+                token: str,
+                request: Request,
+                user: AdminUserDTO = Depends(
+                    admin_auth_service.get_current_admin_user
+                ),
+                _=Depends(perm_export),
+                admin=admin,
+                export_service: ExportService = Depends(lambda: export_service),
+            ) -> StreamingResponse:
+                request.state.user_dto = user
+                if not (user.is_superuser or admin.has_export_perm(request)):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Export not permitted",
+                    )
+                cached = export_service.get_file(token)
+                def iterfile() -> Any:
+                    with cached.path.open("rb") as f:
+                        yield from f
+                response = StreamingResponse(iterfile(), media_type=cached.mime)
+                response.headers[
+                    "Content-Disposition"
+                ] = f"attachment; filename={cached.filename}"
+                response.headers["Content-Type"] = cached.mime
+                return response
+
+            import_endpoint_name = f"{app_label}_{model_slug}_import_wizard"
+            import_preview_name = f"{app_label}_{model_slug}_import_preview"
+            import_run_name = f"{app_label}_{model_slug}_import_run"
+            admin.import_endpoint_name = import_endpoint_name
+            admin.import_preview_endpoint_name = import_preview_name
+            admin.import_run_endpoint_name = import_run_name
+
+            @router.api_route(
+                prefix + "/import/",
+                methods=["GET", "POST"],
+                response_class=HTMLResponse,
+                name=import_endpoint_name,
+            )
+            async def import_step1(
+                request: Request,
+                user: AdminUserDTO = Depends(
+                    admin_auth_service.get_current_admin_user
+                ),
+                _=Depends(perm_import),
+                admin=admin,
+                app_label: str = app_label,
+                model_slug: str = model_slug,
+            ) -> HTMLResponse:
+                request.state.user_dto = user
+                if not admin.has_import_perm(request):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Import not permitted",
+                    )
+                ctx = self.build_template_ctx(
+                    request,
+                    user,
+                    page_title="Import",
+                    app_label=app_label,
+                    model_name=model_slug,
+                )
+                ctx.update(
+                    fields=list(admin.get_import_fields()),
+                    required=set(admin.get_required_import_fields()),
+                )
+                return templates.TemplateResponse(
+                    "context/import.html", ctx
+                )
+
+            @router.post(prefix + "/import/preview", name=import_preview_name)
+            async def import_preview(
+                request: Request,
+                file: UploadFile = File(...),
+                fields: list[str] = Form(...),
+                user: AdminUserDTO = Depends(
+                    admin_auth_service.get_current_admin_user
+                ),
+                _=Depends(perm_import),
+                admin=admin,
+                import_service: ImportService = Depends(
+                    lambda: self._import_service
+                ),
+            ) -> Dict[str, Any]:
+                request.state.user_dto = user
+                if not admin.has_import_perm(request):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Import not permitted",
+                    )
+                token = await import_service.cache_upload(file)
+                rows = await import_service.preview(token, fields)
+                return {"token": token, "rows": rows}
+
+            @router.post(prefix + "/import/run", name=import_run_name)
+            async def import_run(
+                request: Request,
+                user: AdminUserDTO = Depends(
+                    admin_auth_service.get_current_admin_user
+                ),
+                _=Depends(perm_import),
+                admin=admin,
+                import_service: ImportService = Depends(
+                    lambda: self._import_service
+                ),
+            ) -> Dict[str, Any]:
+                request.state.user_dto = user
+                if not admin.has_import_perm(request):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Import not permitted",
+                    )
+                payload = await request.json()
+                token = payload.get("token")
+                dry = payload.get("dry", False)
+                fields = payload.get("fields") or list(admin.get_import_fields())
+                report = await import_service.run(admin, token, fields, dry=dry)
+                import_service.cleanup(token)
+                return report.__dict__
 
         for entry in self.registry.iter_settings():
-            prefix = f"{settings_prefix}/{entry.app}/{entry.model}"
+            app_label = entry.app
+            model_slug = entry.model
+            prefix = f"{settings_prefix}/{app_label}/{model_slug}"
             CrudRouterBuilder.mount(
                 router,
                 admin_site=self,
                 prefix=prefix,
                 admin_cls=entry.admin_cls,
                 perms="global",
-                app_label=entry.app,
+                app_label=app_label,
             )
+            admin = self.model_reg.get((app_label.lower(), model_slug.lower()))
+            if admin is None:
+                continue
+            export_endpoint_name = f"{app_label}_{model_slug}_export_wizard"
+            export_preview_endpoint_name = f"{app_label}_{model_slug}_export_preview"
+            export_run_endpoint_name = f"{app_label}_{model_slug}_export_run"
+            export_done_endpoint_name = f"{app_label}_{model_slug}_export_done"
+            admin.export_endpoint_name = export_endpoint_name
+            admin.export_preview_endpoint_name = export_preview_endpoint_name
+            admin.export_run_endpoint_name = export_run_endpoint_name
+            admin.export_done_endpoint_name = export_done_endpoint_name
+            export_service = ExportService(self.adapter)
+            scope_query_service = ScopeQueryService(self.adapter)
+            if admin.perm_export:
+                perm_export = permissions_service.require_global_permission(
+                    admin.perm_export
+                )
+            else:
+                async def perm_export(request: Request) -> None:
+                    return None
+
+            @router.api_route(
+                prefix + "/export/",
+                methods=["GET", "POST"],
+                response_class=HTMLResponse,
+                name=export_endpoint_name,
+            )
+            async def export_step1(
+                request: Request,
+                user: AdminUserDTO = Depends(
+                    admin_auth_service.get_current_admin_user
+                ),
+                _=Depends(perm_export),
+                admin=admin,
+                app_label: str = app_label,
+                model_slug: str = model_slug,
+            ) -> HTMLResponse:
+                request.state.user_dto = user
+                if not (user.is_superuser or admin.has_export_perm(request)):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Export not permitted",
+                    )
+                ctx = self.build_template_ctx(
+                    request,
+                    user,
+                    page_title="Export",
+                    app_label=app_label,
+                    model_name=model_slug,
+                )
+                ctx["fields"] = list(admin.get_export_fields())
+                return templates.TemplateResponse(
+                    "context/export.html", ctx
+                )
+
+            @router.post(prefix + "/export/preview", name=export_preview_endpoint_name)
+            async def export_preview(
+                request: Request,
+                user: AdminUserDTO = Depends(
+                    admin_auth_service.get_current_admin_user
+                ),
+                _=Depends(perm_export),
+                admin=admin,
+                export_service: ExportService = Depends(lambda: export_service),
+                scope_query_service: ScopeQueryService = Depends(
+                    lambda: scope_query_service
+                ),
+            ) -> Dict[str, Any]:
+                request.state.user_dto = user
+                if not (user.is_superuser or admin.has_export_perm(request)):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Export not permitted",
+                    )
+                payload = await request.json()
+                allowed = list(admin.get_export_fields())
+                fields = [f for f in payload.get("fields", allowed) if f in allowed]
+                md = self.adapter.get_model_descriptor(admin.model)
+                scope = payload.get("scope")
+                if scope is None:
+                    token = payload.get("scope_token")
+                    if token is None:
+                        raise HTTPException(status_code=400, detail="Missing scope")
+                    try:
+                        scope = scope_token_service.verify(token)
+                    except ValueError:
+                        raise HTTPException(status_code=400, detail="Invalid scope_token")
+                qs = scope_query_service.build_queryset(
+                    admin, md, request, user, scope
+                )
+                rows = await export_service.preview(qs, fields)
+                return {"count": len(rows), "rows": rows}
+
+            @router.post(prefix + "/export/run", name=export_run_endpoint_name)
+            async def export_run(
+                request: Request,
+                user: AdminUserDTO = Depends(
+                    admin_auth_service.get_current_admin_user
+                ),
+                _=Depends(perm_export),
+                admin=admin,
+                export_service: ExportService = Depends(lambda: export_service),
+                scope_query_service: ScopeQueryService = Depends(
+                    lambda: scope_query_service
+                ),
+            ) -> Dict[str, Any]:
+                request.state.user_dto = user
+                if not (user.is_superuser or admin.has_export_perm(request)):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Export not permitted",
+                    )
+                payload = await request.json()
+                allowed = list(admin.get_export_fields())
+                fields = [f for f in payload.get("fields", allowed) if f in allowed]
+                fmt = payload.get("fmt", "json")
+                md = self.adapter.get_model_descriptor(admin.model)
+                scope = payload.get("scope")
+                if scope is None:
+                    token = payload.get("scope_token")
+                    if token is None:
+                        raise HTTPException(status_code=400, detail="Missing scope")
+                    try:
+                        scope = scope_token_service.verify(token)
+                    except ValueError:
+                        raise HTTPException(status_code=400, detail="Invalid scope_token")
+                qs = scope_query_service.build_queryset(
+                    admin, md, request, user, scope
+                )
+                token = await export_service.run(
+                    qs, fields, fmt, model_name=admin.model.__name__
+                )
+                return {"token": token}
+
+            @router.get(prefix + "/export/done/{token}", name=export_done_endpoint_name)
+            async def export_done(
+                token: str,
+                request: Request,
+                user: AdminUserDTO = Depends(
+                    admin_auth_service.get_current_admin_user
+                ),
+                _=Depends(perm_export),
+                admin=admin,
+                export_service: ExportService = Depends(lambda: export_service),
+            ) -> StreamingResponse:
+                request.state.user_dto = user
+                if not (user.is_superuser or admin.has_export_perm(request)):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Export not permitted",
+                    )
+                cached = export_service.get_file(token)
+
+                def iterfile() -> Any:
+                    with cached.path.open("rb") as f:
+                        yield from f
+
+                response = StreamingResponse(iterfile(), media_type=cached.mime)
+                response.headers[
+                    "Content-Disposition"
+                ] = f"attachment; filename={cached.filename}"
+                response.headers["Content-Type"] = cached.mime
+                return response
 
         self.registry.make_menu()
 

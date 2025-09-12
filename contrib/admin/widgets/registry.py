@@ -57,8 +57,10 @@ class WidgetRegistry:
         if fd.choices is not None:
             return "radio"
 
-        if k in ("int", "integer", "float", "number"):
+        if k == "number":
             return "number"
+        if k in ("int", "integer", "float"):
+            return "text"
         if k in ("date", "datetime", "time"):
             return "datetime"
         if k == "text":

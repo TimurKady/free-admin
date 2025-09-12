@@ -78,13 +78,23 @@ class BootManager:
             self._register_model_modules()
 
         from .middleware import AdminGuardMiddleware
+        from .core.settings import SettingsKey, system_config
 
         app.add_middleware(AdminGuardMiddleware)
-        app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
+        session_cookie = system_config.get_cached(
+            SettingsKey.SESSION_COOKIE, "session"
+        )
+        app.add_middleware(
+            SessionMiddleware,
+            secret_key=settings.SECRET_KEY,
+            session_cookie=session_cookie,
+        )
 
         from .pages.views import BuiltinPagesRegistrar
+        from .pages.user_menu import BuiltinUserMenuRegistrar
         from .hub import hub
         BuiltinPagesRegistrar().register(hub.admin_site)
+        BuiltinUserMenuRegistrar().register(hub.admin_site)
         hub.init_app(app, packages=packages)
 
         @app.on_event("startup")
@@ -117,6 +127,12 @@ class BootManager:
             if dotted not in self._model_modules:
                 import_module(dotted)
                 self._model_modules.add(dotted)
+
+    def reset(self) -> None:
+        """Restore manager to an uninitialized state."""
+        self._config = None
+        self._adapter = None
+        self._model_modules.clear()
 
 
 admin = BootManager(adapter_name="tortoise")

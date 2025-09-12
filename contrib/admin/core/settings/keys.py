@@ -61,6 +61,7 @@ class SettingsKey(StrChoices):
     LOGIN_PATH            = ("LOGIN_PATH", "Login path")
     LOGOUT_PATH           = ("LOGOUT_PATH", "Logout path")
     SETUP_PATH            = ("SETUP_PATH", "Setup path")
+    SESSION_COOKIE        = ("SESSION_COOKIE", "Admin session cookie name")
     SESSION_KEY           = ("SESSION_KEY", "Admin session cookie key")
 
     # --- Section prefixes ---
@@ -75,6 +76,7 @@ class SettingsKey(StrChoices):
 
     # --- Media ---
     MEDIA_ROOT           = ("MEDIA_ROOT", "Directory for uploaded files")
+    MEDIA_URL            = ("MEDIA_URL", "URL prefix for uploaded files")
 
 # The End
 

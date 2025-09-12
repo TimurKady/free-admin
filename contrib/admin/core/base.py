@@ -28,6 +28,7 @@ from typing import (
 
 from types import MappingProxyType
 from datetime import datetime, timezone
+from fastapi.responses import RedirectResponse
 
 from .exceptions import ActionNotFound, PermissionDenied, AdminIntegrityError
 from .filters import FilterSpec
@@ -44,8 +45,9 @@ if TYPE_CHECKING:  # pragma: no cover
 # Placeholder for the active ORM's QuerySet implementation
 QuerySet = Any
 
-from .actions import ActionResult, BaseAction  # noqa: E402
+from .actions import ActionResult, BaseAction, ScopeTokenService  # noqa: E402
 from .actions.delete_selected import DeleteSelectedAction  # noqa: E402
+from .actions.export_selected import ExportSelectedAction  # noqa: E402
 from .permissions import PermAction  # noqa: E402
 
 
@@ -71,16 +73,23 @@ class BaseModelAdmin:
     readonly_fields: Sequence[str] = ()
     autocomplete_fields: Sequence[str] = ()
     list_use_only: bool = False
-    actions: tuple[type[BaseAction], ...] = (DeleteSelectedAction,)
+    actions: tuple[type[BaseAction], ...] = (
+        DeleteSelectedAction,
+        ExportSelectedAction,
+    )
     # Later: list_display, search_fields, list_filter, ordering, etc.
-    
+
     # Global Admin Assets
     admin_assets_css: tuple[str, ...] = ()
     admin_assets_js: tuple[str, ...] = ()
 
+    # Data exchange permissions and field controls
+    perm_export: PermAction | None = PermAction.export
+    perm_import: PermAction | None = getattr(PermAction, "import")
+
     FILTER_OPS = {"": "eq", "eq": "eq", "icontains": "icontains", "gte": "gte", "lte": "lte", "gt": "gt", "lt": "lt", "in": "in"}
     FILTER_PREFIX: str = "filter."
-    widgets_overrides: dict[str, str] = {}
+    widgets_overrides: dict[str, str | type[BaseWidget] | BaseWidget] = {}
 
     PARAM_TYPE_NAMES: dict[type, str] = {
         bool: "boolean",
@@ -96,25 +105,7 @@ class BaseModelAdmin:
         if meta is not None:
             collected.update(getattr(meta, "widgets", {}) or {})
         collected.update(getattr(cls, "widgets", {}) or {})
-
-        resolved: dict[str, str] = {}
-        for name, widget in collected.items():
-            if isinstance(widget, str):
-                key = widget
-            else:
-                w_cls = widget if isinstance(widget, type) else type(widget)
-                key = getattr(w_cls, "key", None)
-                if key is None:
-                    for reg_key, reg_cls in widget_registry._by_key.items():
-                        if reg_cls is w_cls:
-                            key = reg_key
-                            break
-                if key is None:
-                    raise RuntimeError(
-                        f"Widget {widget!r} for field '{name}' is not registered."
-                    )
-            resolved[name] = key
-        cls.widgets_overrides = resolved
+        cls.widgets_overrides = collected
 
     @classmethod
     def _schema_type_name(cls, typ: Any) -> str:
@@ -211,6 +202,31 @@ class BaseModelAdmin:
         """Return fields using autocomplete widgets."""
         return self.autocomplete_fields
 
+    def get_export_fields(self) -> Sequence[str]:
+        """Return fields available for export."""
+        md = self.adapter.get_model_descriptor(self.model)
+        fields = list(self.get_fields(md))
+        if md.pk_attr not in fields:
+            fields.insert(0, md.pk_attr)
+        return tuple(fields)
+
+    def get_import_fields(self) -> Sequence[str]:
+        """Return fields permitted for import."""
+        return self.get_export_fields()
+
+    def get_required_import_fields(self) -> Sequence[str]:
+        """Return importable fields that must be provided explicitly."""
+        md = self.model._meta
+        required: list[str] = []
+        for name in self.get_import_fields():
+            fd = md.fields_map[name]
+            if self.is_field_readonly(md, name, mode="add"):
+                continue
+            if self._has_implicit_default(fd):
+                continue
+            required.append(name)
+        return tuple(required)
+
     def is_field_readonly(self, md, name: str, mode: str, obj=None) -> bool:
         if name in self.readonly_fields:
             return True
@@ -304,6 +320,31 @@ class BaseModelAdmin:
         """
         return True
 
+    def _request_user(self, request: Any) -> Any:
+        try:
+            return request.user
+        except AssertionError:
+            state = getattr(request, "state", None)
+            if state is not None:
+                if getattr(state, "user_dto", None) is not None:
+                    return state.user_dto
+                if getattr(state, "user", None) is not None:
+                    return state.user
+            scope = getattr(request, "scope", {})
+            return scope.get("user")
+
+    def has_export_perm(self, request: Any) -> bool:
+        """Return ``True`` if ``request.user`` or ``request`` may export data."""
+        try:
+            user = self._request_user(request)
+        except AttributeError:
+            user = request
+        return self.allow(user, "export") and self._user_has_perm(user, self.perm_export)
+
+    def has_import_perm(self, request: Any) -> bool:
+        """Return ``True`` if ``request.user`` may import data."""
+        return self.allow(self._request_user(request), "import")
+
     # --- actions -----------------------------------------------------------
 
     def _user_has_perm(self, user: Any, codename: PermAction | None) -> bool:
@@ -338,17 +379,30 @@ class BaseModelAdmin:
             setattr(self, "__action_registry", self._build_action_registry())
         return getattr(self, "__action_registry")
 
-    def get_actions(self) -> dict[str, BaseAction]:
+    def get_actions(self, request: Any | None = None) -> dict[str, Any]:
         """Instantiate and return available administrative actions."""
-        return {
+        actions: dict[str, Any] = {
             name: cls().bind_admin(self)
             for name, cls in self._action_registry.items()
         }
+        if request is not None and self.has_export_perm(request):
+            actions["export_selected_wizard"] = "Export selected (wizard)"
+        return actions
 
     def get_action(self, name: str) -> BaseAction | None:
         """Return action instance registered under ``name``."""
         cls = self._action_registry.get(name)
         return cls().bind_admin(self) if cls else None
+
+    async def action_export_selected_wizard(
+        self, request: Any, ids: list[Any]
+    ) -> RedirectResponse:
+        """Redirect to export wizard for selected object IDs."""
+        url = request.url_for(self.export_endpoint_name)
+        if ids:
+            token = ScopeTokenService().sign({"type": "ids", "ids": ids}, ttl=300)
+            url = f"{url}?scope_token={token}"
+        return RedirectResponse(url, status_code=303)
 
     def list_actions(self) -> list[str]:
         """List names of available actions."""
@@ -357,8 +411,11 @@ class BaseModelAdmin:
     def get_action_specs(self, user: Any) -> list[dict[str, Any]]:
         """Return action specifications permitted for ``user``."""
         specs: list[dict[str, Any]] = []
+        export_registered = "export_selected" in self._action_registry
         for cls in self._action_registry.values():
             spec = cls.spec
+            if spec.name == "export_selected":
+                continue
             if self._user_has_perm(user, getattr(spec, "required_perm", None)):
                 spec_dict = asdict(spec)
                 schema = spec_dict.get("params_schema", {}) or {}
@@ -366,6 +423,15 @@ class BaseModelAdmin:
                     name: self._schema_type_name(tp) for name, tp in schema.items()
                 }
                 specs.append(spec_dict)
+        if export_registered and self.has_export_perm(user):
+            specs.append(
+                {
+                    "name": "export_selected_wizard",
+                    "label": "Export selected (wizard)",
+                    "description": "Export selected objects via wizard.",
+                    "params_schema": {},
+                }
+            )
         return specs
 
     async def perform_action(
@@ -543,7 +609,17 @@ class BaseModelAdmin:
         :class:`AdminIntegrityError` with an appropriate message.
         """
         raise AdminIntegrityError("Integrity error.")
-    
+
+    def _flatten_fields(self, items: Iterable[Any]) -> list[str]:
+        """Recursively flatten nested field groups into a plain list."""
+        flattened: list[str] = []
+        for item in items:
+            if isinstance(item, (list, tuple)):
+                flattened.extend(self._flatten_fields(item))
+            else:
+                flattened.append(item)
+        return flattened
+
     def get_fields(self, md) -> list[str]:
         """Return field names for the admin form.
 
@@ -555,7 +631,7 @@ class BaseModelAdmin:
 
         if self.fields is not None:
             filtered: list[str] = []
-            for name in self.fields:
+            for name in self._flatten_fields(self.fields):
                 fd = md.field(name) if hasattr(md, "field") else None
                 if fd is None and hasattr(md, "fields_map"):
                     fd = md.fields_map.get(name)
@@ -629,13 +705,15 @@ class BaseModelAdmin:
             Whether the group is initially collapsed.
         """
 
-        return self.fieldsets
+        fieldsets = getattr(self, "fieldsets", None)
+        if fieldsets is None and self.fields is not None:
+            if any(isinstance(item, (list, tuple)) for item in self.fields):
+                fieldsets = [{"title": None, "fields": self.fields}]
+        return fieldsets
 
     # --- minimal public API -------------------------------------------------
 
     def _resolve_widget_key(self, fd, field_name: str) -> str:
-        if field_name in (getattr(self, "widgets_overrides", {}) or {}):
-            return self.widgets_overrides[field_name]
         meta = getattr(fd, "meta", None) or {}
         if "widget" in meta:
             return str(meta["widget"])
@@ -650,14 +728,6 @@ class BaseModelAdmin:
         request=None,
     ) -> BaseWidget:
         fd = md.fields_map[name]
-        key = self._resolve_widget_key(fd, name)  # <-- single source of truth
-        cls = widget_registry.get(key)
-        if cls is None:
-            model_name = getattr(md, "name", str(md))
-            raise RuntimeError(
-                f"No widget registered for key '{key}' "
-                f"(field='{name}', model='{model_name}')"
-            )
         prefix = system_config.get_cached(
             SettingsKey.ADMIN_PREFIX, settings.ADMIN_PATH
         ).rstrip("/")
@@ -672,6 +742,33 @@ class BaseModelAdmin:
             readonly=self.is_field_readonly(md, name, mode, obj),
             prefix=prefix,
         )
+        override = self.widgets_overrides.get(name)
+        if override is not None:
+            if isinstance(override, BaseWidget):
+                override.ctx = ctx
+                return override
+            if isinstance(override, type) and issubclass(override, BaseWidget):
+                return override(ctx)
+            if isinstance(override, str):
+                cls = widget_registry.get(override)
+                if cls is None:
+                    model_name = getattr(md, "name", str(md))
+                    raise RuntimeError(
+                        f"No widget registered for key '{override}' "
+                        f"(field='{name}', model='{model_name}')"
+                    )
+                return cls(ctx)
+            raise RuntimeError(
+                f"Invalid widget override {override!r} for field '{name}'"
+            )
+        key = self._resolve_widget_key(fd, name)
+        cls = widget_registry.get(key)
+        if cls is None:
+            model_name = getattr(md, "name", str(md))
+            raise RuntimeError(
+                f"No widget registered for key '{key}' "
+                f"(field='{name}', model='{model_name}')"
+            )
         return cls(ctx)
 
     def _build_fieldset_properties(
@@ -695,6 +792,15 @@ class BaseModelAdmin:
                         names = [n for n in item if n in flat_properties]
                         if not names:
                             continue
+                        cols = 12 // len(names)
+                        if cols < 1:
+                            cols = 1
+                        for name in names:
+                            opts = flat_properties[name].get("options")
+                            if opts is None:
+                                opts = {}
+                                flat_properties[name]["options"] = opts
+                            opts.setdefault("grid_columns", cols)
                         g_key = f"group_{idx}"
                         g_required = [n for n in names if n in root_required]
                         for n in g_required:
@@ -748,6 +854,15 @@ class BaseModelAdmin:
                     names = [n for n in item if n in flat_properties]
                     if not names:
                         continue
+                    cols = 12 // len(names)
+                    if cols < 1:
+                        cols = 1
+                    for name in names:
+                        opts = flat_properties[name].get("options")
+                        if opts is None:
+                            opts = {}
+                            flat_properties[name]["options"] = opts
+                        opts.setdefault("grid_columns", cols)
                     g_key = f"group_{idx}"
                     g_required = [n for n in names if n in root_required]
                     for n in g_required:
@@ -829,6 +944,14 @@ class BaseModelAdmin:
         startval: dict = {}
 
         fields_map = getattr(md, "fields_map", {}) or {}
+        if mode == "add":
+            for name in field_names:
+                fd = fields_map.get(name)
+                if fd and getattr(fd, "required", False) and self.is_field_readonly(md, name, mode):
+                    default = getattr(fd, "default", None)
+                    kind = getattr(fd, "kind", "")
+                    if default is None and kind not in {"datetime", "date", "time"}:
+                        raise ValueError(name)
         for name in field_names:
             w = self._build_widget(md, name, mode, obj=obj, request=request)
             fd = fields_map.get(name)
@@ -884,7 +1007,7 @@ class BaseModelAdmin:
                             pass
                     startval[name] = sv
 
-        fieldsets = getattr(self, "fieldsets", None)
+        fieldsets = self.get_fieldsets(md)
         if fieldsets:
             properties, order, startval, required = self._build_fieldset_properties(
                 fieldsets, flat_properties, startval, required
@@ -902,6 +1025,57 @@ class BaseModelAdmin:
         }
 
         return {"schema": schema, "startval": startval}
+
+    def normalize_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Flatten ``group_*`` keys and coerce values based on model fields."""
+        md = self.adapter.get_model_descriptor(self.model)
+
+        def expand(data: dict[str, Any]) -> dict[str, Any]:
+            flat: dict[str, Any] = {}
+            for key, value in data.items():
+                if key.startswith("group_") and isinstance(value, dict):
+                    flat.update(expand(value))
+                else:
+                    flat[key] = value
+            return flat
+
+        def coerce(fd, value: Any) -> Any:
+            if value is None:
+                return None
+            if isinstance(value, (list, tuple)):
+                return [coerce(fd, v) for v in value]
+            txt = str(value).strip()
+            kind = getattr(fd, "kind", "")
+            if kind == "boolean":
+                return txt.lower() in {"1", "true", "yes", "on"}
+            if kind in {"integer", "int"}:
+                try:
+                    return int(txt)
+                except ValueError:
+                    return None
+            if kind in {"number", "float"}:
+                try:
+                    return float(txt)
+                except ValueError:
+                    return None
+            if kind == "datetime":
+                try:
+                    return datetime.fromisoformat(txt.replace("Z", "+00:00"))
+                except ValueError:
+                    return None
+            if kind == "date":
+                try:
+                    return datetime.fromisoformat(txt).date()
+                except ValueError:
+                    return None
+            return txt
+
+        flat_payload = expand(payload)
+        for key, value in list(flat_payload.items()):
+            fd = md.fields_map.get(key)
+            if fd is not None:
+                flat_payload[key] = coerce(fd, value)
+        return flat_payload
 
     def clean(
         self, payload: Dict[str, Any], *, for_update: bool = False
@@ -1317,12 +1491,13 @@ class BaseModelAdmin:
         params["order"] = order
 
         columns = self.get_list_columns(md)
-        fk_to_select: List[str] = []
+        fk_to_select: list[str] = []
         fd_map = getattr(md, "fields_map", {})
         for col in columns:
-            fd = fd_map.get(col)
-            if fd and fd.relation and fd.relation.kind == "fk":
-                fk_to_select.append(col)
+            base_field = col.split("__", 1)[0]
+            fd = fd_map.get(base_field)
+            if fd and fd.relation and fd.relation.kind == "fk" and base_field not in fk_to_select:
+                fk_to_select.append(base_field)
         qs = self.apply_select_related(qs)
         # ``fk_to_select`` is appended after ``apply_select_related``
         if fk_to_select:
@@ -1344,6 +1519,21 @@ class BaseModelAdmin:
         fd_map = getattr(md, "fields_map", {})
         row: Dict[str, Any] = {}
         for col in columns:
+            if "__" in col:
+                current = obj
+                for part in col.split("__"):
+                    current = getattr(current, part, None) if current is not None else None
+                    if current is not None and hasattr(current, "__await__"):
+                        try:
+                            current = await current
+                        except Exception:
+                            current = None
+                if current is not None and hasattr(current, "isoformat"):
+                    row[col] = current.isoformat()
+                else:
+                    row[col] = str(current) if current is not None else None
+                continue
+
             relation_name = col[:-3] if col.endswith("_id") else col
             fd = fd_map.get(relation_name)
             if fd and fd.relation:
@@ -1358,9 +1548,7 @@ class BaseModelAdmin:
                         row[col] = str(rel_obj) if rel_obj is not None else None
                     elif fd.relation.kind == "m2m":
                         try:
-                            cnt = await self.adapter.count(
-                                getattr(obj, relation_name)
-                            )
+                            cnt = await self.adapter.count(getattr(obj, relation_name))
                             row[col] = f"{cnt} items"
                         except Exception:
                             row[col] = None
@@ -1394,8 +1582,6 @@ class BaseModelAdmin:
         column descriptions.
         """
 
-        fd_map = getattr(md, "fields_map", {})
-
         def _col_type(fd) -> str:
             if not fd:
                 return "string"
@@ -1413,19 +1599,48 @@ class BaseModelAdmin:
 
         meta: List[Dict[str, Any]] = []
         for col in columns:
-            fd = fd_map.get(col)
-            label = getattr(fd, "verbose_name", None) or col.replace("_", " ").title()
-            if col.endswith("_id"):
-                rel_label = self._related_model_verbose_name(md, col[:-3])
-                if rel_label:
-                    label = rel_label
+            parts = col.split("__")
+            current_md = md
+            current_map = getattr(current_md, "fields_map", {})
+            fd = None
+            labels: List[str] = []
+            sortable = True
+            for part in parts:
+                fd = current_map.get(part)
+                if fd is None:
+                    labels.append(part.replace("_", " ").title())
+                    sortable = False
+                    break
+                if fd.relation:
+                    rel_label = self._related_model_verbose_name(current_md, part)
+                    labels.append(
+                        rel_label
+                        or getattr(fd, "verbose_name", None)
+                        or part.replace("_", " ").title()
+                    )
+                    if fd.relation.kind == "m2m":
+                        sortable = False
+                    rel_model = self.adapter.get_model(fd.relation.target)
+                    current_md = self.adapter.get_model_descriptor(rel_model)
+                    current_map = getattr(current_md, "fields_map", {})
+                else:
+                    label_val = getattr(fd, "verbose_name", None) or part.replace("_", " ").title()
+                    if part.endswith("_id"):
+                        rel_label = self._related_model_verbose_name(current_md, part[:-3])
+                        if rel_label:
+                            label_val = rel_label
+                    labels.append(label_val)
+                    if part != parts[-1]:
+                        sortable = False
+                        fd = None
+                        break
             entry = {
                 "key": col,
-                "label": label,
+                "label": " ".join(labels),
                 "type": _col_type(fd),
-                "sortable": False
-                if fd is None or (fd.relation and fd.relation.kind == "m2m")
-                else True,
+                "sortable": sortable
+                and fd is not None
+                and not (fd.relation and fd.relation.kind == "m2m"),
             }
             if fd and getattr(fd, "choices", None):
                 ch_map = {}

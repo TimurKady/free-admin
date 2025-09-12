@@ -13,14 +13,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Iterable, TYPE_CHECKING
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from urllib.parse import urlparse
 
+import secrets
+from itsdangerous import BadSignature, URLSafeTimedSerializer
 from .auth_service import AuthService
 from ..adapters import BaseAdapter
 from config.settings import settings
 from .settings import SettingsKey, system_config
+from ..utils.icon import IconPathMixin
 
 if TYPE_CHECKING:  # pragma: no cover
     from .site import AdminSite
@@ -35,8 +37,31 @@ class AdminUserDTO:
     is_active: bool = True
     permissions: set[str] = field(default_factory=set)
 
+class CSRFTokenManager:
+    """Simple CSRF token generator and validator."""
 
-class AdminAuthService:
+    def __init__(self, secret: str) -> None:
+        self._serializer = URLSafeTimedSerializer(secret, salt="admin-csrf")
+
+    def generate(self, request: Request) -> str:
+        token = secrets.token_urlsafe()
+        signed = self._serializer.dumps(token)
+        request.session["_csrf_token"] = signed
+        return signed
+
+    def validate(self, request: Request, token: str) -> bool:
+        expected = request.session.get("_csrf_token")
+        if not expected:
+            return False
+        try:
+            token_val = self._serializer.loads(token, max_age=3600)
+            expected_val = self._serializer.loads(expected, max_age=3600)
+        except BadSignature:
+            return False
+        return secrets.compare_digest(token_val, expected_val)
+
+
+class AdminAuthService(IconPathMixin):
     """Authentication helpers for the admin site."""
 
     def __init__(self, auth_service: AuthService, adapter: BaseAdapter) -> None:
@@ -45,19 +70,7 @@ class AdminAuthService:
         self.AdminUserPermission = adapter.user_permission_model
         self.AdminGroupPermission = adapter.group_permission_model
         self.PermAction = adapter.perm_action
-
-    @staticmethod
-    def _resolve_icon_path(icon_path: str, prefix: str, static_segment: str) -> str:
-        parsed = urlparse(icon_path)
-        if parsed.scheme or icon_path.startswith("/"):
-            return icon_path
-        static_pos = icon_path.find("static/")
-        if static_pos != -1:
-            icon_path = icon_path[static_pos + len("static/") :]
-        return (
-            f"{prefix.rstrip('/')}{static_segment.rstrip('/')}/"
-            f"{icon_path.lstrip('/')}"
-        )
+        self._csrf = CSRFTokenManager(settings.SECRET_KEY)
 
     @property
     def site_title(self) -> str:
@@ -189,6 +202,19 @@ class AdminAuthService:
 
         return _dep
 
+    async def logout(self, request: Request) -> RedirectResponse:
+        """Log out the current user and clear session."""
+
+        request.session.clear()
+        admin_prefix = await system_config.get(SettingsKey.ADMIN_PREFIX)
+        login_path = await system_config.get(SettingsKey.LOGIN_PATH)
+        response = RedirectResponse(
+            f"{admin_prefix}{login_path}", status_code=303
+        )
+        cookie_name = await system_config.get(SettingsKey.SESSION_COOKIE)
+        response.delete_cookie(cookie_name)
+        return response
+
     def build_auth_router(self, templates: Jinja2Templates) -> APIRouter:
         router = APIRouter()
         login_path = system_config.get_cached(SettingsKey.LOGIN_PATH, "/login")
@@ -198,11 +224,12 @@ class AdminAuthService:
             SettingsKey.ADMIN_PREFIX, settings.ADMIN_PATH
         )
 
-        @router.get(login_path)
+        @router.get(login_path, response_class=HTMLResponse)
         async def login_form(request: Request):
             orm_prefix = await system_config.get(SettingsKey.ORM_PREFIX)
             settings_prefix = await system_config.get(SettingsKey.SETTINGS_PREFIX)
             views_prefix = await system_config.get(SettingsKey.VIEWS_PREFIX)
+            token = self._csrf.generate(request)
             return templates.TemplateResponse(
                 "pages/login.html",
                 {
@@ -214,18 +241,43 @@ class AdminAuthService:
                     "VIEWS_PREFIX": views_prefix,
                     "site_title": self.site_title,
                     "brand_icon": self.brand_icon,
+                    "csrf_token": token,
                 },
             )
 
-        @router.post(login_path)
+        @router.post(login_path, response_class=HTMLResponse)
         async def login_post(
-            request: Request, username: str = Form(...), password: str = Form(...)
+            request: Request,
+            username: str = Form(...),
+            password: str = Form(...),
+            csrf_token: str = Form(...),
         ):
+            if not self._csrf.validate(request, csrf_token):
+                orm_prefix = await system_config.get(SettingsKey.ORM_PREFIX)
+                settings_prefix = await system_config.get(SettingsKey.SETTINGS_PREFIX)
+                views_prefix = await system_config.get(SettingsKey.VIEWS_PREFIX)
+                token = self._csrf.generate(request)
+                return templates.TemplateResponse(
+                    "pages/login.html",
+                    {
+                        "request": request,
+                        "error": "Invalid CSRF token",
+                        "prefix": admin_prefix,
+                        "ORM_PREFIX": orm_prefix,
+                        "SETTINGS_PREFIX": settings_prefix,
+                        "VIEWS_PREFIX": views_prefix,
+                        "site_title": self.site_title,
+                        "brand_icon": self.brand_icon,
+                        "csrf_token": token,
+                    },
+                    status_code=400,
+                )
             user = await self.auth_service.authenticate_user(username, password)
             if not user:
                 orm_prefix = await system_config.get(SettingsKey.ORM_PREFIX)
                 settings_prefix = await system_config.get(SettingsKey.SETTINGS_PREFIX)
                 views_prefix = await system_config.get(SettingsKey.VIEWS_PREFIX)
+                token = self._csrf.generate(request)
                 return templates.TemplateResponse(
                     "pages/login.html",
                     {
@@ -237,6 +289,7 @@ class AdminAuthService:
                         "VIEWS_PREFIX": views_prefix,
                         "site_title": self.site_title,
                         "brand_icon": self.brand_icon,
+                        "csrf_token": token,
                     },
                     status_code=400,
                 )
@@ -244,14 +297,7 @@ class AdminAuthService:
             request.session[session_key] = str(user.id)
             return RedirectResponse(f"{admin_prefix}/", status_code=303)
 
-        @router.get(logout_path)
-        async def logout(request: Request):
-            session_key = await system_config.get(SettingsKey.SESSION_KEY)
-            request.session.pop(session_key, None)
-            login_path = await system_config.get(SettingsKey.LOGIN_PATH)
-            return RedirectResponse(
-                f"{admin_prefix}{login_path}", status_code=303
-            )
+        router.get(logout_path)(self.logout)
 
         @router.get(setup_path)
         async def setup_form(request: Request):
@@ -263,6 +309,7 @@ class AdminAuthService:
             orm_prefix = await system_config.get(SettingsKey.ORM_PREFIX)
             settings_prefix = await system_config.get(SettingsKey.SETTINGS_PREFIX)
             views_prefix = await system_config.get(SettingsKey.VIEWS_PREFIX)
+            token = self._csrf.generate(request)
             return templates.TemplateResponse(
                 "pages/setup.html",
                 {
@@ -274,6 +321,7 @@ class AdminAuthService:
                     "VIEWS_PREFIX": views_prefix,
                     "site_title": self.site_title,
                     "brand_icon": self.brand_icon,
+                    "csrf_token": token,
                 },
             )
 
@@ -283,7 +331,28 @@ class AdminAuthService:
             username: str = Form(...),
             email: str = Form(""),
             password: str = Form(...),
+            csrf_token: str = Form(...),
         ):
+            if not self._csrf.validate(request, csrf_token):
+                orm_prefix = await system_config.get(SettingsKey.ORM_PREFIX)
+                settings_prefix = await system_config.get(SettingsKey.SETTINGS_PREFIX)
+                views_prefix = await system_config.get(SettingsKey.VIEWS_PREFIX)
+                token = self._csrf.generate(request)
+                return templates.TemplateResponse(
+                    "pages/setup.html",
+                    {
+                        "request": request,
+                        "error": "Invalid CSRF token",
+                        "prefix": admin_prefix,
+                        "ORM_PREFIX": orm_prefix,
+                        "SETTINGS_PREFIX": settings_prefix,
+                        "VIEWS_PREFIX": views_prefix,
+                        "site_title": self.site_title,
+                        "brand_icon": self.brand_icon,
+                        "csrf_token": token,
+                    },
+                    status_code=400,
+                )
             if await self.auth_service.superuser_exists():
                 login_path = await system_config.get(SettingsKey.LOGIN_PATH)
                 return RedirectResponse(

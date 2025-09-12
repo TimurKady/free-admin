@@ -102,6 +102,42 @@ class Adapter:
         self.system_setting_model = SystemSetting
         self.setting_value_type = SettingValueType
 
+    def normalize_import_data(self, model: type[Model], data: dict[str, Any]) -> dict[str, Any]:
+        """Convert raw import values into ORM-friendly types."""
+        meta = getattr(model, "_meta", None)
+        if not meta:
+            return data
+        cleaned: dict[str, Any] = {}
+        for name, value in data.items():
+            field = meta.fields_map.get(name)
+            if not field:
+                cleaned[name] = value
+                continue
+            if isinstance(
+                field,
+                (
+                    fields.relational.ForeignKeyFieldInstance,
+                    fields.relational.OneToOneFieldInstance,
+                ),
+            ):
+                if getattr(value, "_saved_in_db", False):
+                    cleaned[name] = value
+                else:
+                    cleaned[f"{name}_id"] = value
+                continue
+            if getattr(field, "enum_type", None) and isinstance(value, str):
+                if value.isdigit():
+                    cleaned[name] = int(value)
+                    continue
+            cleaned[name] = value
+        return cleaned
+
+    def assign(self, obj: Model, data: dict[str, Any]) -> None:
+        """Set attributes on ``obj`` handling type coercion."""
+        cleaned = self.normalize_import_data(type(obj), data)
+        for field, value in cleaned.items():
+            setattr(obj, field, value)
+
     def get_model(self, dotted: str) -> type[Model]:
         """Return a Tortoise model by dotted path.
 
@@ -201,11 +237,11 @@ class Adapter:
         """
         return in_transaction()
 
-    async def create(self, model: type[Model], **data: Any) -> Model:
+    async def create(self, model_cls: type[Model], **data: Any) -> Model:
         """Create and persist a model instance.
 
         Args:
-            model: Model class to instantiate.
+            model_cls: Model class to instantiate.
             **data: Field values for the new record.
 
         Returns:
@@ -213,7 +249,8 @@ class Adapter:
 
         This coroutine must be awaited.
         """
-        return await model.create(**data)
+        data = self.normalize_import_data(model_cls, data)
+        return await model_cls.create(**data)
 
     async def get(
         self,

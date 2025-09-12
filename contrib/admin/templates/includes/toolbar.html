@@ -33,6 +33,19 @@
 
   <div id="range-info" class="text-muted small"></div>
 
+  {% if export_url or import_url %}
+  <div class="btn-group">
+    {% if export_url %}
+    <a href="{{ export_url }}"
+       class="btn btn-outline-secondary">Export</a>
+    {% endif %}
+    {% if import_url %}
+    <a href="{{ import_url }}"
+       class="btn btn-outline-secondary">Import</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
   <div class="ms-auto d-flex align-items-center gap-1">
     <label for="per-page" class="form-label m-0">Per page</label>
     <select id="per-page" class="form-select form-select-sm" style="width:auto;">

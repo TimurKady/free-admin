@@ -615,15 +615,36 @@ class AdminList {
     this.actionsWrap.hidden = !show;
   }
 
-  runAction(){
+  async runAction(){
     const name = this.actionSelect?.value;
     if(!name || this.selectedIds.size === 0) return;
     const spec = this.actions?.[name] || {};
-    const proceed = params => this.executeAction(name, params);
+    const proceed = async params => {
+      if(name === 'export_selected_wizard'){
+        const ids = this.getSelectedIds();
+        try{
+          const res = await fetch(`${this.base}/_actions/token`, {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            credentials:'same-origin',
+            body: JSON.stringify({scope:{type:'ids', ids}})
+          });
+          if(!res.ok) return;
+          const data = await res.json();
+          const url = new URL(`${this.base}/export/`, window.location.origin);
+          if(data.scope_token) url.searchParams.set('scope_token', data.scope_token);
+          window.location.href = url.toString();
+        }catch(err){
+          console.log('Error obtaining scope token', err);
+        }
+        return;
+      }
+      this.executeAction(name, params);
+    };
     if(spec.params_schema && Object.keys(spec.params_schema).length>0){
       this.actionModal.open(spec, proceed);
     }else{
-      proceed({});
+      await proceed({});
     }
   }
 

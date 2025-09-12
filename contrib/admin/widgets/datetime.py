@@ -9,7 +9,7 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 from typing import Any, Dict
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timezone
 
 from .base import BaseWidget
 from .registry import registry
@@ -37,7 +37,8 @@ class DateTimeWidget(BaseWidget):
         # Convert to a string suitable for HTML5/JSON-Editor
         if isinstance(v, datetime):
             # 'YYYY-MM-DDTHH:MM:SS'
-            return v.replace(microsecond=0).isoformat(timespec="seconds")
+            v = v.astimezone(timezone.utc).replace(tzinfo=None, microsecond=0)
+            return v.isoformat(timespec="seconds")
         if isinstance(v, date) and not isinstance(v, datetime):
             return v.isoformat()
         if isinstance(v, time):

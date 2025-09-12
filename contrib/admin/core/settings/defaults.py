@@ -54,6 +54,7 @@ DEFAULT_SETTINGS: dict[SettingsKey, tuple[object, str]] = {
     SettingsKey.LOGIN_PATH:            ("/login", "string"),
     SettingsKey.LOGOUT_PATH:           ("/logout", "string"),
     SettingsKey.SETUP_PATH:            ("/setup", "string"),
+    SettingsKey.SESSION_COOKIE:       ("session", "string"),
     SettingsKey.SESSION_KEY:           ("admin_user_id", "string"),
 
     # Section prefixes
@@ -68,6 +69,7 @@ DEFAULT_SETTINGS: dict[SettingsKey, tuple[object, str]] = {
 
     # Media
     SettingsKey.MEDIA_ROOT:           ("media", "string"),
+    SettingsKey.MEDIA_URL:            ("/media", "string"),
 }
 
 # The End

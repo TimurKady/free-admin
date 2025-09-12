@@ -74,6 +74,7 @@ class BaseAction(ABC):
 
 
 from .delete_selected import DeleteSelectedAction
+from .export_selected import ExportSelectedAction
 from .tokens import ScopeTokenService
 from .scope_query import ScopeQueryService
 
@@ -83,6 +84,7 @@ __all__ = [
     "ActionResult",
     "BaseAction",
     "DeleteSelectedAction",
+    "ExportSelectedAction",
     "ScopeTokenService",
     "ScopeQueryService",
 ]

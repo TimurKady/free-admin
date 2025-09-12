@@ -32,23 +32,27 @@ class RelationsWidget(BaseWidget):
         require additional metadata).  Accessing ``fd.meta`` directly in those
         cases raises ``AttributeError`` which breaks schema generation.  To make
         the widget more robust we gracefully handle missing ``meta`` and simply
-        return empty choices.
+        return empty choices.  When ``choices_map`` is absent we derive choices
+        from the field's own ``choices`` attribute.
         """
 
         meta = getattr(fd, "meta", None) or {}
-        cm = meta.get("choices_map")
-        if not cm and getattr(fd, "relation", None) is None and getattr(fd, "choices", None):
-            cm = {}
-            for ch in fd.choices:
-                key = getattr(ch, "const", getattr(ch, "value", ch))
-                label = getattr(ch, "title", getattr(ch, "label", str(ch)))
-                cm[str(key)] = str(label)
-            meta["choices_map"] = cm
+        choices_map = meta.get("choices_map") or {}
+
+        if not choices_map:
+            choices_map = {}
+            for choice in getattr(fd, "choices", []) or []:
+                if isinstance(choice, (list, tuple)) and len(choice) >= 2:
+                    key, label = choice[0], choice[1]
+                else:
+                    key = getattr(choice, "const", getattr(choice, "value", choice))
+                    label = getattr(choice, "title", getattr(choice, "label", str(choice)))
+                choices_map[str(key)] = str(label)
+            meta["choices_map"] = choices_map
             object.__setattr__(fd, "meta", meta)
-        elif not cm:
-            cm = {}
-        enum = list(cm.keys())
-        titles = list(cm.values())
+
+        enum = list(choices_map.keys())
+        titles = list(choices_map.values())
         return enum, titles
 
     async def prefetch(self) -> None:

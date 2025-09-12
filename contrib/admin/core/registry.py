@@ -40,6 +40,15 @@ class MenuItem:
     page_type: str | None = None
 
 
+@dataclass(frozen=True)
+class UserMenuItem:
+    """User menu item."""
+
+    title: str
+    path: str
+    icon: str | None = None
+
+
 class PageRegistry:
     """Store registered pages and model admin view entries."""
 
@@ -47,6 +56,7 @@ class PageRegistry:
         self.page_list: List[AdminPage] = []
         self.menu_list: List[MenuItem] = []
         self.view_entries: List[ViewEntry] = []
+        self.user_menu_list: List[UserMenuItem] = []
 
     # View entries -----------------------------------------------------
     def register_view_entry(
@@ -110,6 +120,26 @@ class PageRegistry:
 
         yield from (e for e in self.view_entries if e.settings)
 
+    # User menu ------------------------------------------------------
+    def register_user_menu_item(
+        self,
+        *,
+        title: str,
+        path: str,
+        icon: str | None = None,
+    ) -> None:
+        """Register a :class:`UserMenuItem`."""
+
+        for item in self.user_menu_list:
+            if item.path == path:
+                return  # Idempotent
+        self.user_menu_list.append(UserMenuItem(title=title, path=path, icon=icon))
+
+    def make_user_menu(self) -> List[UserMenuItem]:
+        """Return registered user menu items."""
+
+        return list(self.user_menu_list)
+
     # Menu -------------------------------------------------------------
     def make_menu(self) -> List[MenuItem]:
         """Return full menu including ORM and settings admin entries."""
@@ -149,3 +179,4 @@ class PageRegistry:
         return menu
 
 # The End
+

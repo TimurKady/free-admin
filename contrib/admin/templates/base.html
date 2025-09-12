@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" style="font-size: smaller;">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -31,7 +31,25 @@
             <li class="nav-item"><a class="nav-link {% if request.url.path.startswith(prefix ~ ORM_PREFIX) %}active fw-semibold{% endif %}" href="{{ prefix }}{{ ORM_PREFIX }}">ORM</a></li>
             <li class="nav-item"><a class="nav-link {% if request.url.path.startswith(prefix ~ SETTINGS_PREFIX) %}active fw-semibold{% endif %}" href="{{ prefix }}{{ SETTINGS_PREFIX }}">Settings</a></li>
           </ul>
+          {% set menu = get_user_menu() if get_user_menu is defined else [] %}
+          {% if menu %}
+          <div class="dropdown ms-4">
+            <a class="nav-link dropdown-toggle text-light" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              {{ user.username if user else '' }}
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end">
+              {% for item in menu %}
+              <li>
+                <a class="dropdown-item" href="{{ item.url }}">
+                  {% if item.icon %}<i class="{{ item.icon }}"></i> {% endif %}{{ item.label }}
+                </a>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% else %}
           <span class="navbar-text ms-4">{{ user.username if user else '' }}</span>
+          {% endif %}
         </div>
       </div>
     </nav>

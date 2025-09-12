@@ -63,10 +63,19 @@ class TemplateProvider:
         """Mount uploaded media files onto the application."""
         media_root = Path(
             system_config.get_cached(SettingsKey.MEDIA_ROOT, settings.MEDIA_ROOT)
-        )
+        ).resolve()
         media_root.mkdir(parents=True, exist_ok=True)
-        media_prefix = "/" + str(media_root).strip("/")
-        app.mount(media_prefix, StaticFiles(directory=str(media_root)), name="admin-media")
+
+        media_url = system_config.get_cached(
+            SettingsKey.MEDIA_URL, settings.MEDIA_URL
+        )
+        media_prefix = "/" + str(media_url).strip("/")
+
+        app.mount(
+            media_prefix,
+            StaticFiles(directory=str(media_root)),
+            name="admin-media",
+        )
 
 # The End
 

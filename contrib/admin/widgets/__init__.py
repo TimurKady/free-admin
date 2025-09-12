@@ -21,12 +21,14 @@ __all__ = ["BaseWidget", "registry"]
 from .text import TextWidget      # noqa: F401
 from .textarea import TextAreaWidget  # noqa: F401
 from .relations import RelationsWidget  # noqa: F401
+from .choices import ChoicesWidget  # noqa: F401
 from .number import NumberWidget  # noqa: F401
 from .checkbox import CheckboxWidget  # noqa: F401
 from .radio import RadioWidget          # noqa: F401
 from .datetime import DateTimeWidget  # noqa: F401
 from .select2 import Select2Widget  # noqa: F401
 from .filepath import FilePathWidget  # noqa: F401
+from .barcode import BarCodeWidget  # noqa: F401
 
 # The End
 

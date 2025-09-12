@@ -12,6 +12,7 @@ Email: timurkady@yandex.com
 from __future__ import annotations
 import importlib
 import pkgutil
+import logging
 from typing import Iterable, List, Optional
 
 from fastapi import FastAPI
@@ -25,6 +26,8 @@ from .boot import admin as boot_admin
 class AdminHub:
     """Encapsulates admin site configuration and setup."""
 
+    logger = logging.getLogger(__name__)
+
     def __init__(self, title: str) -> None:
         self.admin_site = AdminSite(boot_admin.adapter, title=title)
 
@@ -33,7 +36,8 @@ class AdminHub:
         for pkg in packages:
             try:
                 root = importlib.import_module(pkg)
-            except Exception:
+            except ImportError:
+                self.logger.exception("Failed to import package %s", pkg)
                 continue
             if not hasattr(root, "__path__"):
                 continue

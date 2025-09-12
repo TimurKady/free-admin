@@ -1,0 +1,188 @@
+{% extends "layout/section.html" %}
+
+{% block head %}
+  {{ super() }}
+  <style>
+    #import-preview .import-preview-table {
+      max-height: 60vh;
+      overflow: auto;
+    }
+    #import-preview .import-preview-table table {
+      table-layout: fixed;
+      width: 100%;
+    }
+    #import-preview .import-preview-table td {
+      max-width: 200px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  </style>
+{% endblock %}
+
+{% block section_body %}
+  <section class="col-md-6">
+    <h1>Import Wizard</h1>
+    <div id="import-errors" class="text-danger mb-3"></div>
+    <div id="import-info" class="text-success mb-3"></div>
+    <form id="import-form" enctype="multipart/form-data" class="mb-4">
+      <div class="mb-3">
+        <label for="import-file" class="form-label">File</label>
+        <input id="import-file" name="file" type="file" class="form-control" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Fields</label>
+        {% for field in fields %}
+        <div class="form-check">
+          <input id="field-{{ loop.index }}" name="fields" value="{{ field }}" type="checkbox" class="form-check-input" {% if field in required %}checked disabled{% else %}checked{% endif %}>
+          <label for="field-{{ loop.index }}" class="form-check-label">{{ field }}</label>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="form-check mb-3">
+        <input id="import-dry-run" type="checkbox" class="form-check-input">
+        <label for="import-dry-run" class="form-check-label">Dry run</label>
+      </div>
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Preview</button>
+        <button type="button" id="back-btn" class="btn btn-outline-secondary">Back</button>
+      </div>
+    </form>
+    <div id="import-preview" class="d-none">
+      <h2>Preview</h2>
+      <div class="import-preview-table">
+        <table class="table">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="d-flex gap-2">
+        <button id="import-commit" class="btn btn-success">Import</button>
+        <button type="button" id="preview-back-btn" class="btn btn-outline-secondary">Back</button>
+      </div>
+    </div>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script>
+    class ImportWizard {
+      constructor() {
+        this.form = document.getElementById('import-form');
+        this.errors = document.getElementById('import-errors');
+        this.info = document.getElementById('import-info');
+        this.previewBox = document.getElementById('import-preview');
+        this.previewHead = this.previewBox.querySelector('thead');
+        this.previewBody = this.previewBox.querySelector('tbody');
+        this.commitBtn = document.getElementById('import-commit');
+        this.backBtn = document.getElementById('back-btn');
+        this.previewBackBtn = document.getElementById('preview-back-btn');
+        this.token = null;
+        this.selectedFields = [];
+        this.bindEvents();
+      }
+
+      bindEvents() {
+        this.form.addEventListener('submit', (e) => this.preview(e));
+        this.commitBtn.addEventListener('click', (e) => this.run(e));
+        this.backBtn.addEventListener('click', () => this.goBack());
+        this.previewBackBtn.addEventListener('click', () => this.goBack());
+      }
+
+      async preview(event) {
+        event.preventDefault();
+        this.errors.textContent = '';
+        this.info.textContent = '';
+        this.previewBox.classList.add('d-none');
+        const fileInput = document.getElementById('import-file');
+        if (!fileInput.files.length) {
+          this.errors.textContent = 'No file selected';
+          return;
+        }
+        this.selectedFields = Array.from(document.querySelectorAll('input[name="fields"]:checked')).map((el) => el.value);
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        this.selectedFields.forEach((f) => formData.append('fields', f));
+        try {
+          const resp = await fetch(`${window.location.pathname}preview`, {
+            method: 'POST',
+            body: formData,
+          });
+          const data = await resp.json();
+          if (!resp.ok) {
+            this.errors.textContent = data.detail || 'Preview failed';
+            return;
+          }
+          this.token = data.token;
+          this.renderPreview(data.rows);
+        } catch (err) {
+          this.errors.textContent = err.message;
+        }
+      }
+
+      renderPreview(rows) {
+        if (!rows.length) {
+          this.errors.textContent = 'No data';
+          return;
+        }
+        this.previewHead.innerHTML = '';
+        this.previewBody.innerHTML = '';
+        const headers = Object.keys(rows[0]);
+        const headRow = document.createElement('tr');
+        headers.forEach((h) => {
+          const th = document.createElement('th');
+          th.textContent = h;
+          headRow.appendChild(th);
+        });
+        this.previewHead.appendChild(headRow);
+        rows.forEach((row) => {
+          const tr = document.createElement('tr');
+          headers.forEach((h) => {
+            const td = document.createElement('td');
+            td.textContent = row[h];
+            tr.appendChild(td);
+          });
+          this.previewBody.appendChild(tr);
+        });
+        this.previewBox.classList.remove('d-none');
+      }
+
+      async run(event) {
+        event.preventDefault();
+        if (!this.token) {
+          return;
+        }
+        this.errors.textContent = '';
+        this.info.textContent = '';
+        const dry = document.getElementById('import-dry-run').checked;
+        try {
+          const resp = await fetch(`${window.location.pathname}run`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: this.token, dry, fields: this.selectedFields }),
+          });
+          const data = await resp.json();
+          if (!resp.ok) {
+            this.errors.textContent = data.detail || 'Import failed';
+            return;
+          }
+          this.form.reset();
+          this.previewBox.classList.add('d-none');
+          this.info.textContent = `Processed ${data.processed} rows, created ${data.created}, updated ${data.updated}`;
+        } catch (err) {
+          this.errors.textContent = err.message;
+        }
+      }
+
+      goBack() {
+        history.back();
+      }
+    }
+
+    new ImportWizard();
+  </script>
+{% endblock %}
+
+<!-- # The End -->
+

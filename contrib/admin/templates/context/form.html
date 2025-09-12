@@ -39,8 +39,10 @@
   </script>
   <script>
     const sectionPrefix = "{{ prefix }}{% if section_mode == 'settings' %}{{ SETTINGS_PREFIX }}{% else %}{{ ORM_PREFIX }}{% endif %}";
-    window._form = new AdminFormEditor({ pk: "{{ pk or '' }}", prefix: sectionPrefix });
-    window._form.load();
+    (window.JSONEditorInitializer?.ready || Promise.resolve()).then(() => {
+      window._form = new AdminFormEditor({ pk: "{{ pk or '' }}", prefix: sectionPrefix });
+      window._form.load();
+    });
   </script>
   <script>
     (function(){

@@ -14,9 +14,9 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import Any, Dict
 
-from .actions.builder import ScopeQueryBuilder
-from .auth import AdminUserDTO
-from .exceptions import (
+from ..actions.builder import ScopeQueryBuilder
+from ..auth import AdminUserDTO
+from ..exceptions import (
     ActionNotFound,
     PermissionDenied,
     AdminIntegrityError,
@@ -24,10 +24,10 @@ from .exceptions import (
     NotFoundError,
     PermissionError,
 )
-from .filters import FilterSpec
-from .permissions import permissions_service
-from .settings import SettingsKey, system_config
-from .base import BaseModelAdmin
+from ..filters import FilterSpec
+from ..permissions import permissions_service
+from ..settings import SettingsKey, system_config
+from ..base import BaseModelAdmin
 
 
 class ObjectNotFoundError(Exception):
@@ -167,8 +167,12 @@ class AdminService:
         if not self.admin.allow(user, "add", None):
             raise PermissionError("Add not allowed by business rule")
         try:
+            payload = self.admin.normalize_payload(payload)
             obj = await self.admin.create(request, user, self.md, payload)
-            return {"ok": True, "id": getattr(obj, self.md.pk_attr)}
+            response = {"ok": True, "id": getattr(obj, self.md.pk_attr)}
+            if hasattr(obj, "uuid"):
+                response["uuid"] = getattr(obj, "uuid")
+            return response
         except self.IntegrityError as exc:
             try:
                 self.admin.handle_integrity_error(exc)
@@ -185,6 +189,7 @@ class AdminService:
         if not self.admin.allow(user, "change", obj):
             raise PermissionError("Change not allowed by business rule")
         try:
+            payload = self.admin.normalize_payload(payload)
             await self.admin.update(request, user, self.md, obj, payload)
             return {"ok": True}
         except self.IntegrityError as exc:
@@ -208,6 +213,7 @@ class AdminService:
         else:
             await self.adapter.delete(obj)
         return {"ok": True}
+
 
 # The End
 

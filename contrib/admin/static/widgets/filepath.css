@@ -1,0 +1,17 @@
+/* === filepath.css === */
+
+/* 1) Отступы и базовые параметры превью */
+[data-schemapath] .form-group img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  /* на случай отсутствия инлайн-стилей */
+  max-height: 100px;
+  margin-top: 0.75rem;
+}
+
+/* Если внутри .form-group есть <img>, добавим отступ снизу у блока целиком */
+[data-schemapath] .form-group {
+  margin-bottom: 0.25rem;
+}
+

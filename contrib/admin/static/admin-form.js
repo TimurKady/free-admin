@@ -116,11 +116,20 @@ class AdminFormEditor {
         display_required_only: false,
       });
 
+      if (typeof this.editor?.on === 'function') {
+        this.editor.on('ready', () => {
+          if (window.FilePathUploader && typeof window.FilePathUploader.updateExistingLinks === 'function') {
+            window.FilePathUploader.updateExistingLinks(this.editor);
+          }
+        });
+      } else if (window.FilePathUploader && typeof window.FilePathUploader.updateExistingLinks === 'function') {
+        window.FilePathUploader.updateExistingLinks(this.editor);
+      }
+
       window._editor = this.editor;
 
       this.hideRootHeader();
       this.bindSubmit();
-      this.bindTextareaAutoResize();
       if (this.mode === 'edit' && this.pk) this.loadInlines();
 
     } catch (err) {
@@ -434,26 +443,6 @@ class AdminFormEditor {
     btn?.addEventListener('click', () => this.onSubmit());
   }
 
-  bindTextareaAutoResize() {
-    const resize = (ta) => {
-      if (!ta) return;
-      const style = window.getComputedStyle(ta);
-      const lineHeight = parseFloat(style.lineHeight) || 16;
-      const maxHeight = lineHeight * 10;
-      ta.style.height = 'auto';
-      const newHeight = Math.min(ta.scrollHeight, maxHeight);
-      ta.style.height = `${newHeight}px`;
-      ta.style.overflowY = ta.scrollHeight > maxHeight ? 'auto' : 'hidden';
-    };
-
-    this.root.querySelectorAll('textarea').forEach(resize);
-    this.root.addEventListener('input', (e) => {
-      const ta = e.target;
-      if (ta && ta.tagName === 'TEXTAREA') {
-        resize(ta);
-      }
-    });
-  }
 
   async onSubmit() {
     const btn = document.getElementById('submit');

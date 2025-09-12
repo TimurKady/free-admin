@@ -30,8 +30,9 @@ class BaseWidget(ABC):
         css: tuple[str, ...] = ()
         js: tuple[str, ...] = ()
 
-    def __init__(self, ctx: WidgetContext | None = None) -> None:
+    def __init__(self, ctx: WidgetContext | None = None, **config) -> None:
         self.ctx = ctx
+        self.config: dict[str, Any] = config
 
     def get_assets(self) -> Dict[str, list[str]]:
         """
@@ -104,9 +105,27 @@ class BaseWidget(ABC):
     
     def get_startval(self) -> Any:
         """Start value for the form (edit) — defaults to ``instance``."""
-        if self.ctx and self.ctx.instance is not None:
-            return getattr(self.ctx.instance, self.ctx.name, None)
-        return None
+        if not self.ctx:
+            return None
+
+        fd = self.ctx.field
+        rel = getattr(fd, "relation", None)
+        is_many = bool(getattr(fd, "many", False) or (rel and getattr(rel, "kind", "") == "m2m"))
+        required = bool(getattr(fd, "required", False))
+        default = getattr(fd, "default", None)
+
+        inst = self.ctx.instance
+        if inst is None:
+            if default is not None:
+                return default
+            return None if required else ([] if is_many else "")
+
+        value = getattr(inst, self.ctx.name, None)
+        if value is None:
+            if default is not None:
+                return default
+            return None if required else ([] if is_many else "")
+        return value
 
     async def prefetch(self) -> None:
         """Stub for asynchronous data preparation before schema generation."""

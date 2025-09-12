@@ -21,7 +21,6 @@ class InlineModelAdmin(BaseModelAdmin):
 
     model: Type[Any]
     parent_fk_name: str
-    extra: int = 0
     can_delete: bool = True
     display: Literal["tabular", "stacked"] = "tabular"
     collapsed: bool = True

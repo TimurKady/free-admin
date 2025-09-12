@@ -38,6 +38,33 @@ class PermissionsService:
         groups_qs = self.adapter.all(user.groups)
         return await self.adapter.fetch_values(groups_qs, "id", flat=True)
 
+    async def _has_permission(
+        self, user: Any, action: "PermAction", ct_id: int | None
+    ) -> bool:
+        if not (user.is_active and user.is_staff):
+            return False
+        if user.is_superuser:
+            return True
+        allowed = await self.adapter.exists(
+            self.adapter.filter(
+                self.AdminUserPermission,
+                user_id=user.id,
+                content_type_id=ct_id,
+                action=action,
+            )
+        )
+        if allowed:
+            return True
+        group_ids = await self._get_group_ids(user)
+        return await self.adapter.exists(
+            self.adapter.filter(
+                self.AdminGroupPermission,
+                group_id__in=group_ids,
+                content_type_id=ct_id,
+                action=action,
+            )
+        )
+
     def require_model_permission(
         self,
         action: "PermAction",
@@ -63,18 +90,15 @@ class PermissionsService:
             user_dto = await admin_auth_service.get_current_admin_user(request)
             orm_user = request.state.user
 
-            from urllib.parse import parse_qs
-
-            qs = parse_qs(request.scope.get("query_string", b"").decode())
             app = (
                 app_value
                 or request.path_params.get(app_param)
-                or qs.get(app_param, [None])[0]
+                or request.query_params.get(app_param)
             )
             model = (
                 model_value
                 or request.path_params.get(model_param)
-                or qs.get(model_param, [None])[0]
+                or request.query_params.get(model_param)
             )
             if not app or not model:
                 raise HTTPException(status_code=400, detail="Missing app/model params")
@@ -86,30 +110,7 @@ class PermissionsService:
                     detail=f"Unknown content type: {app}.{model}",
                 )
 
-            allowed = False
-            if orm_user.is_active and orm_user.is_staff:
-                if orm_user.is_superuser:
-                    allowed = True
-                else:
-                    allowed = await self.adapter.exists(
-                        self.adapter.filter(
-                            self.AdminUserPermission,
-                            user_id=orm_user.id,
-                            content_type_id=ct_id,
-                            action=action,
-                        )
-                    )
-                    if not allowed:
-                        group_ids = await self._get_group_ids(orm_user)
-                        allowed = await self.adapter.exists(
-                            self.adapter.filter(
-                                self.AdminGroupPermission,
-                                group_id__in=group_ids,
-                                content_type_id=ct_id,
-                                action=action,
-                            )
-                        )
-            if not allowed:
+            if not await self._has_permission(orm_user, action, ct_id):
                 self.logger.debug(
                     "Permission denied",
                     extra={"user_id": orm_user.id, "ct_id": ct_id, "action": action},
@@ -133,30 +134,7 @@ class PermissionsService:
                     status_code=status.HTTP_401_UNAUTHORIZED, detail="Auth required"
                 )
 
-            allowed = False
-            if user.is_active and user.is_staff:
-                if user.is_superuser:
-                    allowed = True
-                else:
-                    allowed = await self.adapter.exists(
-                        self.adapter.filter(
-                            self.AdminUserPermission,
-                            user_id=user.id,
-                            content_type_id=None,
-                            action=action,
-                        )
-                    )
-                    if not allowed:
-                        group_ids = await self._get_group_ids(user)
-                        allowed = await self.adapter.exists(
-                            self.adapter.filter(
-                                self.AdminGroupPermission,
-                                group_id__in=group_ids,
-                                content_type_id=None,
-                                action=action,
-                            )
-                        )
-            if not allowed:
+            if not await self._has_permission(user, action, None):
                 self.logger.debug(
                     "Permission denied",
                     extra={"user_id": user.id, "ct_id": None, "action": action},

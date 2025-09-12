@@ -23,6 +23,13 @@ class PermAction(str, Enum):
     add = "add"
     change = "change"
     delete = "delete"
+    export = "export"
+    import_ = "import"
+
+    def __str__(self) -> str:
+        return self.value
+
+setattr(PermAction, "import", PermAction.import_)
 
 
 class AdminUser(Model):

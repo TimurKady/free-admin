@@ -27,19 +27,15 @@ from .registry import registry
 class FilePathWidget(BaseWidget):
     """Widget that represents uploaded file paths."""
 
+    assets_css = ("/static/widgets/filepath.css",)
     assets_js = ("/static/widgets/filepath.js",)
     upload_handler: str = "FilePathUploader"
-
-    def _has_value(self) -> bool:
-        if not self.ctx or not self.ctx.instance:
-            return False
-        return bool(getattr(self.ctx.instance, self.ctx.name, ""))
 
     def get_schema(self) -> Dict[str, Any]:
         prefix = (self.ctx.prefix if self.ctx else "").rstrip("/")
         orm_prefix = system_config.get_cached(SettingsKey.ORM_PREFIX, "/orm").strip("/")
         media_prefix = system_config.get_cached(
-            SettingsKey.MEDIA_ROOT, settings.MEDIA_ROOT
+            SettingsKey.MEDIA_URL, settings.MEDIA_URL
         ).strip("/")
         md = self.ctx.descriptor if self.ctx else None
         admin = self.ctx.admin if self.ctx else None
@@ -69,7 +65,8 @@ class FilePathWidget(BaseWidget):
             },
             "upload_endpoint": endpoint,
         }
-        if self._has_value():
+        start_val = self.get_startval()
+        if isinstance(start_val, str) and start_val:
             schema["links"] = [
                 {"href": f"/{media_prefix}/{{{{self}}}}", "title": "{{self}}"}
             ]
@@ -102,7 +99,7 @@ class FilePathWidget(BaseWidget):
         path_str = str(PurePosixPath(path_str))
 
         media_prefix = system_config.get_cached(
-            SettingsKey.MEDIA_ROOT, settings.MEDIA_ROOT
+            SettingsKey.MEDIA_URL, settings.MEDIA_URL
         ).strip("/")
         if path_str.startswith(f"/{media_prefix}"):
             path_str = path_str[len(f"/{media_prefix}") :]

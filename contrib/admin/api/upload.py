@@ -19,6 +19,7 @@ from config.settings import settings
 from ..core.auth import AdminUserDTO, admin_auth_service
 from ..core.permissions import PermAction, permissions_service
 from ..core.settings import SettingsKey, system_config
+from ..crud import SafePathSegment
 
 
 class UploadAPI:
@@ -54,7 +55,9 @@ class UploadAPI:
         media_root = Path(
             system_config.get_cached(SettingsKey.MEDIA_ROOT, settings.MEDIA_ROOT)
         )
-        rel_dir = Path(app) / model
+        safe_app = SafePathSegment(app)
+        safe_model = SafePathSegment(model)
+        rel_dir = Path(safe_app) / safe_model
         target = media_root / rel_dir
         target.mkdir(parents=True, exist_ok=True)
         filename = Path(file.filename or "upload").name

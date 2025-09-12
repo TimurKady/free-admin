@@ -25,7 +25,7 @@
 - Review permission mixins when inline objects do not appear for certain users.
 
 ## Testing Checklist
-- [ ] Rendering displays at least one empty inline form.
+- [ ] Add and Add first buttons create inline forms when clicked.
 - [ ] Creating and updating inline items persists data correctly.
 - [ ] Validation errors appear next to the affected inline fields.
 - [ ] Unauthorized users cannot view or modify restricted inlines.

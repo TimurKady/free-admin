@@ -12,33 +12,45 @@ class FilePathUploader {
   _updateLink(url) {
     const prefix = this.editor?.schema?.options?.upload?.media_prefix || '/media/';
     const base = prefix.replace(/\/$/, '');
+    const input = this.editor?.input;
+    const parent = input && input.parentNode;
+
+    let link = null;
+    if (parent) {
+      const links = parent.querySelectorAll('a');
+      link = links[0] || null;
+      for (let i = 1; i < links.length; i++) {
+        links[i].remove();
+      }
+    }
+
     if (!url) {
       if (this.editor?.schema) {
         this.editor.schema.links = [];
       }
-      const input = this.editor?.input;
-      if (input && input.parentNode) {
-        const existing = input.parentNode.querySelector('a[data-filepath-link]');
-        existing?.remove();
+      if (link) {
+        link.remove();
       }
       return;
     }
+
     const href = `${base}/${url}`.replace(/\/{2,}/g, '/');
     const text = url.replace(/^\/+/, '');
+
     if (this.editor?.schema) {
       this.editor.schema.links = [{ href, title: text }];
     }
-    const input = this.editor?.input;
-    if (input && input.parentNode) {
-      let link = input.parentNode.querySelector('a[data-filepath-link]');
-      if (!link) {
-        link = document.createElement('a');
-        link.setAttribute('data-filepath-link', '1');
-        link.target = '_blank';
-        input.parentNode.appendChild(link);
-      }
+
+    if (link) {
+      link.setAttribute('data-filepath-link', '1');
       link.href = href;
-      link.textContent = text;
+      link.target = '_blank';
+    
+      // превращаем ссылку в кнопку
+      link.textContent = 'View';
+      link.classList.add('btn', 'btn-secondary', 'btn-sm');
+      link.setAttribute('role', 'button');
+      link.title = text.split('/').pop();
     }
   }
 
@@ -109,9 +121,26 @@ class FilePathUploader {
     };
     FilePathUploader.inject(schema);
   }
+
+  static updateExistingLinks(rootEditor) {
+    const editors = rootEditor?.editors || {};
+    Object.values(editors).forEach(ed => {
+      const handler = ed?.schema?.options?.upload?.upload_handler;
+      if (handler !== 'FilePathUploader') return;
+      let val = typeof ed?.getValue === 'function' ? ed.getValue() : null;
+      if (typeof val !== 'string' || !val) return;
+      const prefix = ed?.schema?.options?.upload?.media_prefix || '/media/';
+      if (val.startsWith(prefix)) {
+        val = val.slice(prefix.length).replace(/^\/+/, '');
+        if (typeof ed?.setValue === 'function') {
+          ed.setValue(val);
+        }
+      }
+      new FilePathUploader(ed, null, {})._updateLink(val);
+    });
+  }
 }
 
 window.FilePathUploader = FilePathUploader;
 
 // # The End
-
