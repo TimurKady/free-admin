@@ -1,27 +1,22 @@
-# Admin panel for FastAPI/Tortoise-ORM
+# Free-Admin
+**A modular admin panel for FastAPI and Tortoise ORM.**
 
-A modular, Django-Admin–grade admin for **FastAPI** + **Tortoise ORM** without monoliths or client-side “magic”.
-Bootstrap 5 UI, JSON-Editor forms, clean layering, two modes (ORM/Settings), strict RBAC, and pluggable widgets.
+**free-admin** brings a powerful, extensible, and secure administration interface to your FastAPI projects.
+Designed with modularity in mind, it cleanly separates architecture into distinct layers:
 
-## ✨ Highlights
+* **Core** — the foundation (`AdminSite`, `PageRegistry`, `CrudRouterBuilder`) plus authentication and templating services.
+* **ModelAdmin Layer** — declarative CRUD logic, filters, validation, and ORM bindings.
+* **RBAC Security** — fine-grained access control with roles and permissions.
+* **Infrastructure** — adapters (e.g., for Tortoise ORM), a CLI toolkit, and reusable widgets.
+* **Frontend** — clean Bootstrap 5 UI, JSON-Editor integration, ready-to-use templates and static assets.
 
-* **Clean layering**
+### Key Features
 
-  * `AdminSite` (coordinator), `PageRegistry`, `CrudRouterBuilder`, `ApiController`, `TemplateProvider`
-  * `ModelAdmin` (domain): JSON-Schema forms, list, filters, validation, QS hooks, RLS, `allow()`
-* **Two modes of the same model**
-
-  * **ORM**: `/orm/<app>/<model>/…` with model permissions `view/add/change/delete`
-  * **Settings**: `/settings/<app>/<model>/…` with global permissions `view/change`
-* **Minimal frontend magic**
-
-  * Bootstrap 5 + JSON-Editor; pre-baked schemas; no live patching
-* **Separation & packaging**
-
-  * Core as a pip package; templates/static included; demo app optional
-* **Widgets architecture**
-
-  * Field widgets (for JSON-Editor) and free widgets (page cards), unified asset delivery
+* **Two operation modes** — ORM-based CRUD interface or global system settings.
+* **JSON Schema forms** with filters and pagination — no hidden “magic” on the client.
+* **Extensible by design** — build custom widgets and adapters.
+* **RBAC permissions** at both model level and global scope.
+* **Batteries included** — CLI commands, templates, and static files out of the box.
 
 ---
 
