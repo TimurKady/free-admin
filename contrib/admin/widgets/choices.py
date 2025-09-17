@@ -24,11 +24,18 @@ from __future__ import annotations
 
 from typing import Any
 from .base import BaseWidget
+from .mixins import (
+    RelationChoicesMixin,
+    RelationPrefetchMixin,
+    RelationValueMixin,
+)
 from .registry import registry
 
 
 @registry.register("choices")
-class ChoicesWidget(BaseWidget):
+class ChoicesWidget(
+    RelationChoicesMixin, RelationPrefetchMixin, RelationValueMixin, BaseWidget
+):
     """Multi-select widget powered by Choices.js.
 
     The widget emits JSONEditor fields using ``format="choices"``. It switches
@@ -39,31 +46,60 @@ class ChoicesWidget(BaseWidget):
     Choices.js (e.g. ``allowSearch`` or ``maxItemCount``).
     """
 
+    assets_js = (
+        "https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js",
+        "/static/widgets/choices.js",
+    )
+
     class Media:
         css = (
             "https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css",
         )
         js = (
             "https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js",
+            "/static/widgets/choices.js",
         )
 
     Meta = Media
+
+    @property
+    def empty_many_value(self) -> list[str]:
+        """Return the default empty value for multi-select fields."""
+
+        return []
 
     def _choices_from_fd(self) -> dict[str, str]:
         """Return a mapping of option values to their labels."""
 
         field = self.ctx.field if self.ctx else None
         meta = getattr(field, "meta", {}) if field else {}
-        choices_map = dict(meta.get("choices_map", {}))
-        if not choices_map and field is not None:
-            for choice in getattr(field, "choices", []) or []:
-                if isinstance(choice, (list, tuple)) and len(choice) >= 2:
-                    key, label = choice[0], choice[1]
-                else:
-                    key = getattr(choice, "const", getattr(choice, "value", choice))
-                    label = getattr(choice, "title", getattr(choice, "label", str(choice)))
-                choices_map[str(key)] = str(label)
-        return choices_map
+        had_meta = bool(field and hasattr(field, "meta"))
+        choices_map = meta.get("choices_map") if meta else None
+        if isinstance(choices_map, dict) and choices_map:
+            return dict(choices_map)
+        if field is None:
+            return {}
+        choices = getattr(field, "choices", None)
+        relation = getattr(field, "relation", None)
+        generated = self.ensure_choices_map(field)
+        if not had_meta and not relation and choices:
+            try:
+                object.__delattr__(field, "meta")
+            except AttributeError:
+                pass
+        return dict(generated)
+
+    def get_startval(self) -> Any:
+        """Return the initial form value, normalizing empty singles to blank strings."""
+
+        value = super().get_startval()
+        if self.is_many:
+            return value
+        if value is None:
+            field = self.ctx.field if self.ctx else None
+            required = bool(getattr(field, "required", False))
+            return "" if not required else None
+        return value
 
     @property
     def is_many(self) -> bool:
@@ -87,16 +123,13 @@ class ChoicesWidget(BaseWidget):
             options["placeholder"] = meta["placeholder"]
 
         if self.is_many:
+            item_options: dict[str, Any] = {"enum_titles": titles}
             schema = {
                 "type": "array",
                 "title": self.get_title(),
                 "format": "choices",
                 "uniqueItems": True,
-                "items": {
-                    "type": "string",
-                    "enum": enum,
-                    "options": {"enum_titles": titles},
-                },
+                "items": {"type": "string", "enum": enum, "options": item_options},
                 "options": options,
             }
             return self.merge_readonly(schema)
@@ -111,49 +144,6 @@ class ChoicesWidget(BaseWidget):
         }
         return self.merge_readonly(schema)
 
-    def get_startval(self) -> Any:
-        """Return the widget's initial value as list, string, or None."""
-        if not self.ctx:
-            return None
-
-        fd = self.ctx.field
-        required = bool(getattr(fd, "required", False))
-        default = getattr(fd, "default", None)
-
-        inst = self.ctx.instance
-        if inst is None:
-            start = default if default is not None else (None if required else ([] if self.is_many else ""))
-        else:
-            start = getattr(inst, self.ctx.name, None)
-            if start is None:
-                start = default if default is not None else (None if required else ([] if self.is_many else ""))
-
-        if self.is_many:
-            if self.ctx.instance is not None:
-                ids = getattr(self.ctx.instance, f"{self.ctx.name}_ids", None)
-                if ids is not None:
-                    start = ids
-            if start is None:
-                return []
-            if not isinstance(start, (list, tuple, set)):
-                start = [start]
-            return [str(v) for v in start]
-
-        if start in (None, ""):
-            return start
-        return str(start)
-
-    def to_storage(self, value: Any, options: dict[str, Any] | None = None) -> Any:
-        """Normalize submitted data into a storage-friendly list, string, or None."""
-        if value is None:
-            return [] if self.is_many else None
-
-        if self.is_many:
-            if not isinstance(value, (list, tuple)):
-                value = [value]
-            return [str(v) for v in value]
-
-        return str(value)
 
 # The End
 

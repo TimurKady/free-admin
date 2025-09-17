@@ -87,7 +87,7 @@ class ModelAdmin(BaseModelAdmin):
                 count = await self.adapter.count(qs)
             specs.append(
                 {
-                    "label": inline.get_label() or inline.get_verbose_name_plural(),
+                    "label": inline.get_model_label() or inline.get_verbose_name_plural(),
                     "app": getattr(inline, "app_label", md.app_label),
                     "model": getattr(
                         inline,

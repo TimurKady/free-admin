@@ -17,16 +17,19 @@ from typing import TYPE_CHECKING, Awaitable, Callable, Any
 from fastapi import HTTPException, status
 from fastapi.requests import Request
 
-from ..adapters import BaseAdapter
-from .auth import admin_auth_service
+from ...adapters import BaseAdapter
+from ..auth import admin_auth_service
 
 if TYPE_CHECKING:  # pragma: no cover - for type checking only
     from .auth import AdminUserDTO
-    from .site import AdminSite
+    from ..site import AdminSite
 
 
 class PermissionsService:
+    """Check user permissions against configured actions."""
+
     def __init__(self, adapter: BaseAdapter) -> None:
+        """Initialize the service with the given adapter."""
         self.adapter = adapter
         self.AdminUser = adapter.user_model
         self.AdminUserPermission = adapter.user_permission_model
@@ -147,7 +150,7 @@ class PermissionsService:
         return _dep
 
 
-from ..boot import admin as boot_admin
+from ...boot import admin as boot_admin
 
 permissions_service = PermissionsService(boot_admin.adapter)
 PermAction = permissions_service.PermAction

@@ -23,6 +23,7 @@ class ScopeTokenService:
     """Sign and verify scope payloads with expiration."""
 
     def __init__(self, secret: str | None = None, algorithm: str = "HS256") -> None:
+        """Initialize service with signing ``secret`` and ``algorithm``."""
         self._secret = secret or settings.JWT_SECRET_KEY
         self._algorithm = algorithm
 

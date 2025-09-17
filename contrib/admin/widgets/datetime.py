@@ -18,12 +18,16 @@ from .registry import registry
 class DateTimeWidget(BaseWidget):
     """
     Widget for ``date``/``datetime``/``time`` fields.
-    JSON-Editor expects a string plus format: "date" | "datetime" | "time".
+
+    The underlying HTML element uses ``datetime-local`` for combined
+    date/time values, while :meth:`get_schema` emits JSON ``format`` values
+    of ``date``, ``datetime`` or ``time`` as expected by JSON-Editor.
     """
 
     def get_schema(self) -> Dict[str, Any]:
+        """Return the JSON schema reflecting the field's temporal kind."""
         kind = (getattr(self.ctx.field, "kind", "") or "").lower()
-        fmt = "datetime-local" if kind == "datetime" else ("date" if kind == "date" else "time")
+        fmt = "datetime" if kind == "datetime" else ("date" if kind == "date" else "time")
         return self.merge_readonly({
             "type": "string",
             "title": self.get_title(),
@@ -31,6 +35,7 @@ class DateTimeWidget(BaseWidget):
         })
 
     def get_startval(self) -> Any:
+        """Format the initial value for JSON-Editor consumption."""
         v = super().get_startval()
         if v is None:
             return None
@@ -46,6 +51,7 @@ class DateTimeWidget(BaseWidget):
         return str(v)
 
     def to_storage(self, value: Any, options: Dict[str, Any] | None = None) -> Any:
+        """Return the string value unchanged for later parsing."""
         # Keep as string—the model layer/validator will parse it
         return value
 

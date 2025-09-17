@@ -509,7 +509,12 @@ class Adapter:
     def _app_label(self, model: type[Any]) -> str:
         """Return the app label for a model, with safe fallback."""
         meta = getattr(model, "_meta", None)
-        return getattr(meta, "app", None) or model.__module__.split(".")[0]
+        label = getattr(meta, "app", None)
+        if label in {None, "models"}:
+            parts = model.__module__.split(".")
+            if len(parts) > 1:
+                return parts[1] if parts[0] == "apps" else parts[0]
+        return label or model.__module__.split(".")[0]
 
     def _build_choices(self, f: fields.Field) -> list[Choice] | None:
         """Create ``Choice`` instances for enum or ``choices`` definitions."""
@@ -578,8 +583,11 @@ class Adapter:
                 dotted = target
                 to_field = "id"
             else:
-                dotted = f"{self._app_label(target)}.{target.__name__}"
-                to_field = getattr(target._meta, "pk_attr", "id")
+                meta = getattr(target, "_meta", None)
+                app_label = getattr(meta, "app", None) if meta else None
+                app_label = app_label or self._app_label(target)
+                dotted = f"{app_label}.{target.__name__}"
+                to_field = getattr(meta, "pk_attr", "id") if meta else "id"
             return Relation(kind="fk", target=dotted, to_field=to_field)
         if isinstance(f, fields.relational.ManyToManyFieldInstance):
             target = getattr(f, "related_model", None) or getattr(
@@ -591,8 +599,11 @@ class Adapter:
                 dotted = target
                 to_field = "id"
             else:
-                dotted = f"{self._app_label(target)}.{target.__name__}"
-                to_field = getattr(target._meta, "pk_attr", "id")
+                meta = getattr(target, "_meta", None)
+                app_label = getattr(meta, "app", None) if meta else None
+                app_label = app_label or self._app_label(target)
+                dotted = f"{app_label}.{target.__name__}"
+                to_field = getattr(meta, "pk_attr", "id") if meta else "id"
             return Relation(kind="m2m", target=dotted, to_field=to_field)
         return None
 
@@ -647,8 +658,12 @@ class Adapter:
         table_name = getattr(meta, "db_table", f"{app}_{getattr(model, '__name__', 'model').lower()}")
         fds: list[FieldDescriptor] = []
         if meta is not None:
-            for name, f in getattr(meta, "fields_map", {}).items():
-                from tortoise import fields as tfields
+            from tortoise import fields as tfields
+
+            fields_map = getattr(meta, "fields_map", {})
+            field_names = set(fields_map.keys())
+
+            for name, f in fields_map.items():
                 if isinstance(
                     f,
                     (
@@ -657,11 +672,20 @@ class Adapter:
                     ),
                 ):
                     continue
+
+                if name.endswith("_id"):
+                    base_name = name[:-3]
+                    if base_name in field_names:
+                        # Skip duplicate ``*_id`` entries when relation exists.
+                        continue
+                    if isinstance(f, tfields.relational.ForeignKeyFieldInstance):
+                        name = base_name
+
                 fds.append(self._field_descriptor(name, f))
 
         mds = ModelDescriptor(
             app_label=app,
-            model_name=getattr(model, "__name__", "Model"),
+            model_name=getattr(model, "__name__", "Model").lower(),
             dotted=dotted,
             table=table_name,
             pk_attr=self.get_pk_attr(model),

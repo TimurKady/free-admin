@@ -40,6 +40,10 @@ class FilePathUploader {
     if (this.editor?.schema) {
       this.editor.schema.links = [{ href, title: text }];
     }
+    if (!link && parent) {
+      link = document.createElement('a');
+      parent.appendChild(link);
+    }
 
     if (link) {
       link.setAttribute('data-filepath-link', '1');
@@ -108,18 +112,9 @@ class FilePathUploader {
   }
 
   static init(schema) {
-    JSONEditor.defaults = JSONEditor.defaults || {};
-    JSONEditor.defaults.callbacks = JSONEditor.defaults.callbacks || {};
-    JSONEditor.defaults.callbacks.upload = JSONEditor.defaults.callbacks.upload || {};
-    JSONEditor.defaults.callbacks.upload.FilePathUploader = function (jseditor, type, file, cbs) {
-
-      if (!(file instanceof File)) {
-        cbs?.failure?.('Invalid file object');
-        return;
-      }
-      new FilePathUploader(jseditor, file, cbs).send();
-    };
-    FilePathUploader.inject(schema);
+    const globalObj = typeof window !== 'undefined' ? window : globalThis;
+    const manager = FilePathUploaderManager.bootstrap(globalObj);
+    return manager.legacyInit(schema);
   }
 
   static updateExistingLinks(rootEditor) {
@@ -141,6 +136,118 @@ class FilePathUploader {
   }
 }
 
-window.FilePathUploader = FilePathUploader;
+class FilePathUploaderManager {
+  constructor(globalObj) {
+    this.global = globalObj;
+    this._callbackRegistered = false;
+    this._processedEditors = new WeakSet();
+    this._handleSchemaEvent = this._handleSchemaEvent.bind(this);
+    this._handleCreatedEvent = this._handleCreatedEvent.bind(this);
+    this._handleReadyEvent = this._handleReadyEvent.bind(this);
+    this.readyPromise = this._waitForJSONEditor();
+    this.readyPromise.then((JSONEditorGlobal) => {
+      this._registerUploadCallback(JSONEditorGlobal);
+    });
+
+    if (this.global.JSONEditor) {
+      this._registerUploadCallback(this.global.JSONEditor);
+    }
+
+    const doc = this.global.document;
+    if (doc?.addEventListener) {
+      doc.addEventListener('admin:jsoneditor:schema', this._handleSchemaEvent);
+      doc.addEventListener('admin:jsoneditor:created', this._handleCreatedEvent);
+      doc.addEventListener('admin:jsoneditor:ready', this._handleReadyEvent);
+    }
+  }
+
+  static bootstrap(globalObj) {
+    if (!this.instance) {
+      this.instance = new FilePathUploaderManager(globalObj);
+    }
+    return this.instance;
+  }
+
+  _waitForJSONEditor() {
+    if (this.global.JSONEditor) {
+      return Promise.resolve(this.global.JSONEditor);
+    }
+    return new Promise(resolve => {
+      const check = () => {
+        if (this.global.JSONEditor) {
+          resolve(this.global.JSONEditor);
+        } else {
+          this.global.setTimeout(check, 50);
+        }
+      };
+      check();
+    });
+  }
+
+  _registerUploadCallback(JSONEditorGlobal) {
+    if (this._callbackRegistered || !JSONEditorGlobal) return;
+    JSONEditorGlobal.defaults = JSONEditorGlobal.defaults || {};
+    JSONEditorGlobal.defaults.callbacks = JSONEditorGlobal.defaults.callbacks || {};
+    JSONEditorGlobal.defaults.callbacks.upload = JSONEditorGlobal.defaults.callbacks.upload || {};
+    JSONEditorGlobal.defaults.callbacks.upload.FilePathUploader = function (jseditor, type, file, cbs) {
+      if (!(file instanceof File)) {
+        cbs?.failure?.('Invalid file object');
+        return;
+      }
+      new FilePathUploader(jseditor, file, cbs).send();
+    };
+    this._callbackRegistered = true;
+  }
+
+  _handleSchemaEvent(event) {
+    const schema = event?.detail?.schema;
+    if (schema) {
+      FilePathUploader.inject(schema);
+    }
+    const JSONEditorGlobal = this.global.JSONEditor;
+    if (JSONEditorGlobal) {
+      this._registerUploadCallback(JSONEditorGlobal);
+    }
+  }
+
+  _handleCreatedEvent(event) {
+    const editor = event?.detail?.editor;
+    if (!editor) return;
+    if (typeof editor.on === 'function') {
+      editor.on('ready', () => this._handleEditorReady(editor));
+    } else {
+      this._handleEditorReady(editor);
+    }
+  }
+
+  _handleReadyEvent(event) {
+    const editor = event?.detail?.editor;
+    if (!editor) return;
+    this._handleEditorReady(editor);
+  }
+
+  _handleEditorReady(editor) {
+    if (!editor || this._processedEditors.has(editor)) {
+      return;
+    }
+    this._processedEditors.add(editor);
+    FilePathUploader.updateExistingLinks(editor);
+  }
+
+  async legacyInit(schema) {
+    if (schema) {
+      FilePathUploader.inject(schema);
+    }
+    const JSONEditorGlobal = await this.readyPromise;
+    this._registerUploadCallback(JSONEditorGlobal);
+  }
+}
+
+FilePathUploaderManager.instance = null;
+
+const filePathGlobalObj = typeof window !== 'undefined' ? window : globalThis;
+FilePathUploaderManager.bootstrap(filePathGlobalObj);
+filePathGlobalObj.FilePathUploader = FilePathUploader;
+
 
 // # The End

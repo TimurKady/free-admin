@@ -16,8 +16,8 @@ from types import SimpleNamespace
 
 from .adapters import BaseAdapter
 from .boot import admin as boot_admin
-from .core.auth import AdminUserDTO
-from .core.actions.scope_query import ScopeQueryService
+from .core.services.auth import AdminUserDTO
+from .core.services import ScopeQueryService
 from .core.exceptions import ActionNotFound
 
 

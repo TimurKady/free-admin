@@ -15,9 +15,13 @@ from fastapi import FastAPI
 from importlib import import_module
 import pkgutil
 from starlette.middleware.sessions import SessionMiddleware
+from typing import TYPE_CHECKING
 
 from config.settings import settings
 from .adapters import BaseAdapter, registry
+
+if TYPE_CHECKING:  # pragma: no cover
+    from .core.base import BaseModelAdmin
 
 
 class BootManager:
@@ -67,6 +71,17 @@ class BootManager:
         if self._adapter is None:
             return []
         return getattr(self._adapter, "model_modules", [])
+
+    def get_admin(self, target: str) -> "BaseModelAdmin | None":
+        """Return registered admin instance for ``target``."""
+        from .hub import admin_site
+
+        try:
+            app_label, model_name = target.split(".", 1)
+        except ValueError:
+            return None
+        key = (app_label.lower(), model_name.lower())
+        return admin_site.model_reg.get(key)
 
     def init(
         self, app: FastAPI, adapter: str | None = None, packages: list[str] | None = None

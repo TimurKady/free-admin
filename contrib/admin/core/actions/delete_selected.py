@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from . import ActionResult, ActionSpec, BaseAction
-from ..permissions import PermAction
+from ..services.permissions import PermAction
 from ...boot import admin as boot_admin
 
 

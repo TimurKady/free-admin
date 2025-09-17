@@ -10,24 +10,22 @@ Email: timurkady@yandex.com
 """
 
 from __future__ import annotations
-from enum import Enum
-
 from tortoise import fields
 from tortoise.models import Model
 
+from ...models.choices import StrChoices
 from .content_type import AdminContentType
 
 
-class PermAction(str, Enum):
-    view = "view"
-    add = "add"
-    change = "change"
-    delete = "delete"
-    export = "export"
-    import_ = "import"
+class PermAction(StrChoices):
+    """Available actions that can be granted as permissions."""
 
-    def __str__(self) -> str:
-        return self.value
+    view = "view", "View"
+    add = "add", "Add"
+    change = "change", "Change"
+    delete = "delete", "Delete"
+    export = "export", "Export"
+    import_ = "import", "Import"
 
 setattr(PermAction, "import", PermAction.import_)
 

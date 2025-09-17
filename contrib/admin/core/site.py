@@ -18,11 +18,13 @@ from typing import Any, Callable, Dict, List
 from fastapi import APIRouter, Depends, Request, UploadFile, File, HTTPException, Form, status
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
+from importlib import import_module
 from config.settings import settings
 
 from ..adapters import BaseAdapter
-from .auth import AdminUserDTO, admin_auth_service
-from .permissions import PermAction, permissions_service
+from .services.auth import AdminUserDTO
+from .auth import admin_auth_service
+from .services.permissions import PermAction, permissions_service
 from .base import BaseModelAdmin
 from .pages import FreeViewPage, SettingsPage
 from .settings import SettingsKey, system_config
@@ -31,9 +33,11 @@ from .exceptions import AdminModelNotFound
 from ..crud import CrudRouterBuilder
 from ..api import API_PREFIX, router as api_router
 from ..provider import TemplateProvider
-from .services import ExportService, ImportService
-from .actions import ScopeQueryService, ScopeTokenService
+from .services.export import ExportService
+from .services import ScopeQueryService, ScopeTokenService
 from ..utils.icon import IconPathMixin
+
+ImportService = import_module("contrib.admin.core.services.import").ImportService
 
 Model = Any
 

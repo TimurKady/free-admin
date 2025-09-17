@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
-from ..permissions import PermAction
+from ..services.permissions import PermAction
 
 
 @dataclass
@@ -75,8 +75,6 @@ class BaseAction(ABC):
 
 from .delete_selected import DeleteSelectedAction
 from .export_selected import ExportSelectedAction
-from .tokens import ScopeTokenService
-from .scope_query import ScopeQueryService
 
 
 __all__ = [
@@ -85,8 +83,6 @@ __all__ = [
     "BaseAction",
     "DeleteSelectedAction",
     "ExportSelectedAction",
-    "ScopeTokenService",
-    "ScopeQueryService",
 ]
 
 # The End

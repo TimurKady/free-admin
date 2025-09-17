@@ -45,10 +45,11 @@ if TYPE_CHECKING:  # pragma: no cover
 # Placeholder for the active ORM's QuerySet implementation
 QuerySet = Any
 
-from .actions import ActionResult, BaseAction, ScopeTokenService  # noqa: E402
+from .actions import ActionResult, BaseAction  # noqa: E402
+from .services import ScopeTokenService  # noqa: E402
 from .actions.delete_selected import DeleteSelectedAction  # noqa: E402
 from .actions.export_selected import ExportSelectedAction  # noqa: E402
-from .permissions import PermAction  # noqa: E402
+from .services.permissions import PermAction  # noqa: E402
 
 
 class BaseModelAdmin:
@@ -165,13 +166,40 @@ class BaseModelAdmin:
 
     # --- attribute accessors -------------------------------------------------
 
-    def get_label(self) -> str | None:
+    def get_model_label(self) -> str | None:
         """Return plural label for the model."""
         return self.label
 
-    def get_label_singular(self) -> str | None:
+    def get_model_label_singular(self) -> str | None:
         """Return singular label for the model."""
         return self.label_singular
+
+    def get_label(self, obj: Any) -> str:
+        """Return human-readable label for ``obj``."""
+        return str(obj)
+
+    async def get_choices(self, field) -> list[tuple[str, str]]:
+        """Return available options for the related ``field``.
+
+        The related model is resolved from ``field`` and all instances are
+        retrieved via its ``all`` manager method. Each object is converted to a
+        ``(pk, label)`` pair using :meth:`get_label`. If the related model
+        cannot be determined, an empty list is returned.
+        """
+        model = getattr(field, "related_model", None)
+        if model is None:
+            rel = getattr(field, "relation", None)
+            target = getattr(rel, "target", None) if rel else None
+            if target is None:
+                return []
+            try:
+                model = self.adapter.get_model(target)
+            except Exception:  # pragma: no cover - safety net
+                return []
+        if model is None:
+            return []
+        objs = await model.all()
+        return [(str(obj.pk), self.get_label(obj)) for obj in objs]
 
     def get_list_display(self) -> Sequence[str]:
         """Return fields displayed in list views."""
@@ -805,20 +833,23 @@ class BaseModelAdmin:
                         g_required = [n for n in names if n in root_required]
                         for n in g_required:
                             root_required.remove(n)
-                        result[g_key] = {
+                        group_options = {"headerTemplate": ""}
+                        group_schema = {
                             "type": "object",
                             "format": "grid",
                             "title": "\u200B",
                             "titleHidden": True,
-                            "options": {"headerTemplate": ""},
-                            "disable_collapse": True,
-                            "collapsed": False,
+                            "options": group_options,
                             "additionalProperties": False,
                             "properties": {
                                 name: flat_properties[name] for name in names
                             },
                             "defaultProperties": names,
                         }
+                        # Helper groups must never expose a collapsed flag.
+                        group_schema.pop("collapsed", None)
+                        group_options.pop("collapsed", None)
+                        result[g_key] = group_schema
                         if g_required:
                             result[g_key]["required"] = g_required
                         g_start: dict[str, Any] = {}
@@ -840,9 +871,11 @@ class BaseModelAdmin:
             icon = fs.get("icon", "")
             hide_title = bool(fs.get("hide_title", False))
             container_class = fs.get("class")
+            collapse_requested = "collapsed" in fs
             collapsed_opt = fs.get("collapsed")
-            collapsed = bool(collapsed_opt) if collapsed_opt is not None else False
-            disable_collapse = collapsed_opt is None
+            collapsed = collapse_requested and collapsed_opt is not False
+            # Preserve collapse toggles for fieldsets that explicitly request them
+            disable_collapse = not collapse_requested
             header = f"<i class='bi bi-{icon}'></i>"
 
             group_props: dict[str, Any] = {}
@@ -867,20 +900,23 @@ class BaseModelAdmin:
                     g_required = [n for n in names if n in root_required]
                     for n in g_required:
                         root_required.remove(n)
-                    group_props[g_key] = {
+                    group_options = {"headerTemplate": ""}
+                    group_schema = {
                         "type": "object",
                         "format": "grid",
                         "title": "\u200B",
                         "titleHidden": True,
-                        "options": {"headerTemplate": ""},
-                        "disable_collapse": True,
-                        "collapsed": False,
+                        "options": group_options,
                         "additionalProperties": False,
                         "properties": {
                             name: flat_properties[name] for name in names
                         },
                         "defaultProperties": names,
                     }
+                    # Helper groups must never expose a collapsed flag.
+                    group_schema.pop("collapsed", None)
+                    group_options.pop("collapsed", None)
+                    group_props[g_key] = group_schema
                     if g_required:
                         group_props[g_key]["required"] = g_required
                         group_required.append(g_key)
@@ -913,19 +949,22 @@ class BaseModelAdmin:
                 options["headerTemplate"] = (
                     f"{header}<span class='ms-1'>{{title}}</span>"
                 )
-
+            options["disable_collapse"] = disable_collapse
+            if collapse_requested:
+                options["collapsed"] = collapsed
             key = str(title)
-            result[key] = {
+            fieldset_schema = {
                 "type": "object",
                 "format": "grid",
                 "title": fs_title,
                 "options": options,
-                "disable_collapse": disable_collapse,
-                "collapsed": collapsed,
                 "additionalProperties": False,
                 "properties": group_props,
                 "defaultProperties": group_order,
             }
+            if collapse_requested:
+                fieldset_schema["collapsed"] = collapsed
+            result[key] = fieldset_schema
             if group_required:
                 result[key]["required"] = group_required
             if group_start:
@@ -1321,6 +1360,9 @@ class BaseModelAdmin:
                         fd = None
                         break
                     rel_model = self.adapter.get_model(rel.target)
+                    if rel_model is None:
+                        fd = None
+                        break
                     cur_md = self.adapter.get_model_descriptor(rel_model)
             if fd is None:
                 continue
@@ -1570,8 +1612,10 @@ class BaseModelAdmin:
         rel = getattr(fd, "relation", None) if fd else None
         if rel is not None:
             rel_model = self.adapter.get_model(rel.target)
+            if rel_model is None:
+                return None
             rel_md = self.adapter.get_model_descriptor(rel_model)
-            return getattr(rel_md, "model_name", None) or getattr(rel_model, "__name__", None)
+            return getattr(rel_model, "__name__", None) or getattr(rel_md, "model_name", None)
         return None
 
     def columns_meta(self, md, columns: Sequence[str]) -> List[Dict[str, Any]]:
@@ -1621,8 +1665,12 @@ class BaseModelAdmin:
                     if fd.relation.kind == "m2m":
                         sortable = False
                     rel_model = self.adapter.get_model(fd.relation.target)
-                    current_md = self.adapter.get_model_descriptor(rel_model)
-                    current_map = getattr(current_md, "fields_map", {})
+                    if rel_model is None:
+                        current_md = None
+                        current_map = {}
+                    else:
+                        current_md = self.adapter.get_model_descriptor(rel_model)
+                        current_map = getattr(current_md, "fields_map", {})
                 else:
                     label_val = getattr(fd, "verbose_name", None) or part.replace("_", " ").title()
                     if part.endswith("_id"):

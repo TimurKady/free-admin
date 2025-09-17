@@ -21,7 +21,7 @@ from typing import Optional, Any
 # Your project imports – keep as in your repo
 from ..boot import admin as boot_admin
 from ..adapters import BaseAdapter
-from ..core.auth_service import AuthService
+from ..core.services.auth import AuthService
 from config.settings import settings
 from config.orm import init_orm, close_orm
 

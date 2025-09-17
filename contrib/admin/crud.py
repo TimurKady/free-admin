@@ -22,14 +22,20 @@ from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 from starlette.routing import NoMatchFound
 
+from importlib import import_module
+
 from config.settings import settings
-from .core.auth import AdminUserDTO, admin_auth_service
+from .core.services.auth import AdminUserDTO
+from .core.auth import admin_auth_service
 from .core.base import BaseModelAdmin
-from .core.permissions import PermAction, permissions_service
-from .core.services import AdminService, ExportService, ImportService
+from .core.services.permissions import PermAction, permissions_service
+from .core.services.admin import AdminService
+from .core.services.export import ExportService
 from .core.exceptions import HTTPError
 from .core.settings import SettingsKey, system_config
-from .core.actions import ScopeTokenService
+from .core.services import ScopeTokenService
+
+ImportService = import_module("contrib.admin.core.services.import").ImportService
 
 
 if TYPE_CHECKING:

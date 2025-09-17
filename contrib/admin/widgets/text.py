@@ -18,15 +18,23 @@ from .registry import registry
 @registry.register("text")
 class TextWidget(BaseWidget):
     def get_schema(self) -> Dict[str, Any]:
+        """Build a JSON Schema representation for the widget."""
         fmt = self.config.get("format")
-        if fmt is None and self.ctx is not None:
+        type_ = "string"
+        kind = ""
+        if self.ctx is not None:
             kind = (getattr(self.ctx.field, "kind", "") or "").lower()
             if kind in ("int", "integer"):
-                fmt = "number"
+                type_ = "integer"
+            elif kind in ("float", "double", "decimal", "number"):
+                type_ = "number"
         if fmt is None:
-            fmt = "text"
+            if kind in ("int", "integer"):
+                fmt = "number"
+            else:
+                fmt = "text"
         schema: Dict[str, Any] = {
-            "type": "string",
+            "type": type_,
             "format": fmt,
             "title": self.get_title(),
         }

@@ -14,8 +14,8 @@ from __future__ import annotations
 from fastapi import HTTPException, Request
 
 from ...adapters import BaseAdapter
-from ..auth import AdminUserDTO
-from .builder import ScopeQueryBuilder
+from .auth import AdminUserDTO
+from ..actions.builder import ScopeQueryBuilder
 from ..filters import FilterSpec
 
 
@@ -23,6 +23,7 @@ class ScopeQueryService:
     """Build querysets from scope definitions."""
 
     def __init__(self, adapter: BaseAdapter | None = None) -> None:
+        """Initialize the service with an optional adapter."""
         from ...boot import admin as boot_admin
 
         self.adapter = adapter or boot_admin.adapter
@@ -35,6 +36,7 @@ class ScopeQueryService:
         user: AdminUserDTO,
         scope: dict,
     ):
+        """Build a queryset according to the provided scope definition."""
         qs = admin.get_objects(request, user)
         if not isinstance(scope, dict):
             raise HTTPException(status_code=400, detail="Invalid scope format")

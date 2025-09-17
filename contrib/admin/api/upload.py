@@ -16,8 +16,9 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Request
 from config.settings import settings
 
-from ..core.auth import AdminUserDTO, admin_auth_service
-from ..core.permissions import PermAction, permissions_service
+from ..core.services.auth import AdminUserDTO
+from ..core.auth import admin_auth_service
+from ..core.services.permissions import PermAction, permissions_service
 from ..core.settings import SettingsKey, system_config
 from ..crud import SafePathSegment
 

@@ -78,5 +78,8 @@ class SettingsKey(StrChoices):
     MEDIA_ROOT           = ("MEDIA_ROOT", "Directory for uploaded files")
     MEDIA_URL            = ("MEDIA_URL", "URL prefix for uploaded files")
 
+    # --- Robots ---
+    ROBOTS_DIRECTIVES    = ("ROBOTS_DIRECTIVES", "robots.txt directives")
+
 # The End
 

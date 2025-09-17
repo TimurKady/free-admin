@@ -18,6 +18,7 @@ from .base import BaseWidget
 
 class WidgetRegistry:
     def __init__(self) -> None:
+        """Initialize an empty registry of widget classes."""
         self._by_key: Dict[str, Type[BaseWidget]] = {}
 
     def register(self, key: str):
@@ -29,6 +30,7 @@ class WidgetRegistry:
         return _decorator
 
     def get(self, key: str) -> Type[BaseWidget] | None:
+        """Retrieve a registered widget class by key."""
         return self._by_key.get(key)
 
     def resolve_for_field(
@@ -50,17 +52,20 @@ class WidgetRegistry:
 
         if fd.relation is not None:
             name = field_name or getattr(fd, "name", "")
-            if admin is not None and name in admin.get_autocomplete_fields():
+            rel_kind = getattr(fd.relation, "kind", "").lower()
+            if (
+                rel_kind == "fk"
+                and admin is not None
+                and name in admin.get_autocomplete_fields()
+            ):
                 return "select2"
             return "relation"
 
         if fd.choices is not None:
             return "radio"
 
-        if k == "number":
+        if k in ("number", "int", "integer", "float"):
             return "number"
-        if k in ("int", "integer", "float"):
-            return "text"
         if k in ("date", "datetime", "time"):
             return "datetime"
         if k == "text":

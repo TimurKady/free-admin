@@ -25,7 +25,7 @@ class AdminFormEditor {
         form_name_root: '\u200B',
         display_required_only: false,
         disable_edit_json: true,
-        disable_collapse: true,
+        disable_collapse: true, // Fieldsets that declare "collapsed" reset this to false via _build_fieldset_properties
         required_by_default: false,
         disable_properties: true,
       },
@@ -45,6 +45,7 @@ class AdminFormEditor {
     this._inlinesEventsBound = false;
   }
 
+  /** Bind inline list change events to update badge counts. */
   bindInlineListEvents() {
     if (this._inlinesEventsBound) return;
     this._inlinesEventsBound = true;
@@ -62,6 +63,16 @@ class AdminFormEditor {
     });
   }
 
+  emitEvent(name, detail = {}) {
+    const doc = document;
+    if (!doc || typeof doc.dispatchEvent !== 'function') return;
+    const EventCtor = window.CustomEvent || globalThis.CustomEvent;
+    if (typeof EventCtor !== 'function') return;
+    const event = new EventCtor(name, { detail });
+    doc.dispatchEvent(event);
+  }
+
+  /** Extract preset values and next URL from the current query string. */
   parseUrlParams() {
     const usp = new URLSearchParams(window.location.search);
     const presets = {};
@@ -76,6 +87,14 @@ class AdminFormEditor {
     return { presets, next };
   }
 
+  /**
+   * Apply preset values to schema and starting form values, marking those fields read-only.
+   *
+   * @param {Object} schema - The original JSON Schema.
+   * @param {Object} sv - The initial start values.
+   * @param {Object} presets - Preset field/value pairs from the query string.
+   * @returns {{schema: Object, startval: Object}} Updated schema and start values.
+   */
   applyPresetsToSchemaAndStartval(schema, sv, presets) {
     const schema2 = JSON.parse(JSON.stringify(schema));
     const sv2 = { ...sv };
@@ -89,6 +108,49 @@ class AdminFormEditor {
     return { schema: schema2, startval: sv2 };
   }
 
+  /**
+   * Recursively resolve ``{"__js__": "<code>"}`` nodes to ``Function`` instances.
+   *
+   * This enables declarative callback definitions within the schema, allowing
+   * components such as Select2 to receive executable callbacks like
+   * ``processResults``.
+   *
+   * @param {Object|Array} node - The schema fragment to process.
+   */
+  resolveJsCallbacks(node) {
+    if (!node || typeof node !== 'object') return;
+    if (Array.isArray(node)) {
+      node.forEach((item, idx) => {
+        if (item && typeof item === 'object') {
+          if (typeof item.__js__ === 'string') {
+            try {
+              node[idx] = new Function(`return (${item.__js__});`)();
+            } catch (err) {
+              console.error('Invalid __js__ callback:', err);
+            }
+          } else {
+            this.resolveJsCallbacks(item);
+          }
+        }
+      });
+      return;
+    }
+    Object.entries(node).forEach(([key, value]) => {
+      if (value && typeof value === 'object') {
+        if (typeof value.__js__ === 'string') {
+          try {
+            node[key] = new Function(`return (${value.__js__});`)();
+          } catch (err) {
+            console.error('Invalid __js__ callback:', err);
+          }
+        } else {
+          this.resolveJsCallbacks(value);
+        }
+      }
+    });
+  }
+
+  /** Load schema and initialize the JSONEditor instance. */
   async load() {
     try {
       const { schema, startval } = await this.fetchSchema();
@@ -105,10 +167,9 @@ class AdminFormEditor {
 
       this.spinner.style.display = 'none';
 
-      if (window.FilePathUploader) {
-        window.FilePathUploader.init(schema2);
-      }
+      this.emitEvent('admin:jsoneditor:schema', { schema: schema2 });
 
+      this.resolveJsCallbacks(schema2);
       this.editor = new JSONEditor(this.root, {
         schema: schema2,
         startval: sv2,
@@ -116,14 +177,16 @@ class AdminFormEditor {
         display_required_only: false,
       });
 
+      this.emitEvent('admin:jsoneditor:created', { editor: this.editor });
+
       if (typeof this.editor?.on === 'function') {
         this.editor.on('ready', () => {
-          if (window.FilePathUploader && typeof window.FilePathUploader.updateExistingLinks === 'function') {
-            window.FilePathUploader.updateExistingLinks(this.editor);
-          }
+          this.emitEvent('admin:jsoneditor:ready', { editor: this.editor });
+          this.applyGridColumns();
         });
-      } else if (window.FilePathUploader && typeof window.FilePathUploader.updateExistingLinks === 'function') {
-        window.FilePathUploader.updateExistingLinks(this.editor);
+      } else {
+        this.emitEvent('admin:jsoneditor:ready', { editor: this.editor });
+        this.applyGridColumns();
       }
 
       window._editor = this.editor;
@@ -139,20 +202,20 @@ class AdminFormEditor {
     }
   }
 
+  /**
+   * Retrieve the form schema and initial values.
+   * The Fetch API allows the response body to be read only once;
+   * therefore, the parsed JSON is cached and reused.
+   */
   async fetchSchema() {
     const url = this.cfg.endpoints.schema(this.app, this.model, this.mode, this.pk);
     const res = await fetch(url, { credentials: 'same-origin' });
+    const data = await res.json();
     if (!res.ok) {
-      let detail = '';
-      try {
-        const data = await res.json();
-        detail = data?.detail || JSON.stringify(data);
-      } catch {
-        detail = await res.text();
-      }
+      const detail = data?.detail || JSON.stringify(data);
       throw new Error(detail || `Request failed with status ${res.status}`);
     }
-    const { schema, startval } = await res.json();
+    const { schema, startval } = data;
     return { schema, startval };
   }
 
@@ -374,6 +437,26 @@ class AdminFormEditor {
   hideRootHeader() {
     const rootEditor = this.editor.getEditor('root');
     if (rootEditor?.header) rootEditor.header.style.display = 'none';
+  }
+
+  applyGridColumns() {
+    const editor = this.editor;
+    if (!editor || typeof editor !== 'object') return;
+    const map = editor.editors || {};
+    Object.values(map).forEach(ed => {
+      const schema = ed?.schema;
+      const raw = schema?.options?.grid_columns;
+      const cols = typeof raw === 'number' ? raw : parseInt(raw, 10);
+      if (!cols || !Number.isFinite(cols)) return;
+      const container = ed?.container || ed?.theme?.container;
+      if (!container || typeof container.className !== 'string') return;
+      const sanitized = Math.max(1, Math.min(12, cols));
+      const classes = container.className.split(/\s+/).filter(Boolean);
+      const filtered = classes.filter(cls => !/^col-md-\d+$/.test(cls));
+      filtered.push(`col-md-${sanitized}`);
+      const unique = Array.from(new Set(filtered));
+      container.className = unique.join(' ');
+    });
   }
 
   showBanner(text, variant = 'warning') {

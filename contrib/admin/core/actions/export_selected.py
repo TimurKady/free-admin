@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from . import ActionResult, ActionSpec, BaseAction
-from ..permissions import PermAction
+from ..services.permissions import PermAction
 
 
 class ExportSelectedAction(BaseAction):
@@ -38,7 +38,7 @@ class ExportSelectedAction(BaseAction):
         fmt = params.get("fmt", "json")
         if not fields:
             return ActionResult(ok=False, errors=["No fields specified."])
-        from ..services import ExportService
+        from ..services.export import ExportService
 
         adapter = self.admin.adapter
         md = adapter.get_model_descriptor(self.admin.model)

@@ -70,6 +70,9 @@ DEFAULT_SETTINGS: dict[SettingsKey, tuple[object, str]] = {
     # Media
     SettingsKey.MEDIA_ROOT:           ("media", "string"),
     SettingsKey.MEDIA_URL:            ("/media", "string"),
+
+    # Robots
+    SettingsKey.ROBOTS_DIRECTIVES:    ("User-agent: *\nDisallow: /\n", "string"),
 }
 
 # The End

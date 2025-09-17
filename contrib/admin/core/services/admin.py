@@ -12,10 +12,9 @@ Email: timurkady@yandex.com
 from __future__ import annotations
 
 from dataclasses import asdict
-from typing import Any, Dict
+from typing import Any, Dict, TYPE_CHECKING
 
 from ..actions.builder import ScopeQueryBuilder
-from ..auth import AdminUserDTO
 from ..exceptions import (
     ActionNotFound,
     PermissionDenied,
@@ -25,9 +24,12 @@ from ..exceptions import (
     PermissionError,
 )
 from ..filters import FilterSpec
-from ..permissions import permissions_service
+from .permissions import permissions_service
 from ..settings import SettingsKey, system_config
 from ..base import BaseModelAdmin
+
+if TYPE_CHECKING:  # pragma: no cover
+    from .auth import AdminUserDTO
 
 
 class ObjectNotFoundError(Exception):

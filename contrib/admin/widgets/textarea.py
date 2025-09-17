@@ -41,7 +41,12 @@ class TextAreaWidget(BaseWidget):
         if syntax:
             theme = meta.get("ace_theme", "chrome")
             ace_opts = options.get("ace", {}).copy()
-            ace_opts.update({"mode": syntax, "theme": theme})
+            ace_opts.update(
+                {
+                    "mode": f"ace/mode/{syntax}",
+                    "theme": f"ace/theme/{theme}",
+                }
+            )
             options["ace"] = ace_opts
 
         if options:
