@@ -12,7 +12,9 @@ Email: timurkady@yandex.com
 # admin/widgets/mixins.py
 from __future__ import annotations
 
-from typing import Any, Dict
+import inspect
+
+from typing import Any, Dict, Iterable
 
 from ..boot import admin as boot_admin
 
@@ -108,11 +110,7 @@ class RelationPrefetchMixin:
 
         if inst is not None:
             if getattr(rel, "kind", "") == "m2m":
-                try:
-                    related = getattr(inst, self.ctx.name) or []
-                except Exception:
-                    related = []
-                ids = [obj.pk for obj in related]
+                ids = await self._resolve_many_to_many_ids(inst)
                 setattr(inst, f"{self.ctx.name}_ids", ids)
             else:
                 cur = getattr(inst, f"{self.ctx.name}_id", None)
@@ -129,6 +127,44 @@ class RelationPrefetchMixin:
                     meta["current_label"] = choices_map.get(key)
 
         object.__setattr__(fd, "meta", meta)
+
+    async def _resolve_many_to_many_ids(self, inst: Any) -> list[str]:
+        """Collect many-to-many primary keys for the given instance."""
+        ids: list[str] = []
+        manager = getattr(inst, self.ctx.name, None)
+        related: Iterable[Any] | None
+
+        if manager is None:
+            return ids
+
+        if isinstance(manager, (list, tuple, set)):
+            related = manager
+        else:
+            loader = getattr(manager, "all", None)
+            related = None
+            if callable(loader):
+                try:
+                    data = loader()
+                    if inspect.isawaitable(data):
+                        data = await data
+                    related = data
+                except Exception:
+                    related = None
+            if related is None:
+                try:
+                    related = list(manager)
+                except TypeError:
+                    related = None
+
+        if not related:
+            return ids
+
+        for obj in related:
+            if obj is None:
+                continue
+            pk = getattr(obj, "pk", getattr(obj, "id", obj))
+            ids.append(str(pk))
+        return ids
 
 
 class RelationValueMixin:

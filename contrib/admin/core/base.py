@@ -1578,6 +1578,7 @@ class BaseModelAdmin:
 
             relation_name = col[:-3] if col.endswith("_id") else col
             fd = fd_map.get(relation_name)
+            value_from_admin_attr = False
             if fd and fd.relation:
                 try:
                     if fd.relation.kind == "fk":
@@ -1597,11 +1598,35 @@ class BaseModelAdmin:
                 except Exception:
                     row[col] = None
             else:
-                val = getattr(obj, col, None)
+                sentinel = object()
+                val: Any = sentinel
+                if fd is None:
+                    admin_attr = getattr(self, col, sentinel)
+                    if admin_attr is not sentinel:
+                        try:
+                            if callable(admin_attr):
+                                val = admin_attr(obj)
+                                if val is not None and hasattr(val, "__await__"):
+                                    val = await val
+                                value_from_admin_attr = True
+                            else:
+                                val = admin_attr
+                                value_from_admin_attr = True
+                        except Exception:
+                            val = None
+                if val is sentinel:
+                    val = getattr(obj, col, None)
                 if val is not None and hasattr(val, "isoformat"):
                     row[col] = val.isoformat()
                 else:
-                    row[col] = val
+                    if (
+                        value_from_admin_attr
+                        and val is not None
+                        and not isinstance(val, (str, bytes, int, float, bool, list, tuple, dict))
+                    ):
+                        row[col] = str(val)
+                    else:
+                        row[col] = val
         row["row_pk"] = getattr(obj, md.pk_attr)
         row["row_str"] = str(obj)
         return row
