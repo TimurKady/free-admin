@@ -42,10 +42,7 @@ class TestSettingsExport:
             Tortoise.init(
                 db_url="sqlite://:memory:",
                 modules={
-                    "models": [
-                        "apps.streams.models",
-                        "apps.streams.models.connections",
-                    ],
+                    "models": ["freeadmin.apps.system.models"],
                     "admin": list(
                         {
                             models.user.__module__,
