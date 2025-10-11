@@ -8,7 +8,6 @@ Author: Timur Kady
 Email: timurkady@yandex.com
 """
 
-from ._bootstrap import bootstrapper
 from .core.base import BaseModelAdmin
 from .core.site import AdminSite
 from .meta import __version__
