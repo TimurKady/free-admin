@@ -1,0 +1,28 @@
+{% extends "layout/default.html" %}
+
+{% block page_content %}
+  {% if card_entries %}
+    <div class="row g-4">
+      {% for card in card_entries %}
+        {% set card_column = namespace(value=card.col_class) %}
+        {% set card_content %}
+          {% with
+            key=card.key,
+            title=card.title,
+            icon=card.icon,
+            channel=card.channel,
+            col_class=card_column.value,
+            card_column=card_column
+          %}
+            {% include card.template %}
+          {% endwith %}
+        {% endset %}
+        <div class="{{ card_column.value }}">
+          {{ card_content | safe }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endblock %}
+
+<!-- # The End -->

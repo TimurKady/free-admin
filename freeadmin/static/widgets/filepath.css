@@ -1,0 +1,17 @@
+/* === filepath.css === */
+
+/* 1) Spacing and base preview parameters */
+[data-schemapath] .form-group img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  /* fallback when inline styles are absent */
+  max-height: 100px;
+  margin-top: 0.75rem;
+}
+
+/* When a .form-group contains an <img>, reduce the bottom margin for the block */
+[data-schemapath] .form-group {
+  margin-bottom: 0.25rem;
+}
+

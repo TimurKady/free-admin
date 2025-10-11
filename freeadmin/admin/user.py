@@ -1,0 +1,29 @@
+# -*- coding: utf-8 -*-
+"""
+user
+
+Admin panel configuration for AdminUser model.
+
+Version:0.1.0
+Author: Timur Kady
+Email: timurkady@yandex.com
+"""
+
+from freeadmin.core.models import ModelAdmin
+from freeadmin.hub import admin_site
+
+from ..boot import admin as boot_admin
+AdminUser = boot_admin.adapter.user_model
+
+class AdminUserAdmin(ModelAdmin):
+    """Admin configuration for :class:`AdminUser`."""
+
+    model = AdminUser
+    fields = ("username", "email", "is_staff", "is_superuser", "is_active",)
+    list_display = ("username", "email", "is_staff", "is_superuser", "is_active",)
+    list_filter = ("username", "email", "is_staff", "is_superuser", "is_active",)
+
+
+admin_site.register(app="admin", model=AdminUser, admin_cls=AdminUserAdmin, settings=True, icon="bi-person")
+
+# The End

@@ -1,0 +1,26 @@
+{# Card template rendered inside admin pages. #}
+{% set card_icon = icon %}
+<div class="card shadow-sm h-100">
+  <div class="card-header d-flex align-items-center gap-2 position-relative pe-5">
+    {% if card_icon %}
+      <i class="{{ card_icon }} text-secondary"></i>
+    {% endif %}
+    <span class="card-controller__status d-inline-flex align-items-center"></span>
+    <span class="fw-semibold">{{ title }}</span>
+  </div>
+  <div
+    class="card-body card-controller d-flex flex-column justify-content-center"
+    id="card-{{ key }}"
+    data-card-key="{{ key }}"
+    {% if channel %}data-card-channel="{{ channel }}"{% endif %}
+    data-card-endpoint="/api/cards/{{ key }}/events"
+    data-card-token-endpoint="{{ prefix }}/api/cards/{{ key }}/events/token"
+  >
+    <div class="card-controller__content w-100">
+      {% block card_body %}
+        <div class="text-muted text-center w-100">No data</div>
+      {% endblock %}
+    </div>
+  </div>
+  {% block card_footer %}{% endblock %}
+</div>

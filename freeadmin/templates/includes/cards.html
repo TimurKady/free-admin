@@ -1,0 +1,39 @@
+{# Base layout for cards. #}
+{% set card_icon = icon %}
+{% set _default_col_class = col_class | default(card_column.value if card_column is defined else "") %}
+{% set _computed_col_class %}{% block card_col_class %}{{ _default_col_class }}{% endblock %}{% endset %}
+{% set _computed_col_class = _computed_col_class | trim %}
+{% if _computed_col_class %}
+  {% set col_class = _computed_col_class %}
+{% else %}
+  {% set col_class = _default_col_class %}
+{% endif %}
+{% if card_column is defined %}
+  {% set card_column.value = col_class %}
+{% endif %}
+<div class="card shadow-sm h-100">
+  <div class="card-header d-flex align-items-center gap-2">
+    {% if card_icon %}
+      <i class="{{ card_icon }} text-secondary"></i>
+    {% endif %}
+    <span class="fw-semibold">{{ title }}</span>
+  </div>
+  <div
+    class="card-body card-controller d-flex flex-column justify-content-center"
+    id="card-{{ key }}"
+    data-card-key="{{ key }}"
+    data-card-channel="{{ channel }}"
+    data-card-endpoint="/api/cards/{{ key }}/events"
+    data-card-token-endpoint="{{ prefix }}/api/cards/{{ key }}/events/token"
+  >
+    <div class="card-controller__content w-100">
+      {% block card_body %}
+        <div class="text-muted text-center w-100">No data</div>
+      {% endblock %}
+    </div>
+  </div>
+  {% block card_footer %}{% endblock %}
+</div>
+
+<!-- # The End -->
+
