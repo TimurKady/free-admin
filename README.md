@@ -131,12 +131,12 @@ FreeAdmin is **dual-licensed**:
   This option allows proprietary, closed-source, or commercial use of the software.
   To obtain a commercial license, contact with [me](https://github.com/TimurKady).
 
-## Third-party licenses
+### Third-party licenses
 
 The package depends on and bundles third-party components. When redistributing the project (including deployment in a
 SaaS environment) you must retain the notices listed below and keep the referenced license texts available to users.
 
-### Python runtime dependencies
+#### Python runtime dependencies
 
 | Dependency | License | Compliance notes |
 | --- | --- | --- |
@@ -154,7 +154,7 @@ For MIT-licensed dependencies the standard requirement is to provide the full MI
 Apache 2.0 dependencies ensure that the license text and NOTICE file (if present) remain accessible to end users and that
 any modifications are documented. BSD-licensed dependencies require preserving their license and disclaimer text.
 
-### Bundled frontend assets
+#### Bundled frontend assets
 
 | Asset | Version | License and source | Compliance notes |
 | --- | --- | --- | --- |
