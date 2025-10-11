@@ -19,11 +19,11 @@ from getpass import getpass
 from typing import Optional, Any, Awaitable, Callable
 
 # Your project imports – keep as in your repo
-from ..boot import admin as boot_admin
-from ..adapters import BaseAdapter
-from ..core.services.auth import AuthService
-from ..core.settings.config import system_config
-from ..conf import FreeAdminSettings, current_settings
+from ...boot import admin as boot_admin
+from ...adapters import BaseAdapter
+from ...core.services.auth import AuthService
+from ...core.settings.config import system_config
+from ...conf import FreeAdminSettings, current_settings
 
 
 class SuperuserCreator:
@@ -189,6 +189,49 @@ class SuperuserCreator:
         finally:
             await self._orm_shutdown()
 
+    def create_superuser(
+        self,
+        username: Optional[str],
+        email: Optional[str],
+        password: Optional[str],
+        *,
+        no_input: bool,
+        update_if_exists: bool,
+        reset_password_if_exists: bool,
+    ) -> int:
+        """Create or update a superuser using provided configuration."""
+        username = self._env_or(username, "ADMIN_USERNAME")
+        email = self._env_or(email, "ADMIN_EMAIL")
+        password = self._env_or(password, "ADMIN_PASSWORD")
+
+        if no_input:
+            if not username:
+                print("Missing --username (or ADMIN_USERNAME) with --no-input.", file=sys.stderr)
+                return 1
+            if reset_password_if_exists and not password:
+                print(
+                    "Missing --password (or ADMIN_PASSWORD) with --reset-password-if-exists in --no-input mode.",
+                    file=sys.stderr,
+                )
+                return 1
+        else:
+            if not username:
+                username = self._prompt_nonempty("Username")
+            if email is None:
+                email = self._prompt_nonempty("Email (can be empty)", allow_empty=True)
+            if password is None and not update_if_exists:
+                password = self._prompt_password_twice()
+
+        return asyncio.run(
+            self._create_or_update(
+                username=username,
+                email=email,
+                password=password,
+                update_if_exists=update_if_exists,
+                reset_password_if_exists=reset_password_if_exists,
+            )
+        )
+
     def _build_arg_parser(self) -> argparse.ArgumentParser:
         p = argparse.ArgumentParser(
             description="Create a Django-like superuser."
@@ -218,42 +261,13 @@ class SuperuserCreator:
 
     def main(self) -> int:
         args = self._build_arg_parser().parse_args()
-
-        # resolve values from flags/env
-        username = self._env_or(args.username, "ADMIN_USERNAME")
-        email = self._env_or(args.email, "ADMIN_EMAIL")
-        password = self._env_or(args.password, "ADMIN_PASSWORD")
-
-        if args.no_input:
-            # non-interactive: must have username; email optional; password optional unless reset requested
-            if not username:
-                print("Missing --username (or ADMIN_USERNAME) with --no-input.", file=sys.stderr)
-                return 1
-            if args.reset_password_if_exists and not password:
-                print(
-                    "Missing --password (or ADMIN_PASSWORD) with --reset-password-if-exists in --no-input mode.",
-                    file=sys.stderr,
-                )
-                return 1
-        else:
-            # interactive prompts for missing pieces
-            if not username:
-                username = self._prompt_nonempty("Username")
-            if email is None:
-                email = self._prompt_nonempty("Email (can be empty)", allow_empty=True)
-            if password is None and not args.update_if_exists:
-                # for new user we're likely to need a password
-                password = self._prompt_password_twice()
-
-        # run async routine
-        return asyncio.run(
-            self._create_or_update(
-                username=username,
-                email=email,
-                password=password,
-                update_if_exists=args.update_if_exists,
-                reset_password_if_exists=args.reset_password_if_exists,
-            )
+        return self.create_superuser(
+            username=args.username,
+            email=args.email,
+            password=args.password,
+            no_input=args.no_input,
+            update_if_exists=args.update_if_exists,
+            reset_password_if_exists=args.reset_password_if_exists,
         )
 
 
