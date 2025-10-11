@@ -23,3 +23,8 @@ If a vendor is updated, replace the assets and refresh the license file at the s
   - Source archive: `dist/freeadmin-0.1.0.tar.gz` ≈ 6.2 MB.
 
 These numbers provide a baseline for future reviews. Investigate any large deltas and consider trimming optional Ace modes or JSONEditor test fixtures if distribution size becomes an issue.
+
+## Distribution validation
+
+- Build the distributions via `python -m build` and immediately run `python -m twine check dist/*`.
+- Capture and fix any rendering issues reported by Twine (typically `Project-URL` or README formatting problems) before tagging the release.
