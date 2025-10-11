@@ -122,7 +122,7 @@ class TestInlineAdmin:
         resp = self.client.get(f"/panel/orm/models/parent/{parent.id}/_inlines")
         assert resp.status_code == 200
         spec = resp.json()[0]
-        assert spec["app"] == "models"
+        assert spec["app"] == Parent.__module__.split(".")[0]
         assert spec["model"] == "child"
         assert spec["parent_fk"] == "parent"
         assert spec["columns"] == ["name"]
