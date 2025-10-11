@@ -22,6 +22,9 @@ DEFAULT_SETTINGS: dict[SettingsKey, tuple[object, str]] = {
     SettingsKey.ORM_PAGE_TITLE:        ("ORM", "string"),
     SettingsKey.SETTINGS_PAGE_TITLE:   ("Settings", "string"),
 
+    # Localization
+    SettingsKey.DEFAULT_LOCALE:       ("en", "string"),
+
     # Page icons
     SettingsKey.BRAND_ICON:            ("icon-36x36.png", "string"),
     SettingsKey.VIEWS_PAGE_ICON:       ("bi-eye", "string"),

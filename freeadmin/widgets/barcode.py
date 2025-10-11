@@ -35,7 +35,7 @@ class BarCodeWidget(BaseWidget):
 
     class Meta:
         js = (
-            "https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.12.1/JsBarcode.all.min.js",
+            "/static/vendors/jsbarcode/JsBarcode.all.min.js",
             "/static/widgets/barcode-editor.js",
         )
 

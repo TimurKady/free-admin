@@ -23,6 +23,9 @@ class SettingsKey(StrChoices):
     ORM_PAGE_TITLE        = ("ORM_PAGE_TITLE", "ORM section title")
     SETTINGS_PAGE_TITLE   = ("SETTINGS_PAGE_TITLE", "Settings section title")
 
+    # --- Localization ---
+    DEFAULT_LOCALE       = ("DEFAULT_LOCALE", "Default locale token")
+
     # --- Page icons ---
     BRAND_ICON           = ("BRAND_ICON", "Brand icon path")
     VIEWS_PAGE_ICON       = ("VIEWS_PAGE_ICON", "Views icon (Bootstrap 5 class)")

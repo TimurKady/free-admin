@@ -27,6 +27,7 @@ from fastapi import HTTPException
 from openpyxl import load_workbook
 
 from ..models import ModelAdmin
+from .upload_cache import CachedUpload, SQLiteUploadCache
 
 
 @dataclass
@@ -35,13 +36,6 @@ class ImportReport:
     created: int = 0
     updated: int = 0
     errors: list[str] = field(default_factory=list)
-
-
-@dataclass
-class CachedUpload:
-    path: Path
-    fmt: str
-    expires_at: datetime
 
 
 class BaseParser:
@@ -130,14 +124,16 @@ class XlsxParser(BaseParser):
 class UploadStep:
     """Retrieve cached upload ensuring it exists and is fresh."""
 
-    def __init__(self, cache: dict[str, CachedUpload], cleanup_cb) -> None:
+    def __init__(self, cache: SQLiteUploadCache, cleanup_cb) -> None:
         self._cache = cache
         self._cleanup = cleanup_cb
 
-    def run(self, token: str) -> CachedUpload:
-        info = self._cache.get(token)
+    async def fetch(self, token: str) -> CachedUpload:
+        """Return cached upload for ``token`` or raise when missing."""
+
+        info = await asyncio.to_thread(self._cache.get, token)
         if not info or info.expires_at < datetime.now():
-            self._cleanup(token)
+            await self._cleanup(token)
             raise HTTPException(status_code=404)
         return info
 
@@ -208,7 +204,7 @@ class ImportPipeline:
         fields: Sequence[str],
         dry: bool,
     ) -> ImportReport:
-        info = self.upload_step.run(token)
+        info = await self.upload_step.fetch(token)
         rows = self.parsing_step.run(info)
         filtered = self.field_step.run(rows, fields)
         report = ImportReport()
@@ -225,12 +221,22 @@ class ImportService:
         ttl: int = 300,
         max_size: int = 10 * 1024 * 1024,
         registry: ParserRegistry = parser_registry,
+        cache_path: str | None = None,
+        cleanup_interval: int = 60,
     ) -> None:
         self.tmp_dir = tmp_dir or tempfile.gettempdir()
         self.ttl = ttl
         self.max_size = max_size
-        self._cache: dict[str, CachedUpload] = {}
+        target = Path(cache_path) if cache_path else Path(self.tmp_dir) / "import_uploads.sqlite3"
+        self._cache = SQLiteUploadCache(str(target))
         self._registry = registry
+        self.cleanup_interval = cleanup_interval
+        self._prune_expired_sync()
+        try:
+            loop = asyncio.get_event_loop()
+            loop.create_task(self._periodic_cleanup())
+        except RuntimeError:
+            pass
 
     async def import_rows(
         self, admin: ModelAdmin, rows: Iterable[dict[str, Any]]
@@ -261,10 +267,14 @@ class ImportService:
         token = uuid4().hex
         fmt = suffix.lstrip(".").lower()
         expires_at = datetime.now() + timedelta(seconds=self.ttl)
-        self._cache[token] = CachedUpload(path, fmt, expires_at)
-        asyncio.get_running_loop().call_later(
-            self.ttl, lambda: self.cleanup(token)
+        await asyncio.to_thread(
+            self._cache.set,
+            token,
+            CachedUpload(path=path, fmt=fmt, expires_at=expires_at),
         )
+        await self._prune_expired()
+        loop = asyncio.get_running_loop()
+        loop.call_later(self.ttl, lambda: asyncio.create_task(self.cleanup(token)))
         return token
 
     async def preview(
@@ -274,7 +284,7 @@ class ImportService:
         upload_step = UploadStep(self._cache, self.cleanup)
         parsing_step = ParsingStep(self._registry)
         field_step = FieldFilterStep()
-        info = upload_step.run(token)
+        info = await upload_step.fetch(token)
         rows = parsing_step.run(info)
         filtered = field_step.run(rows, fields)
         return list(islice(filtered, limit))
@@ -287,8 +297,9 @@ class ImportService:
         dry: bool = False,
     ) -> ImportReport:
         """Import cached file for ``admin`` returning an ``ImportReport``."""
+        upload_step = UploadStep(self._cache, self.cleanup)
         pipeline = ImportPipeline(
-            UploadStep(self._cache, self.cleanup),
+            upload_step,
             ParsingStep(self._registry),
             FieldFilterStep(),
             PersistenceStep(),
@@ -296,11 +307,34 @@ class ImportService:
         fields = list(dict.fromkeys(fields or admin.get_import_fields()))
         return await pipeline.run(token, admin, fields, dry)
 
-    def cleanup(self, token: str) -> None:
-        info = self._cache.pop(token, None)
+    async def cleanup(self, token: str) -> None:
+        """Remove cached upload identified by ``token``."""
+
+        info = await asyncio.to_thread(self._cache.delete, token)
         if info:
-            loop = asyncio.get_running_loop()
-            loop.create_task(asyncio.to_thread(info.path.unlink))
+            await asyncio.to_thread(self._unlink_path, info.path)
+
+    async def _prune_expired(self) -> None:
+        expired = await asyncio.to_thread(self._cache.purge, datetime.now())
+        for _, info in expired:
+            await asyncio.to_thread(self._unlink_path, info.path)
+
+    def _prune_expired_sync(self) -> None:
+        for _, info in self._cache.purge(datetime.now()):
+            self._unlink_path(info.path)
+
+    async def _periodic_cleanup(self) -> None:
+        while True:
+            await asyncio.sleep(self.cleanup_interval)
+            await self._prune_expired()
+
+    def _unlink_path(self, path: Path) -> None:
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
+        except Exception:
+            pass
 
 # The End
 

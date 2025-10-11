@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>readonly</title>
+    <meta charset="utf-8"/>
+    <script src="../../dist/jsoneditor.js"></script>
+</head>
+<body>
+
+<h1>Test</h1>
+<label for="debug">Value</label>
+<textarea id="debug" class="debug" cols="30" rows="10"></textarea>
+<div class="state"></div>
+<button class='get-value'>Get Value</button>
+<div class='container'></div>
+
+<script>
+  var container = document.querySelector('.container');
+  var debug = document.querySelector('.debug');
+  var getValue = document.querySelector('.get-value');
+  var state = document.querySelector('.state')
+
+  var schema = {
+    "type": "object",
+    "title": "readOnly",
+    "properties": {
+      "string": {
+        "title": "string",
+        "type": "string",
+        "readOnly": true,
+        "default": "some value"
+      },
+      "number": {
+        "title": "number",
+        "type": "number",
+        "readOnly": true,
+        "default": 5.5
+      },
+      "integer": {
+        "title": "integer",
+        "type": "integer",
+        "readOnly": true,
+        "default": 5
+      },
+      "multiselect": {
+        "title": "multiselect",
+        "type": "array",
+        "format": "multiselect",
+        "uniqueItems": true,
+        "readOnly": true,
+        "items": {
+          "type": "string",
+          "enum": ["value1","value2"]
+        }
+      },
+      "select": {
+        "title": "select",
+        "type": "boolean",
+        "readOnly": true
+      },
+      checkbox: {
+        "title": "checkbox",
+        "format": "checkbox",
+        "type": "boolean",
+        "readOnly": true
+      },
+      radio: {
+        "title": "radio",
+        "format": "radio",
+        "type": "string",
+        "enum": [
+          "yes",
+          "no"
+        ],
+        "readOnly": true
+      },
+      rating: {
+        "title": "rating",
+        "readOnly": true,
+        "type": "integer",
+        "format": "rating",
+        "maximum": "5",
+        "exclusiveMaximum": false
+      },
+      button: {
+        "title": "button",
+        "format": "button",
+        "readOnly": true
+      },
+      "array": {
+        "type": "array",
+        "minItems": 2,
+        "readOnly": true,
+        "items": {
+          "readOnly": false,
+          "title": "string",
+          "type": "string",
+          "default": "some value"
+        }
+      },
+      "object": {
+        "type": "object",
+        "title": "Object",
+        "readOnly": true,
+        "properties": {
+          "string": {
+            "title": "string",
+            "type": "string",
+            "default": "some value"
+          },
+          "number": {
+            "title": "number",
+            "type": "number",
+            "default": 5.5
+          }
+        }
+      }
+    }
+  };
+
+  var editor = new JSONEditor(container, {
+    schema: schema
+  });
+
+  editor.on('ready', function () {
+    state.innerText = 'READY'
+  });
+
+  getValue.addEventListener('click', function () {
+    debug.value = JSON.stringify(editor.getValue());
+  });
+
+</script>
+
+</body>
+</html>

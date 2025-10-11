@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>Integer</title>
+    <script src="../../dist/jsoneditor.js"></script>
+</head>
+<body>
+
+<h1>Test</h1>
+<label for="value">value</label>
+<textarea class="value" id="value" cols="30" rows="10"></textarea>
+<button class='get-value'>Get Value</button>
+<button class='set-value'>Set Value</button>
+<div class='container'></div>
+
+<script>
+  const container = document.querySelector('.container');
+  const value = document.querySelector('.value');
+
+  const schema = {
+    "type": "object",
+    "title": "range",
+    "properties": {
+      "integer": {
+        "title": "integer",
+        "type": "integer",
+        "default": 5,
+        "minimum": 0,
+        "maximum": 50
+      },
+      "integer_number": {
+        "title": "integer integer",
+        "type": "integer",
+        "format": "number",
+        "default": 5,
+        "minimum": 0,
+        "maximum": 50,
+        "step": 5
+      },
+      "integer_range": {
+        "title": "integer range",
+        "type": "integer",
+        "format": "range",
+        "default": 5,
+        "minimum": 0,
+        "maximum": 50,
+        "step": 5
+      }
+    }
+  };
+
+  const editor = new JSONEditor(container, {
+    schema: schema
+  })
+
+  document.querySelector('.get-value').addEventListener('click', function () {
+    value.value = JSON.stringify(editor.getValue());
+  })
+
+
+  document.querySelector('.set-value').addEventListener('click', function () {
+    editor.setValue({"integer": 5, "integer_number": 5, "integer_range": 2})
+  })
+
+</script>
+
+</body>
+</html>

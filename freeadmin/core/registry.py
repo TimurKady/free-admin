@@ -80,6 +80,23 @@ class PageRegistry:
         self._card_virtual: Dict[str, VirtualContentKey] = {}
         self._view_virtual_by_path: Dict[str, VirtualContentKey] = {}
         self._view_virtual_by_slug: Dict[tuple[str, str], VirtualContentKey] = {}
+        self._registry_version: int = 0
+
+    @property
+    def registry_version(self) -> int:
+        """Return the current monotonic registry version."""
+
+        return self._registry_version
+
+    def bump_version(self) -> None:
+        """Advance the registry version to invalidate dependent caches."""
+
+        self._registry_version += 1
+
+    def register_page(self, page: AdminPage) -> None:
+        """Add ``page`` to the registry without mutating menu state."""
+
+        self.page_list.append(page)
 
     # View entries -----------------------------------------------------
     def register_view_entry(
@@ -132,6 +149,7 @@ class PageRegistry:
             name=name,
         )
         self.view_entries.append(entry)
+        self.bump_version()
 
     def iter_orm(self) -> Iterator[ViewEntry]:
         """Iterate over non-settings admin registrations."""

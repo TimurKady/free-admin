@@ -32,12 +32,10 @@ class Select2Widget(
 
     prefetch_requires_instance = False
     prefetch_sample_size: int = 8
-    assets_css = (
-        "https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css",
-    )
+    assets_css = ("/static/vendors/select2/css/select2.min.css",)
     assets_js = (
-        "https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js",
-        "https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js",
+        "/static/vendors/jquery/jquery-3.7.1.min.js",
+        "/static/vendors/select2/js/select2.min.js",
         "/static/widgets/select2.js",
     )
 

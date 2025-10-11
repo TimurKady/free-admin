@@ -11,7 +11,9 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Awaitable, Callable, Any
 
 from fastapi import HTTPException, status
@@ -19,6 +21,7 @@ from fastapi.requests import Request
 
 from ...adapters import BaseAdapter
 from ..auth import admin_auth_service
+from ..cache.permissions import SQLitePermissionCache
 
 if TYPE_CHECKING:  # pragma: no cover - for type checking only
     from .auth import AdminUserDTO
@@ -28,14 +31,35 @@ if TYPE_CHECKING:  # pragma: no cover - for type checking only
 class PermissionsService:
     """Check user permissions against configured actions."""
 
-    def __init__(self, adapter: BaseAdapter) -> None:
+    def __init__(
+        self,
+        adapter: BaseAdapter,
+        *,
+        cache_path: str | None = None,
+        cache_ttl: timedelta | None = None,
+        prune_interval: timedelta | None = None,
+    ) -> None:
         """Initialize the service with the given adapter."""
+
         self.adapter = adapter
         self.AdminUser = adapter.user_model
+        self.AdminGroup = adapter.group_model
         self.AdminUserPermission = adapter.user_permission_model
         self.AdminGroupPermission = adapter.group_permission_model
         self.PermAction = adapter.perm_action
         self.logger = logging.getLogger(__name__)
+        self._cache_ttl = cache_ttl or timedelta(minutes=5)
+        self._permission_cache = SQLitePermissionCache(
+            path=cache_path, ttl=self._cache_ttl
+        )
+        interval = prune_interval or self._cache_ttl
+        if interval <= timedelta(0):
+            interval = self._cache_ttl
+        self._prune_interval = interval
+        self._next_prune_at = datetime.now(timezone.utc) + self._prune_interval
+        self._prune_task: asyncio.Task[int] | None = None
+        self._user_invalidation_hooks: list[Callable[[str], Awaitable[None] | None]] = []
+        self._permission_snapshot = datetime.now(timezone.utc)
 
     async def _get_group_ids(self, user: Any) -> list[int]:
         groups_qs = self.adapter.all(user.groups)
@@ -48,6 +72,17 @@ class PermissionsService:
             return False
         if user.is_superuser:
             return True
+
+        user_key = str(getattr(user, "id"))
+        ct_key = self._normalize_content_type_id(ct_id)
+        action_value = self._normalize_action(action)
+
+        cached = await asyncio.to_thread(
+            self._permission_cache.get_permission, user_key, ct_key, action_value
+        )
+        if cached is not None:
+            return cached
+
         allowed = await self.adapter.exists(
             self.adapter.filter(
                 self.AdminUserPermission,
@@ -56,17 +91,129 @@ class PermissionsService:
                 action=action,
             )
         )
-        if allowed:
-            return True
-        group_ids = await self._get_group_ids(user)
-        return await self.adapter.exists(
-            self.adapter.filter(
-                self.AdminGroupPermission,
-                group_id__in=group_ids,
-                content_type_id=ct_id,
-                action=action,
+        if not allowed:
+            group_ids = await self._get_group_ids(user)
+            if group_ids:
+                allowed = await self.adapter.exists(
+                    self.adapter.filter(
+                        self.AdminGroupPermission,
+                        group_id__in=group_ids,
+                        content_type_id=ct_id,
+                        action=action,
+                    )
+                )
+
+        try:
+            await asyncio.to_thread(
+                self._permission_cache.store_permission,
+                user_key,
+                ct_key,
+                action_value,
+                allowed,
             )
+        except Exception:  # pragma: no cover - defensive logging
+            self.logger.exception("Failed to store permission cache entry")
+        else:
+            self._maybe_schedule_prune()
+
+        return allowed
+
+    async def invalidate_user_permissions(self, user_id: int | str) -> None:
+        """Remove cached permission outcomes for ``user_id``."""
+
+        user_key = str(user_id)
+        await asyncio.to_thread(
+            self._permission_cache.invalidate_user, user_key
         )
+        self._touch_permission_snapshot()
+        await self._notify_user_invalidation(user_key)
+
+    async def invalidate_group_permissions(self, group_id: int | str) -> None:
+        """Remove cached permissions for members belonging to ``group_id``."""
+
+        try:
+            group = await self.adapter.get(self.AdminGroup, id=group_id)
+        except Exception:  # pragma: no cover - adapter specific exceptions
+            self.logger.debug(
+                "Skipping permission cache invalidation for missing group %s", group_id
+            )
+            return
+
+        users_qs = self.adapter.all(group.users)
+        member_ids = await self.adapter.fetch_values(users_qs, "id", flat=True)
+        if not member_ids:
+            return
+        member_tokens = [str(member) for member in member_ids]
+        await asyncio.to_thread(
+            self._permission_cache.invalidate_group,
+            str(group_id),
+            member_tokens,
+        )
+        self._touch_permission_snapshot()
+        for member in member_tokens:
+            await self._notify_user_invalidation(member)
+
+    def _normalize_action(self, action: "PermAction" | str) -> str:
+        value = getattr(action, "value", action)
+        return str(value)
+
+    def _normalize_content_type_id(self, ct_id: int | None) -> str:
+        return str(ct_id) if ct_id is not None else "*"
+
+    def _maybe_schedule_prune(self) -> None:
+        now = datetime.now(timezone.utc)
+        if now < self._next_prune_at:
+            return
+        if self._prune_task is not None and not self._prune_task.done():
+            return
+        self._next_prune_at = now + self._prune_interval
+        loop = asyncio.get_running_loop()
+        task = loop.create_task(
+            asyncio.to_thread(self._permission_cache.prune_expired)
+        )
+        task.add_done_callback(self._handle_prune_result)
+        self._prune_task = task
+
+    def _handle_prune_result(self, task: asyncio.Task[int]) -> None:
+        try:
+            removed = task.result()
+            if removed:
+                self.logger.debug(
+                    "Pruned %s expired permission cache entries", removed
+                )
+        except Exception:  # pragma: no cover - defensive logging
+            self.logger.exception("Failed pruning permission cache")
+
+    def register_user_invalidation_hook(
+        self, callback: Callable[[str], Awaitable[None] | None]
+    ) -> None:
+        """Register ``callback`` invoked whenever a user cache is invalidated."""
+
+        if callback not in self._user_invalidation_hooks:
+            self._user_invalidation_hooks.append(callback)
+
+    def get_permission_snapshot(self) -> datetime:
+        """Return the timestamp representing the latest invalidation."""
+
+        return self._permission_snapshot
+
+    async def _notify_user_invalidation(self, user_id: str) -> None:
+        if not self._user_invalidation_hooks:
+            return
+        for hook in list(self._user_invalidation_hooks):
+            try:
+                result = hook(user_id)
+                if asyncio.iscoroutine(result):
+                    await result
+            except Exception:  # pragma: no cover - defensive logging
+                self.logger.exception(
+                    "Failed to propagate permission invalidation for user %s", user_id
+                )
+
+    def _touch_permission_snapshot(self) -> datetime:
+        snapshot = datetime.now(timezone.utc)
+        self._permission_snapshot = snapshot
+        return snapshot
 
     def require_model_permission(
         self,

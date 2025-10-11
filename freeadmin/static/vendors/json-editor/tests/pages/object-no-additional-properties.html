@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>no additional properties</title>
+  <meta charset="utf-8"/>
+  <script src="../../dist/jsoneditor.js"></script>
+</head>
+<body>
+
+<h1>Test</h1>
+<label for="value">value</label>
+<textarea class="value" id="value" cols="30" rows="10"></textarea>
+<button class='get-value'>get value</button>
+<div class='container'></div>
+
+<script>
+  var container = document.querySelector('.container');
+  var value = document.querySelector('.value');
+  var getValue = document.querySelector('.get-value');
+
+  var schema = {
+  "title": "Additional properties",
+  "type": "object",
+  "properties": {
+    "aptrue": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "with additionalProperties: true",
+      "properties": {
+        "name": {
+          "type": "string",
+          "default": "albert"
+        },
+        "age": {
+          "type": "number",
+          "default": 15
+        }
+      }
+    },
+    "apfalse": {
+      "type": "object",
+      "description": "without additionalProperties",
+      "properties": {
+        "name": {
+          "type": "string",
+          "default": "albert"
+        }
+      }
+    }
+  }
+};
+
+  var editor = new JSONEditor(container, {
+    schema: schema,
+    required_by_default: true,
+    no_additional_properties: true,
+    startval: {"aptrue":{"name":"Albert","age":0},"apfalse":{"name":"Albert","age":0}}
+  });
+
+  getValue.addEventListener('click', function () {
+    value.value = JSON.stringify(editor.getValue());
+    console.log(editor.getValue());
+  });
+
+</script>
+
+</body>
+</html>

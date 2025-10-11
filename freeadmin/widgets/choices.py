@@ -47,16 +47,16 @@ class ChoicesWidget(
     """
 
     assets_js = (
-        "https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js",
+        "/static/vendors/choices/js/choices.min.js",
         "/static/widgets/choices.js",
     )
 
     class Media:
         css = (
-            "https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css",
+            "/static/vendors/choices/css/choices.min.css",
         )
         js = (
-            "https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js",
+            "/static/vendors/choices/js/choices.min.js",
             "/static/widgets/choices.js",
         )
 

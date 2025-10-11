@@ -46,6 +46,23 @@ class PermissionChecker:
 
         return PermissionChecker(self._service, admin_site=admin_site)
 
+    def register_user_invalidation_hook(
+        self, callback: Callable[[str], Awaitable[None] | None]
+    ) -> None:
+        """Register ``callback`` invoked when permission caches invalidate."""
+
+        register = getattr(self._service, "register_user_invalidation_hook", None)
+        if callable(register):
+            register(callback)
+
+    def get_permission_snapshot(self):
+        """Return timestamp representing the current permission snapshot."""
+
+        getter = getattr(self._service, "get_permission_snapshot", None)
+        if callable(getter):
+            return getter()
+        return None
+
     async def check_model(
         self,
         user: Any,

@@ -32,10 +32,10 @@
   <script src="{{ src }}"></script>
   {% endfor %}
   <script src="{{ prefix }}/static/admin-form.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@json-editor/json-editor@latest/dist/jsoneditor.min.js"></script>
+  <script src="{{ prefix }}/static/vendors/json-editor/dist/jsoneditor.min.js"></script>
   <script>
     if (window.ace?.config?.set) {
-      window.ace.config.set("basePath", "https://cdn.jsdelivr.net/npm/ace-builds@latest/src-noconflict/");
+      window.ace.config.set("basePath", "{{ prefix }}/static/vendors/ace-builds/src-noconflict/");
     }
   </script>
   <script>

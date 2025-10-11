@@ -18,9 +18,6 @@ from typing import Any, AsyncIterator, TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from redis.asyncio import Redis
-from redis.exceptions import RedisError
-
 from ..conf import FreeAdminSettings, current_settings, register_settings_observer
 from ..core.settings import SettingsKey, system_config
 
@@ -30,6 +27,7 @@ from ..core.permissions import permission_checker
 from ..core.services.auth import AdminUserDTO
 from ..core.services.permissions import PermAction
 from ..core.services.tokens import ScopeTokenService
+from ..core.cache import SQLiteEventCache
 
 if TYPE_CHECKING:  # pragma: no cover - for type checking only
     from ..core.site import AdminSite
@@ -40,26 +38,40 @@ class CardEventStreamer:
 
     def __init__(
         self,
-        redis_url: str | None = None,
+        event_cache: SQLiteEventCache | None = None,
         *,
         heartbeat_interval: float = 10.0,
         settings: FreeAdminSettings | None = None,
     ) -> None:
-        """Initialize the streamer with Redis settings."""
+        """Initialize the streamer with an optional event cache backend."""
+
         self._settings = settings or current_settings()
-        self.redis_url = redis_url or self._settings.redis_url
+        cache_path = getattr(self._settings, "event_cache_path", ":memory:")
+        self._event_cache = event_cache or SQLiteEventCache(path=cache_path)
+        self._event_cache_class: type[SQLiteEventCache] = (
+            type(event_cache) if event_cache is not None else SQLiteEventCache
+        )
+        self._event_cache_path = getattr(self._event_cache, "path", cache_path)
         self.heartbeat_interval = heartbeat_interval
-        self._redis: Redis | None = None
         self.logger = logging.getLogger(__name__)
 
-    async def stream(self, channel: str | None) -> AsyncIterator[str]:
-        """Yield SSE chunks for the given channel or heartbeat fallbacks."""
+    @property
+    def event_cache(self) -> SQLiteEventCache:
+        """Return the event cache backend used to supply channel events."""
+
+        return self._event_cache
+
+    async def stream(
+        self, channel: str | None, *, cache: SQLiteEventCache | None = None
+    ) -> AsyncIterator[str]:
+        """Yield SSE chunks for ``channel`` or heartbeat fallbacks using ``cache``."""
         if not channel:
             async for chunk in self._heartbeat():
                 yield chunk
             return
         yield self._format_comment("connected")
         queue: asyncio.Queue[tuple[str, str | None]] = asyncio.Queue()
+        backend = cache or self.event_cache
 
         async def _pump(
             name: str, iterator: AsyncIterator[str]
@@ -74,7 +86,7 @@ class CardEventStreamer:
 
         tasks = {
             "channel": asyncio.create_task(
-                _pump("channel", self._channel_stream(channel))
+                _pump("channel", self._channel_stream(channel, backend))
             ),
             "heartbeat": asyncio.create_task(
                 _pump("heartbeat", self._heartbeat())
@@ -97,38 +109,16 @@ class CardEventStreamer:
                 task.cancel()
             await asyncio.gather(*tasks.values(), return_exceptions=True)
 
-    async def _get_redis(self) -> Redis:
-        if self._redis is None:
-            self._redis = Redis.from_url(self.redis_url, decode_responses=True)
-        return self._redis
-
-    async def _channel_stream(self, channel: str) -> AsyncIterator[str]:
-        pubsub = None
+    async def _channel_stream(
+        self, channel: str, cache: SQLiteEventCache
+    ) -> AsyncIterator[str]:
+        subscription = await cache.subscribe(channel)
         try:
-            redis = await self._get_redis()
-            pubsub = redis.pubsub()
-            await pubsub.subscribe(channel)
-            async for message in pubsub.listen():
-                if not isinstance(message, dict):
-                    continue
-                if message.get("type") != "message":
-                    continue
-                payload = self._serialize(message.get("data"))
+            async for message in subscription:
+                payload = self._serialize(message)
                 yield self._format_data(payload)
         except asyncio.CancelledError:  # pragma: no cover - cancellation
             raise
-        except RedisError as exc:  # pragma: no cover - redis runtime guard
-            self.logger.warning("Redis error on channel %s: %s", channel, exc)
-        finally:
-            if pubsub is not None:
-                try:
-                    await pubsub.unsubscribe(channel)
-                except RedisError:  # pragma: no cover - best effort cleanup
-                    pass
-                try:
-                    await pubsub.close()
-                except RedisError:  # pragma: no cover - best effort cleanup
-                    pass
 
     async def _heartbeat(self) -> AsyncIterator[str]:
         try:
@@ -155,6 +145,24 @@ class CardEventStreamer:
 
     def _format_comment(self, message: str) -> str:
         return f": {message}\n\n"
+
+    def configure_event_cache(self, *, path: str | None = None) -> None:
+        """Reconfigure the internal cache when settings or overrides change."""
+
+        target = path or getattr(self._settings, "event_cache_path", ":memory:")
+        if target == self._event_cache_path:
+            return
+        if hasattr(self._event_cache, "reconfigure"):
+            self._event_cache.reconfigure(target)
+        else:  # pragma: no cover - fallback for alternate cache implementations
+            self._event_cache = self._event_cache_class(path=target)
+        self._event_cache_path = target
+
+    def apply_settings(self, settings: FreeAdminSettings) -> None:
+        """Refresh streamer configuration using the provided ``settings``."""
+
+        self._settings = settings
+        self.configure_event_cache(path=settings.event_cache_path)
 
 
 class CardEventsTokenService:
@@ -236,8 +244,7 @@ class CardSSEAPI:
     def _apply_settings(self, settings: FreeAdminSettings) -> None:
         """Update dependent services with refreshed configuration."""
         self._settings = settings
-        self.streamer._settings = settings
-        self.streamer.redis_url = settings.redis_url
+        self.streamer.apply_settings(settings)
         self.token_service.apply_settings(settings)
 
     def _get_admin_site(self, request: Request) -> "AdminSite":
@@ -304,7 +311,9 @@ class CardSSEAPI:
             except PermissionDenied as exc:
                 raise HTTPException(status_code=403, detail=str(exc)) from exc
         entry = self._get_card_entry(admin_site, key)
-        generator = self.streamer.stream(entry.channel)
+        generator = self.streamer.stream(
+            entry.channel, cache=admin_site.cards.event_cache
+        )
         return StreamingResponse(generator, media_type="text/event-stream")
 
     async def get_card_state(

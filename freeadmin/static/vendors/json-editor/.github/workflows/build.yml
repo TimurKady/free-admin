@@ -1,0 +1,70 @@
+name: Build and Test
+
+on: [push, pull_request]
+
+jobs:
+
+  unit-test:
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Node version
+        run: node -v
+      - name: Install
+        run: npm install
+      - name: Test
+        run: npm run test-headless
+
+  end-to-end-test:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - selenium-browser: "chrome"
+            build-env: "build.prod"
+          - selenium-browser: "chrome"
+            build-env: "build.nonmin.travis"
+          - selenium-browser: "firefox"
+            build-env: "build.prod"
+          - selenium-browser: "firefox"
+            build-env: "build.nonmin.travis"
+      fail-fast: false
+    defaults:
+      run:
+        shell: bash
+        working-directory: tests
+
+    env:
+      SELENIUM_BROWSER: ${{ matrix.selenium-browser }}
+      BUILD_ENV: ${{ matrix.build-env }}
+
+    steps:
+      - uses: actions/checkout@v1
+      #- name: Install
+      #  run: |
+      #    npm install
+      - name: Install
+        run: docker compose run -T --rm node npm install
+      - name: Start
+        run: docker compose up -d ${SELENIUM_BROWSER}
+      - name: Build
+        run: docker compose run -T --rm node npm run ${BUILD_ENV}
+      - name: Test
+        run: |
+          docker compose exec -T node codeceptjs run-multiple -c /repo/tests/codeceptjs/codecept.json basic:${SELENIUM_BROWSER} --invert --grep  '@optional'
+          pwd
+          ls -la codeceptjs/output
+      - name: Test Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeceptjs-output-${{ matrix.selenium-browser }}-${{ matrix.build-env }}
+          path: tests/codeceptjs/output
+          retention-days: 30
+          merge-multiple: true
+      - name: Test (optional)
+        continue-on-error: true
+        run: docker compose exec -T node codeceptjs run-multiple -c /repo/tests/codeceptjs/codecept.json basic:${SELENIUM_BROWSER} --grep '@optional'
+

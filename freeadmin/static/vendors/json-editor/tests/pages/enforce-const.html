@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>enforce_const</title>
+    <script src="../../dist/jsoneditor.js"></script>
+  <link rel="stylesheet" id="theme-link" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+  <link rel="stylesheet" id="iconlib-link" href="https://use.fontawesome.com/releases/v5.6.1/css/all.css">
+</head>
+<body>
+
+<div class="container">
+  <label for="value">value</label>
+  <textarea id="value" class="form-control" rows="10"></textarea>
+  <div id='editor-container'></div>
+</div>
+
+<script>
+  const editorContainer = document.querySelector('#editor-container')
+  const value = document.querySelector('#value');
+  const schema = {
+    "type": "object",
+    "properties": {
+      "string": {
+        "title": "string (StringEditor)",
+        "type": "string",
+        "const": "Alice",
+      },
+      "integer": {
+        "title": "integer (IntegerEditor)",
+        "type": "integer",
+        "const": 5,
+      },
+      "number": {
+        "title": "number (NumberEditor)",
+        "type": "number",
+        "const": 5.5,
+      },
+      "string-enum": {
+        "title": "string-enum (SelectEditor)",
+        "type": "string",
+        "const": "Bob",
+        "enum": [
+          "Alice",
+          "Bob",
+          "Carl"
+        ],
+      },
+      "boolean": {
+        "title": "boolean (SelectEditor)",
+        "type": "boolean",
+        "const": true,
+      },
+      "boolean-checkbox": {
+        "title": "boolean-checkbox (CheckboxEditor)",
+        "type": "boolean",
+        "format": "checkbox",
+        "const": true,
+      },
+      "boolean-choices": {
+        "title": "boolean-choices (ChoicesEditor)",
+        "type": "boolean",
+        "format": "choices",
+        "const": true,
+      },
+      "object": {
+        "title": "object (ObjectEditor)",
+        "type": "object",
+        "const": {"name": "Alice"},
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "array": {
+        "title": "array",
+        "type": "array",
+        "const": [{"name": "Alice"}, {"name": "Bob"}],
+        "items": {
+          "title": "object",
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "array-table": {
+        "title": "array (TableEditor)",
+        "type": "array",
+        "format": "table",
+        "const": [{"name": "Alice"}, {"name": "Bob"}],
+        "items": {
+          "title": "object",
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            }
+          }
+        },
+      },
+      "array-tabs": {
+        "title": "array (TabsEditor)",
+        "type": "array",
+        "format": "tabs",
+        "const": [{"name": "Alice"}, {"name": "Bob"}],
+        "items": {
+          "title": "object",
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            }
+          }
+        },
+      },
+      "array-of-strings": {
+        "title": "array (MultiselectEditor)",
+        "type": "array",
+        "uniqueItems": true,
+        "items": {
+          "title": "string",
+          "type": "string",
+          "enum": ["Alice", "Bob"]
+        },
+        "const": ["Alice", "Bob"],
+      },
+      "array-enum": {
+        "title": "array (EnumEditor)",
+        "type": "array",
+        "enum": [["Alice", "Bob"], ["Carl", "Dennis"]],
+        "const": ["Carl", "Dennis"],
+      },
+      "object-enum": {
+        "title": "object (EnumEditor)",
+        "type": "object",
+        "enum": [{"name": "Alice"}, {"name": "Bob"}],
+        "const": {"name": "Bob"},
+      }
+    }
+  }
+
+  const editor = new JSONEditor(editorContainer, {
+    schema: schema,
+    theme: 'bootstrap4',
+    iconlib: 'fontawesome',
+    disable_collapse: true,
+    enforce_const: true
+  })
+
+  editor.on('change', function () {
+    value.value = JSON.stringify(editor.getValue())
+  })
+
+  editor.on('ready', function () {
+    editor.getEditor('root.string').setValue('Bob')
+    editor.getEditor('root.integer').setValue(10)
+    editor.getEditor('root.number').setValue(10)
+    editor.getEditor('root.array').setValue([])
+    editor.getEditor('root.object').setValue({})
+  })
+</script>
+
+</body>
+</html>

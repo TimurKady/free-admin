@@ -1,0 +1,87 @@
+/* global Feature Scenario Event */
+
+const { DEFAULT_WAIT_TIME } = require('../test-config')
+
+Feature('integer')
+
+Scenario('should have correct initial value', async ({ I }) => {
+  I.amOnPage('integer.html')
+  I.click('.get-value')
+  I.waitForValue('.value', '{"integer":5,"integer_number":5,"integer_range":5}')
+})
+
+Scenario('should respect step by incrementing and decrementing the value of a number', async ({ I }) => {
+  I.amOnPage('integer.html')
+  I.seeElement('[data-schemapath="root.integer"] input')
+  I.executeScript(function () {
+    const range = document.querySelector('[data-schemapath="root.integer_number"] input')
+    range.stepUp()
+    const event = new Event('change', {
+      bubbles: true,
+      cancelable: true
+    })
+    range.dispatchEvent(event)
+  })
+  I.click('.get-value')
+  I.waitForValue('.value', '{"integer":5,"integer_number":10,"integer_range":5}')
+  I.executeScript(function () {
+    const range = document.querySelector('[data-schemapath="root.integer_number"] input')
+    range.stepDown()
+    const event = new Event('change', {
+      bubbles: true,
+      cancelable: true
+    })
+    range.dispatchEvent(event)
+  })
+  I.click('.get-value')
+  I.waitForValue('.value', '{"integer":5,"integer_number":5,"integer_range":5}')
+})
+
+Scenario('should respect step by incrementing and decrementing the value of a range', async ({ I }) => {
+  I.amOnPage('integer.html')
+  I.seeElement('[data-schemapath="root.integer_range"] input')
+  I.executeScript(function () {
+    const range = document.querySelector('[data-schemapath="root.integer_range"] input')
+    range.stepUp()
+    const event = new Event('change', {
+      bubbles: true,
+      cancelable: true
+    })
+    range.dispatchEvent(event)
+  })
+  I.click('.get-value')
+  I.waitForValue('.value', '{"integer":5,"integer_number":5,"integer_range":10}')
+  I.executeScript(function () {
+    const range = document.querySelector('[data-schemapath="root.integer_range"] input')
+    range.stepDown()
+    const event = new Event('change', {
+      bubbles: true,
+      cancelable: true
+    })
+    range.dispatchEvent(event)
+  })
+  I.click('.get-value')
+  I.waitForValue('.value', '{"integer":5,"integer_number":5,"integer_range":5}')
+})
+
+Scenario('should be readonly if specified and not disabled @readOnly', async ({ I }) => {
+  I.amOnPage('read-only.html')
+  I.seeReadOnlyAttribute('[name="root[integer]"]')
+})
+
+Scenario('should update output when (method) setValue is called @integer_range', async ({ I }) => {
+  I.amOnPage('integer.html')
+  I.waitForElement('.je-ready')
+  I.waitForText('5', DEFAULT_WAIT_TIME, '[data-schemapath="root.integer_range"] output')
+  I.click('.set-value')
+  I.wait(1)
+  I.waitForText('2', DEFAULT_WAIT_TIME, '[data-schemapath="root.integer_range"] output')
+})
+
+Scenario('should validate value', async ({ I }) => {
+  I.amOnPage('integer.html')
+  await I.fillField('[name="root[integer]"]', '5-5')
+  I.click('.get-value')
+  I.see('Value must be of type integer.', '[data-schemapath="root.integer"] div')
+  I.waitForValue('.value', '{"integer":"5-5","integer_number":5,"integer_range":5}')
+})

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-runner
+"""runner
 
 Background runner for admin actions.
 
@@ -11,7 +10,7 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, is_dataclass
 from types import SimpleNamespace
 
 from .adapters import BaseAdapter
@@ -22,7 +21,11 @@ from .core.exceptions import ActionNotFound
 
 
 class AdminActionRunner:
+    """Execute admin actions synchronously when background execution is unavailable."""
+
     def __init__(self, adapter: BaseAdapter | None = None) -> None:
+        """Initialize the runner with an optional ORM ``adapter`` dependency."""
+
         self.adapter = adapter or boot_admin.adapter
         self.scope_query_service = ScopeQueryService(self.adapter)
 
@@ -36,6 +39,8 @@ class AdminActionRunner:
         user: AdminUserDTO,
         admin_site=None,
     ) -> dict:
+        """Execute ``action`` immediately and return a serializable payload."""
+
         from .api import AdminAPI  # local import to avoid circular
         from .hub import admin_site as global_admin_site  # local import to avoid circular
 
@@ -52,7 +57,19 @@ class AdminActionRunner:
             admin, md, dummy_request, user, scope
         )
         result = await admin.perform_action(action, qs, params, user)
-        return asdict(result)
+        if is_dataclass(result):
+            return asdict(result)
+        if isinstance(result, dict):
+            return dict(result)
+        if hasattr(result, "model_dump"):
+            return result.model_dump()
+        if hasattr(result, "dict") and callable(result.dict):
+            return result.dict()
+        if result is None:
+            return {}
+        if hasattr(result, "__dict__"):
+            return dict(result.__dict__)
+        return {"result": result}
 
 
 admin_action_runner = AdminActionRunner()

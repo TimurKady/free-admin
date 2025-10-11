@@ -25,10 +25,11 @@ class FreeAdminSettings:
     secret_key: str = field(default_factory=lambda: "change-me")
     session_secret: str | None = None
     csrf_secret: str | None = None
-    admin_path: str = "/admin"
+    admin_path: str = "/panel"
     media_url: str = "/media/"
     media_root: Path = field(default_factory=lambda: Path.cwd() / "media")
-    redis_url: str = "redis://localhost:6379/0"
+    event_cache_path: str = ":memory:"
+    event_cache_in_memory: bool = True
     jwt_secret_key: str | None = None
     action_batch_size: int = 50
     card_events_token_ttl: int = 3600
@@ -37,6 +38,8 @@ class FreeAdminSettings:
     database_url: str | None = None
     static_url_segment: str = "/static"
     static_route_name: str = "admin-static"
+    export_cache_path: str | None = None
+    export_cache_ttl: int = 300
 
     def __post_init__(self) -> None:
         """Finalize defaults by falling back to the secret key where required."""
@@ -48,6 +51,28 @@ class FreeAdminSettings:
         self.media_url = self._normalize_prefix(self.media_url)
         if not isinstance(self.media_root, Path):
             self.media_root = Path(str(self.media_root))
+        if isinstance(self.event_cache_path, Path):
+            self.event_cache_path = str(self.event_cache_path)
+        if isinstance(self.export_cache_path, Path):
+            self.export_cache_path = str(self.export_cache_path)
+        explicit_path = (
+            self.event_cache_path not in (None, "", ":memory:")
+            and self.event_cache_path.strip() != ""
+        )
+        if explicit_path and self.event_cache_in_memory:
+            self.event_cache_in_memory = False
+        if self.event_cache_in_memory:
+            self.event_cache_path = ":memory:"
+        elif (
+            not self.event_cache_path
+            or not self.event_cache_path.strip()
+            or self.event_cache_path == ":memory:"
+        ):
+            default_file = Path.cwd() / "freeadmin-event-cache.sqlite3"
+            self.event_cache_path = str(default_file)
+        if not self.export_cache_path or not str(self.export_cache_path).strip():
+            default_export_cache = Path.cwd() / "freeadmin-export-cache.sqlite3"
+            self.export_cache_path = str(default_export_cache)
 
     @classmethod
     def from_env(
@@ -62,10 +87,17 @@ class FreeAdminSettings:
         secret_key = data.get("SECRET_KEY") or source.get("SECRET_KEY") or "change-me"
         session_secret = data.get("SESSION_SECRET")
         csrf_secret = data.get("CSRF_SECRET")
-        admin_path = data.get("ADMIN_PATH") or "/admin"
+        admin_path = data.get("ADMIN_PATH") or "/panel"
         media_url = data.get("MEDIA_URL") or "/media/"
         media_root = data.get("MEDIA_ROOT") or (Path.cwd() / "media")
-        redis_url = data.get("REDIS_URL") or "redis://localhost:6379/0"
+        cache_path_raw = data.get("EVENT_CACHE_PATH")
+        cache_memory_raw = data.get("EVENT_CACHE_IN_MEMORY")
+        cache_in_memory = (
+            cls._to_bool(cache_memory_raw)
+            if cache_memory_raw is not None
+            else cache_path_raw in (None, "", ":memory:")
+        )
+        cache_path = ":memory:" if cache_in_memory else (cache_path_raw or ":memory:")
         jwt_secret = data.get("JWT_SECRET_KEY")
         action_batch_size = cls._to_int(data.get("ACTION_BATCH_SIZE"), default=50)
         card_ttl = cls._to_int(data.get("CARD_EVENTS_TOKEN_TTL"), default=3600)
@@ -74,6 +106,10 @@ class FreeAdminSettings:
         database_url = data.get("DATABASE_URL") or source.get("DATABASE_URL")
         static_segment = data.get("STATIC_URL_SEGMENT") or "/static"
         static_route = data.get("STATIC_ROUTE_NAME") or "admin-static"
+        export_cache_path = data.get("EXPORT_CACHE_PATH")
+        export_cache_ttl = cls._to_int(
+            data.get("EXPORT_CACHE_TTL"), default=300
+        )
         return cls(
             secret_key=secret_key,
             session_secret=session_secret,
@@ -81,7 +117,8 @@ class FreeAdminSettings:
             admin_path=admin_path,
             media_url=media_url,
             media_root=Path(media_root),
-            redis_url=redis_url,
+            event_cache_path=cache_path,
+            event_cache_in_memory=cache_in_memory,
             jwt_secret_key=jwt_secret,
             action_batch_size=action_batch_size,
             card_events_token_ttl=card_ttl,
@@ -90,6 +127,8 @@ class FreeAdminSettings:
             database_url=database_url,
             static_url_segment=static_segment,
             static_route_name=static_route,
+            export_cache_path=export_cache_path,
+            export_cache_ttl=export_cache_ttl,
         )
 
     @staticmethod
@@ -101,6 +140,19 @@ class FreeAdminSettings:
             return int(value)
         except (TypeError, ValueError):
             return default
+
+    @staticmethod
+    def _to_bool(value: str | None, *, default: bool = False) -> bool:
+        """Return a boolean parsed from ``value`` with a ``default`` fallback."""
+
+        if value is None:
+            return default
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off"}:
+            return False
+        return default
 
     @staticmethod
     def _normalize_prefix(value: str) -> str:

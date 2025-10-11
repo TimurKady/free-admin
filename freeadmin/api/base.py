@@ -124,6 +124,20 @@ class AdminAPI:
             return path
         return f"{self.API_PREFIX}{path}"
 
+    def _resolve_action_batch_size_default(self) -> int:
+        """Return the fallback batch size from app settings when available."""
+
+        fallback = int(getattr(self._settings, "action_batch_size", 0) or 0)
+        try:
+            from config.settings import settings as app_settings  # type: ignore
+        except ModuleNotFoundError:
+            return fallback if fallback > 0 else 0
+        value = getattr(app_settings, "ACTION_BATCH_SIZE", fallback)
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return fallback if fallback > 0 else 0
+
     def _relative(self, path: str) -> str:
         """Return a path relative to ``API_PREFIX`` suitable for the router."""
 
@@ -367,8 +381,9 @@ class AdminAPI:
         params = payload.get("params", {})
         self.params_validator.validate(spec.params_schema, params)
         affected = await self.adapter.count(qs)
-        batch_size = system_config.get_cached(
-            SettingsKey.ACTION_BATCH_SIZE, self._settings.action_batch_size
+        batch_default = self._resolve_action_batch_size_default()
+        batch_size = int(
+            system_config.get_cached(SettingsKey.ACTION_BATCH_SIZE, batch_default)
         )
         if affected > batch_size:
             asyncio.create_task(

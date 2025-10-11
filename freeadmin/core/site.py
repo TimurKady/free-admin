@@ -11,10 +11,11 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, Request, UploadFile, File, HTTPException, Form, status
 from fastapi.responses import HTMLResponse, StreamingResponse
@@ -27,7 +28,7 @@ from ..adapters import BaseAdapter
 from .services.auth import AdminUserDTO
 from .auth import admin_auth_service
 from .permissions import permission_checker
-from .services.permissions import PermAction
+from .services.permissions import PermAction, PermissionsService, permissions_service
 from .base import BaseModelAdmin
 from .pages import FreeViewPage, SettingsPage
 from .settings import SettingsKey, system_config
@@ -44,6 +45,12 @@ from .services import ScopeQueryService, ScopeTokenService
 from ..utils.icon import IconPathMixin
 from .cards import CardManager
 from .menu import MenuBuilder
+from .cache import SQLiteCardCache
+from .cache.menu import MainMenuCache
+from .permissions.checker import PermissionChecker
+
+if TYPE_CHECKING:  # pragma: no cover - for type checking only
+    from .permissions.checker import PermissionChecker as PermissionCheckerType
 
 ImportService = import_module("freeadmin.core.services.import").ImportService
 
@@ -73,6 +80,10 @@ class AdminSite(IconPathMixin):
         title: str | None = None,
         templates: Jinja2Templates | None = None,
         settings: FreeAdminSettings | None = None,
+        permission_service: PermissionsService | None = None,
+        permission_checker_obj: "PermissionCheckerType | None" = None,
+        card_cache_class: type[SQLiteCardCache] | None = None,
+        card_cache: SQLiteCardCache | None = None,
     ) -> None:
         """Initialize the admin site with required adapter."""
         self.adapter = adapter
@@ -80,23 +91,39 @@ class AdminSite(IconPathMixin):
         self.IntegrityError = getattr(adapter, "IntegrityError", Exception)
         self._title_override = title
         self._settings = settings or current_settings()
+        self._permissions_service = permission_service or permissions_service
         # key: (app_label, model_slug) in lowercase
         self.model_reg: Dict[tuple[str, str], BaseModelAdmin] = {}
         self.registry = PageRegistry()
-        self.menu_builder = MenuBuilder()
+        self.menu_cache = MainMenuCache()
+        self.menu_builder = MenuBuilder(self.registry, cache=self.menu_cache)
         self.templates = templates
         # in-process map: dotted content type -> ct_id
         self.ct_map: Dict[str, int] = {}
         self._import_service = ImportService()
         self._views: Dict[str, List[Dict[str, Any]]] = {}
         self._view_routes: Dict[str, _ViewRoute] = {}
-        self.cards = CardManager(self.registry, settings=self._settings)
-        self.permission_checker = permission_checker
+        cache_factory = card_cache_class or SQLiteCardCache
+        cache_path = getattr(self._settings, "event_cache_path", ":memory:")
+        self.card_cache = card_cache or cache_factory(path=cache_path)
+        self.cards = CardManager(
+            self.registry,
+            settings=self._settings,
+            card_cache=self.card_cache,
+        )
+        if permission_checker_obj is not None:
+            self.permission_checker = permission_checker_obj
+        elif permission_service is not None:
+            self.permission_checker = PermissionChecker(self._permissions_service)
+        else:
+            self.permission_checker = permission_checker
         self._dashboard_virtual = self.registry.register_view_virtual(
             path="/",
             app_label="admin",
             slug_source="dashboard",
         )
+        self._anonymous_card_cache_key = "anonymous"
+        self._register_permission_invalidation_hook()
 
     @property
     def title(self) -> str:
@@ -121,10 +148,62 @@ class AdminSite(IconPathMixin):
         )
         return self._resolve_icon_path(icon_path, prefix, static_segment)
 
+    def get_locale(self, request: Request | None = None) -> str:
+        """Return locale token derived from ``request`` headers or defaults."""
+
+        if request is not None:
+            header = request.headers.get("accept-language")
+            if header:
+                candidate = header.split(",", 1)[0].strip()
+                if candidate:
+                    return candidate
+        return str(system_config.get_cached(SettingsKey.DEFAULT_LOCALE, "en"))
+
     @staticmethod
     def _model_to_slug(name: str) -> str:
         """Return lowercase model name as slug without regex."""
         return name.lower()
+
+    def _register_permission_invalidation_hook(self) -> None:
+        """Subscribe to permission cache invalidation events."""
+
+        register = getattr(self.permission_checker, "register_user_invalidation_hook", None)
+        if not callable(register):
+            return
+        try:
+            register(self._handle_permission_invalidation)
+        except Exception:  # pragma: no cover - defensive logging
+            logger.exception("Failed to register permission invalidation hook")
+
+    def _handle_permission_invalidation(self, user_id: str) -> None:
+        """Drop cached card payloads associated with ``user_id``."""
+
+        if not user_id or self.card_cache is None:
+            return
+        try:
+            self.card_cache.invalidate_user(str(user_id))
+        except Exception:  # pragma: no cover - defensive logging
+            logger.exception("Failed to invalidate card cache for user %s", user_id)
+
+    def _resolve_card_cache_key(self, user: Any | None) -> str:
+        """Return cache key representing ``user`` or anonymous fallback."""
+
+        if user is None:
+            return self._anonymous_card_cache_key
+        identifier = getattr(user, "id", None)
+        if identifier is None:
+            return self._anonymous_card_cache_key
+        return str(identifier)
+
+    def _clear_card_cache(self) -> None:
+        """Remove all cached card payloads."""
+
+        if self.card_cache is None:
+            return
+        try:
+            self.card_cache.clear()
+        except Exception:  # pragma: no cover - defensive logging
+            logger.exception("Failed to clear cached card entries")
 
     # ==== Registration ====
     def register(
@@ -171,6 +250,7 @@ class AdminSite(IconPathMixin):
             icon=icon,
             name=display_name,
         )
+        self.menu_builder.invalidate_main_menu()
 
     def register_both(
         self,
@@ -229,6 +309,7 @@ class AdminSite(IconPathMixin):
             scripts=normalized_scripts,
             styles=normalized_styles,
         )
+        self._clear_card_cache()
 
     def all_models(self) -> List[tuple[str, str]]:
         """Return list of registered (app, model) pairs."""
@@ -693,8 +774,9 @@ class AdminSite(IconPathMixin):
                 slug=virtual.slug,
                 dotted=virtual.dotted,
             )
-            self.registry.page_list.append(page)
+            self.registry.register_page(page)
             self.menu_builder.register_item(title=name, path=normalized_path, icon=icon)
+            self.menu_builder.invalidate_main_menu()
             return func
 
         return decorator
@@ -729,13 +811,14 @@ class AdminSite(IconPathMixin):
                 slug=virtual.slug,
                 dotted=virtual.dotted,
             )
-            self.registry.page_list.append(page)
+            self.registry.register_page(page)
             self.menu_builder.register_item(
                 title=name,
                 path=path,
                 icon=icon,
                 page_type=page_type_settings,
             )
+            self.menu_builder.invalidate_main_menu()
             return func
         return decorator
 
@@ -744,9 +827,30 @@ class AdminSite(IconPathMixin):
     ) -> None:
         """Register a user menu item."""
         self.menu_builder.register_user_item(title=title, path=path, icon=icon)
+        self.menu_builder.invalidate_main_menu()
 
     async def get_registered_cards(self, user: Any | None = None) -> List[Dict[str, Any]]:
         """Return registered cards filtered by the user's permissions."""
+
+        user_key = self._resolve_card_cache_key(user)
+        snapshot_token = ""
+        snapshot_getter = getattr(self.permission_checker, "get_permission_snapshot", None)
+        if callable(snapshot_getter):
+            try:
+                snapshot = snapshot_getter()
+            except Exception:  # pragma: no cover - defensive logging
+                logger.exception("Failed to obtain permission snapshot for cards")
+            else:
+                if snapshot is not None:
+                    snapshot_token = snapshot.isoformat()
+        if self.card_cache is not None:
+            await asyncio.to_thread(self.card_cache.prune_expired)
+            if snapshot_token:
+                cached = await asyncio.to_thread(self.card_cache.load, user_key)
+                if cached is not None:
+                    entries, _created_at, cached_snapshot = cached
+                    if cached_snapshot == snapshot_token:
+                        return entries
 
         cards: List[Dict[str, Any]] = []
         for entry in self.cards.iter_cards():
@@ -774,6 +878,14 @@ class AdminSite(IconPathMixin):
                     "dotted": entry.dotted,
                 }
             )
+
+        if self.card_cache is not None and snapshot_token:
+            try:
+                await asyncio.to_thread(
+                    self.card_cache.store, user_key, cards, snapshot_token
+                )
+            except Exception:  # pragma: no cover - defensive logging
+                logger.exception("Failed to cache registered card list for user %s", user_key)
         return cards
 
     def get_user_menu(self) -> List[Dict[str, str | None]]:
@@ -880,7 +992,9 @@ class AdminSite(IconPathMixin):
                     "cards": card_entries,
                 },
             )
-            ctx["menu"] = self.menu_builder.build_main_menu(self.registry)
+            ctx["menu"] = self.menu_builder.build_main_menu(
+                locale=self.get_locale(request)
+            )
             return templates.TemplateResponse("pages/dashboard.html", ctx)
 
         for page in [p for p in self.registry.page_list if isinstance(p, FreeViewPage)]:
@@ -930,7 +1044,9 @@ class AdminSite(IconPathMixin):
                     extra=ctx,
                 )
                 if page.path != views_prefix:
-                    base_ctx["menu"] = self.menu_builder.build_main_menu(self.registry)
+                    base_ctx["menu"] = self.menu_builder.build_main_menu(
+                        locale=self.get_locale(request)
+                    )
                 return templates.TemplateResponse(template_name, base_ctx)
 
             router.add_api_route(
@@ -1407,7 +1523,7 @@ class AdminSite(IconPathMixin):
                 response.headers["Content-Type"] = cached.mime
                 return response
 
-        self.menu_builder.build_main_menu(self.registry)
+        self.menu_builder.build_main_menu(locale=self.get_locale())
 
 # The End
 

@@ -66,8 +66,11 @@ class AdminHub:
         """Propagate new configuration to managed services."""
         self._settings = settings
         self.admin_site._settings = settings
-        self.admin_site.cards._settings = settings
-        self.admin_site.cards.redis_url = settings.redis_url
+        if hasattr(self.admin_site.cards, "apply_settings"):
+            self.admin_site.cards.apply_settings(settings)
+        else:  # pragma: no cover - compatibility branch
+            self.admin_site.cards._settings = settings
+            self.admin_site.cards.configure_event_cache(path=settings.event_cache_path)
 
 
 hub = AdminHub()

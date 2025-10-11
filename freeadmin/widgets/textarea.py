@@ -20,7 +20,7 @@ from .registry import registry
 @registry.register("textarea")
 class TextAreaWidget(BaseWidget):
     assets_js = (
-        "https://cdn.jsdelivr.net/npm/ace-builds@latest/src-noconflict/ace.min.js",
+        "/static/vendors/ace-builds/src-noconflict/ace.js",
         "/static/widgets/textarea.js",
     )
 

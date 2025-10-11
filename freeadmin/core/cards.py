@@ -14,13 +14,11 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from time import monotonic
 from typing import Any, Dict, Iterator, List, Set
 
-from redis.asyncio import Redis
-from redis.exceptions import RedisError
-
 from ..conf import FreeAdminSettings, current_settings
+
+from .cache import SQLiteCardCache, SQLiteEventCache
 
 from .registry import CardEntry, PageRegistry
 from .virtual import VirtualContentKey
@@ -34,24 +32,29 @@ class CardManager:
         self,
         registry: PageRegistry,
         *,
-        redis_url: str | None = None,
+        event_cache_class: type[SQLiteEventCache] | None = None,
+        event_cache: SQLiteEventCache | None = None,
+        card_cache: SQLiteCardCache | None = None,
         settings: FreeAdminSettings | None = None,
     ) -> None:
-        """Initialize the manager with the registry and Redis configuration."""
+        """Initialize the manager with the registry and event cache backend."""
 
         self.registry = registry
         self._settings = settings or current_settings()
-        self.redis_url = redis_url or self._settings.redis_url
-        self._redis: Redis | None = None
+        self._event_cache_class = event_cache_class or SQLiteEventCache
+        cache_path = getattr(self._settings, "event_cache_path", ":memory:")
+        self._event_cache = event_cache or self._event_cache_class(path=cache_path)
+        self._event_cache_path = (
+            getattr(self._event_cache, "path", cache_path) if event_cache else cache_path
+        )
         self._last_state: Dict[str, Any] = {}
         self._publishers: List[PublisherService] = []
         self._publisher_tasks: Dict[PublisherService, asyncio.Task[None]] = {}
         self._pending_events: Set[asyncio.Task[Any]] = set()
         self._publishers_started = False
         self.logger = logging.getLogger(__name__)
-        self._redis_retry_at: float | None = None
-        self._redis_retry_interval = 30.0
-        self._redis_skip_logged = False
+        self._card_cache = card_cache
+        self._load_persisted_states()
 
     def register_card(
         self,
@@ -91,6 +94,9 @@ class CardManager:
             scripts=scripts,
             styles=styles,
         )
+        entry = self.registry.get_card(key)
+        self._restore_state_from_cache(entry)
+        self._invalidate_card_cache()
 
     def get_card(self, key: str) -> CardEntry:
         """Return the registered card entry associated with ``key``."""
@@ -114,23 +120,30 @@ class CardManager:
         """Persist the latest state and publish the payload to the card channel."""
 
         entry = self.get_card(key)
-        self._last_state[key] = payload
-        if not entry.channel:
+        message = self._persist_last_state(entry, payload)
+        if not entry.channel or message is None:
             return
-        if not self._should_attempt_redis():
-            self._log_redis_skip(key)
-            return
-        message = self._encode_payload(payload)
-        try:
-            redis = await self._get_redis()
-            await redis.publish(entry.channel, message)
-        except RedisError as exc:  # pragma: no cover - runtime guard
-            self._schedule_redis_retry(key, exc)
+        await self._event_cache.publish(entry.channel, message)
 
     def get_last_state(self, key: str) -> Any:
         """Return the previously published payload for the given card."""
 
-        return self._last_state.get(key)
+        if key in self._last_state:
+            return self._last_state[key]
+        entry = self.get_card(key)
+        if not entry.channel:
+            return None
+        cached = self._event_cache.get_last_payload(entry.channel)
+        if cached is None:
+            return None
+        payload = self._decode_payload(*cached)
+        self._last_state[key] = payload
+        return payload
+
+    def configure_card_cache(self, cache: SQLiteCardCache | None) -> None:
+        """Attach ``cache`` responsible for card list invalidation."""
+
+        self._card_cache = cache
 
     def register_publisher(self, publisher: PublisherService) -> None:
         """Register a publisher responsible for streaming updates."""
@@ -205,7 +218,8 @@ class CardManager:
         return task
 
     def _accept_publisher_state(self, key: str, payload: Dict[str, Any]) -> None:
-        self._last_state[key] = payload
+        entry = self.get_card(key)
+        self._persist_last_state(entry, payload)
 
     async def _call_publisher_shutdown(self, publisher: PublisherService) -> None:
         try:
@@ -237,11 +251,6 @@ class CardManager:
                 "Publisher %s stopped unexpectedly: %s", publisher.card_key, exc
             )
 
-    async def _get_redis(self) -> Redis:
-        if self._redis is None:
-            self._redis = Redis.from_url(self.redis_url, decode_responses=True)
-        return self._redis
-
     @staticmethod
     def _encode_payload(payload: Any) -> str:
         if isinstance(payload, str):
@@ -253,31 +262,78 @@ class CardManager:
         except TypeError:
             return json.dumps({"payload": str(payload)}, ensure_ascii=False)
 
-    def _should_attempt_redis(self) -> bool:
-        """Return ``True`` when Redis operations are permitted after a failure."""
+    def _load_persisted_states(self) -> None:
+        for entry in self.registry.iter_cards():
+            self._restore_state_from_cache(entry)
 
-        if self._redis_retry_at is None:
-            return True
-        if monotonic() >= self._redis_retry_at:
-            self._redis_retry_at = None
-            self._redis_skip_logged = False
-            return True
-        return False
-
-    def _log_redis_skip(self, key: str) -> None:
-        if self._redis_skip_logged:
+    def _restore_state_from_cache(self, entry: CardEntry) -> None:
+        if entry.channel is None:
             return
-        self.logger.warning(
-            "Skipping card event publication for %s; Redis is temporarily unavailable.",
-            key,
-        )
-        self._redis_skip_logged = True
+        cached = self._event_cache.get_last_payload(entry.channel)
+        if cached is None:
+            return
+        payload = self._decode_payload(*cached)
+        self._last_state[entry.key] = payload
 
-    def _schedule_redis_retry(self, key: str, exc: RedisError) -> None:
-        self.logger.warning("Failed to publish card event for %s: %s", key, exc)
-        self._redis_retry_at = monotonic() + self._redis_retry_interval
-        self._redis_skip_logged = False
-        self._redis = None
+    def _persist_last_state(self, entry: CardEntry, payload: Any) -> str | None:
+        self._last_state[entry.key] = payload
+        if entry.channel is None:
+            return None
+        message, serializer = self._serialize_payload(payload)
+        self._event_cache.store_last_payload(entry.channel, message, serializer)
+        return message
+
+    def _invalidate_card_cache(self) -> None:
+        if self._card_cache is None:
+            return
+        try:
+            self._card_cache.clear()
+        except Exception:  # pragma: no cover - defensive logging
+            self.logger.exception("Failed to clear card cache after registration")
+
+    def _serialize_payload(self, payload: Any) -> tuple[str, str]:
+        if isinstance(payload, str):
+            return payload, "text"
+        if isinstance(payload, (bytes, bytearray)):
+            return payload.decode("utf-8", errors="replace"), "text"
+        try:
+            return json.dumps(payload, ensure_ascii=False), "json"
+        except TypeError:
+            fallback = json.dumps({"payload": str(payload)}, ensure_ascii=False)
+            return fallback, "json"
+
+    @staticmethod
+    def _decode_payload(payload: str, serializer: str) -> Any:
+        if serializer == "json":
+            try:
+                return json.loads(payload)
+            except json.JSONDecodeError:
+                return payload
+        return payload
+ 
+    @property
+    def event_cache(self) -> SQLiteEventCache:
+        """Return the event cache responsible for persisting card events."""
+
+        return self._event_cache
+
+    def configure_event_cache(self, *, path: str | None = None) -> None:
+        """Reconfigure the underlying event cache when settings change."""
+
+        target = path or getattr(self._settings, "event_cache_path", ":memory:")
+        if target == self._event_cache_path:
+            return
+        if hasattr(self._event_cache, "reconfigure"):
+            self._event_cache.reconfigure(target)
+        else:  # pragma: no cover - fallback for custom cache implementations
+            self._event_cache = self._event_cache_class(path=target)
+        self._event_cache_path = target
+
+    def apply_settings(self, settings: FreeAdminSettings) -> None:
+        """Update manager configuration and refresh dependent services."""
+
+        self._settings = settings
+        self.configure_event_cache(path=settings.event_cache_path)
 
 
 __all__ = ["CardManager"]

@@ -11,23 +11,25 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
+import asyncio
 import csv
 import io
 import json
 import tempfile
-import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Sequence, AsyncGenerator, Callable
+from typing import Any, AsyncGenerator, Callable, Sequence
 from uuid import uuid4
 
 from openpyxl import Workbook
 
 from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
+from ...conf import FreeAdminSettings, current_settings
 from ...adapters import BaseAdapter
+from ..cache.sqlite_kv import SQLiteKeyValueCache
 
 
 class FieldSerializer:
@@ -112,6 +114,11 @@ class BaseCacheBackend:
     def items(self) -> list[tuple[str, CachedFile]]:  # pragma: no cover - interface
         raise NotImplementedError
 
+    def prune_expired(self) -> None:
+        """Remove expired entries when supported by the backend."""
+
+        return None
+
 
 class MemoryCacheBackend(BaseCacheBackend):
     """In-memory cache backend."""
@@ -130,6 +137,98 @@ class MemoryCacheBackend(BaseCacheBackend):
 
     def items(self) -> list[tuple[str, CachedFile]]:
         return list(self._store.items())
+
+    def prune_expired(self) -> None:
+        """Remove stale entries whose expiration has elapsed."""
+
+        now = datetime.now()
+        self._store = {
+            token: info for token, info in self._store.items() if info.expires_at > now
+        }
+
+
+class SQLiteExportCacheBackend(BaseCacheBackend):
+    """Persist export cache metadata in an SQLite database."""
+
+    def __init__(
+        self,
+        path: str | None = None,
+        *,
+        table_name: str = "export_cache",
+    ) -> None:
+        """Create a new backend bound to ``path`` and ``table_name``."""
+
+        self._store = SQLiteKeyValueCache(path, table_name=table_name)
+
+    @property
+    def path(self) -> str:
+        """Return the SQLite database path used by this backend."""
+
+        return self._store.path
+
+    def set(self, token: str, info: CachedFile) -> None:
+        """Persist ``info`` under ``token`` with its expiration timestamp."""
+
+        payload = json.dumps(
+            {
+                "path": str(info.path),
+                "filename": info.filename,
+                "mime": info.mime,
+            }
+        ).encode("utf-8")
+        self._store.set(token, payload, info.expires_at)
+
+    def get(self, token: str) -> CachedFile | None:
+        """Return cached file metadata for ``token`` if still valid."""
+
+        record = self._store.get(token)
+        if record is None:
+            return None
+        payload, expires_at = record
+        try:
+            data = json.loads(payload.decode("utf-8"))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            self._store.delete(token)
+            return None
+        return CachedFile(
+            path=Path(data["path"]),
+            filename=data["filename"],
+            mime=data["mime"],
+            expires_at=expires_at,
+        )
+
+    def delete(self, token: str) -> None:
+        """Remove cached metadata for ``token`` if it exists."""
+
+        self._store.delete(token)
+
+    def items(self) -> list[tuple[str, CachedFile]]:
+        """Return all non-expired cached file entries."""
+
+        items = []
+        for token, payload, expires_at in self._store.items():
+            try:
+                data = json.loads(payload.decode("utf-8"))
+            except (TypeError, ValueError, json.JSONDecodeError):
+                self._store.delete(token)
+                continue
+            items.append(
+                (
+                    token,
+                    CachedFile(
+                        path=Path(data["path"]),
+                        filename=data["filename"],
+                        mime=data["mime"],
+                        expires_at=expires_at,
+                    ),
+                )
+            )
+        return items
+
+    def prune_expired(self) -> None:
+        """Delete expired rows from the underlying SQLite table."""
+
+        self._store.prune_expired()
 
 
 class ExportTransformer(ABC):
@@ -325,12 +424,12 @@ class FileWriterStep:
         tmp_dir: str,
         ttl: int,
         cache: BaseCacheBackend,
-        cleanup: Callable[[str], None],
+        schedule_cleanup: Callable[[str, datetime], None],
     ) -> None:
         self.tmp_dir = tmp_dir
         self.ttl = ttl
         self.cache = cache
-        self.cleanup = cleanup
+        self.schedule_cleanup = schedule_cleanup
 
     async def run(
         self,
@@ -339,6 +438,10 @@ class FileWriterStep:
         rows: Sequence[dict[str, Any]],
         model_name: str | None = None,
     ) -> str:
+        prune = getattr(self.cache, "prune_expired", None)
+        if callable(prune):
+            prune()
+
         tmp = tempfile.NamedTemporaryFile(
             delete=False, suffix=writer.suffix, dir=self.tmp_dir
         )
@@ -354,9 +457,7 @@ class FileWriterStep:
         token = uuid4().hex
         expires_at = datetime.now() + timedelta(seconds=self.ttl)
         self.cache.set(token, CachedFile(path, filename, mime, expires_at))
-        asyncio.get_running_loop().call_later(
-            self.ttl, lambda: self.cleanup(token)
-        )
+        self.schedule_cleanup(token, expires_at)
         return token
 
 
@@ -400,16 +501,21 @@ class ExportService:
         self,
         adapter: BaseAdapter,
         tmp_dir: str | None = None,
-        ttl: int = 300,
+        ttl: int | None = None,
         serializer: FieldSerializer | None = None,
         cache_backend: BaseCacheBackend | None = None,
         cleanup_interval: int = 60,
+        *,
+        settings: FreeAdminSettings | None = None,
     ) -> None:
         self.adapter = adapter
+        self.settings = settings or current_settings()
         self.tmp_dir = tmp_dir or tempfile.gettempdir()
-        self.ttl = ttl
+        self.ttl = ttl if ttl is not None else self.settings.export_cache_ttl
         self.serializer = serializer or FieldSerializer()
-        self.cache = cache_backend or MemoryCacheBackend()
+        self.cache = cache_backend or SQLiteExportCacheBackend(
+            path=self.settings.export_cache_path
+        )
         self.cleanup_interval = cleanup_interval
         self.writers: dict[str, ExportWriter] = {
             "csv": CsvWriter(CsvTransformer()),
@@ -420,14 +526,19 @@ class ExportService:
             QueryStep(self.adapter),
             SerializationStep(self.serializer),
             FormattingStep(self.writers),
-            FileWriterStep(self.tmp_dir, self.ttl, self.cache, self.cleanup),
+            FileWriterStep(
+                self.tmp_dir, self.ttl, self.cache, self._schedule_token_cleanup
+            ),
         )
+        self.cache.prune_expired()
         self._purge_temp_dir()
+        self._restore_cache_state()
         try:
-            loop = asyncio.get_event_loop()
-            loop.create_task(self._periodic_purge())
+            loop = asyncio.get_running_loop()
         except RuntimeError:
             pass
+        else:
+            loop.create_task(self._periodic_purge())
 
     async def _collect(
         self, queryset: Any, fields: Sequence[str], limit: int | None = None
@@ -480,14 +591,60 @@ class ExportService:
     def cleanup(self, token: str) -> None:
         """Remove cached file for ``token`` from disk."""
         info = self.cache.get(token)
-        if info:
-            self.cache.delete(token)
+        self.cache.delete(token)
+        if not info:
+            return
+        try:
             loop = asyncio.get_running_loop()
-            loop.create_task(asyncio.to_thread(info.path.unlink))
+        except RuntimeError:
+            self._unlink_file(info.path)
+        else:
+            loop.create_task(asyncio.to_thread(self._unlink_file, info.path))
+
+    def _schedule_token_cleanup(self, token: str, expires_at: datetime) -> None:
+        """Schedule removal of ``token`` when ``expires_at`` is reached."""
+
+        delay = max((expires_at - datetime.now()).total_seconds(), 0.0)
+        if delay <= 0:
+            self.cleanup(token)
+            return
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                return
+            if not loop.is_running():
+                return
+        loop.call_later(delay, lambda t=token: self.cleanup(t))
+
+    def _restore_cache_state(self) -> None:
+        """Reload persisted cache entries and reschedule their cleanups."""
+
+        now = datetime.now()
+        for token, info in list(self.cache.items()):
+            if info.expires_at <= now:
+                self.cleanup(token)
+            else:
+                self._schedule_token_cleanup(token, info.expires_at)
+
+    @staticmethod
+    def _unlink_file(path: Path) -> None:
+        """Remove ``path`` from disk, ignoring missing files."""
+
+        try:
+            path.unlink(missing_ok=True)
+        except TypeError:  # pragma: no cover - Python < 3.8 compatibility
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                pass
 
     async def _periodic_purge(self) -> None:
         while True:
             await asyncio.sleep(self.cleanup_interval)
+            self.cache.prune_expired()
             for token, info in list(self.cache.items()):
                 if info.expires_at < datetime.now():
                     self.cleanup(token)

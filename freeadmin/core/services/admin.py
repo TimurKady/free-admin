@@ -12,6 +12,7 @@ Email: timurkady@yandex.com
 from __future__ import annotations
 
 from dataclasses import asdict
+from types import SimpleNamespace
 from typing import Any, Dict, TYPE_CHECKING
 
 from ..actions.builder import ScopeQueryBuilder
@@ -25,6 +26,7 @@ from ..exceptions import (
 )
 from ..filters import FilterSpec
 from ..permissions import permission_checker
+from .permissions import permissions_service
 from ..settings import SettingsKey, system_config
 from ..base import BaseModelAdmin
 
@@ -62,6 +64,48 @@ class AdminService:
         self.md = self.adapter.get_model_descriptor(admin.model)
         self.DoesNotExist = getattr(self.adapter, "DoesNotExist", ObjectNotFoundError)
         self.IntegrityError = getattr(self.adapter, "IntegrityError", DataIntegrityError)
+
+    def _is_user_permission_model(self) -> bool:
+        """Return ``True`` when the service operates on user permissions."""
+        return self.admin.model is self.adapter.user_permission_model
+
+    def _is_group_permission_model(self) -> bool:
+        """Return ``True`` when the service operates on group permissions."""
+        return self.admin.model is self.adapter.group_permission_model
+
+    async def _invalidate_permission_cache_for_users(
+        self, *user_ids: Any
+    ) -> None:
+        """Invalidate permission cache entries for the provided ``user_ids``."""
+        unique_ids = {uid for uid in user_ids if uid is not None}
+        for uid in unique_ids:
+            await permissions_service.invalidate_user_permissions(uid)
+
+    async def _invalidate_permission_cache_for_groups(
+        self, *group_ids: Any
+    ) -> None:
+        """Invalidate permission cache entries for the provided ``group_ids``."""
+        unique_ids = {gid for gid in group_ids if gid is not None}
+        for gid in unique_ids:
+            await permissions_service.invalidate_group_permissions(gid)
+
+    async def _handle_permission_change(
+        self,
+        *,
+        previous: Any | None = None,
+        current: Any | None = None,
+    ) -> None:
+        """Invalidate caches affected by permission record changes."""
+        if self._is_user_permission_model():
+            await self._invalidate_permission_cache_for_users(
+                getattr(previous, "user_id", None),
+                getattr(current, "user_id", None),
+            )
+        elif self._is_group_permission_model():
+            await self._invalidate_permission_cache_for_groups(
+                getattr(previous, "group_id", None),
+                getattr(current, "group_id", None),
+            )
 
     async def get_object(self, request, user: AdminUserDTO, pk: str):
         qs = self.admin.get_objects(request, user)
@@ -173,6 +217,7 @@ class AdminService:
         try:
             payload = self.admin.normalize_payload(payload)
             obj = await self.admin.create(request, user, self.md, payload)
+            await self._handle_permission_change(current=obj)
             response = {"ok": True, "id": getattr(obj, self.md.pk_attr)}
             if hasattr(obj, "uuid"):
                 response["uuid"] = getattr(obj, "uuid")
@@ -194,9 +239,16 @@ class AdminService:
             raise NotFoundError()
         if not self.admin.allow(user, "change", obj):
             raise PermissionError("Change not allowed by business rule")
+        previous_state = SimpleNamespace(
+            user_id=getattr(obj, "user_id", None),
+            group_id=getattr(obj, "group_id", None),
+        )
         try:
             payload = self.admin.normalize_payload(payload)
-            await self.admin.update(request, user, self.md, obj, payload)
+            updated = await self.admin.update(request, user, self.md, obj, payload)
+            await self._handle_permission_change(
+                previous=previous_state, current=updated
+            )
             return {"ok": True}
         except self.IntegrityError as exc:
             try:
@@ -215,11 +267,16 @@ class AdminService:
             raise NotFoundError()
         if not self.admin.allow(user, "delete", obj):
             raise PermissionError("Delete not allowed by business rule")
+        previous_state = SimpleNamespace(
+            user_id=getattr(obj, "user_id", None),
+            group_id=getattr(obj, "group_id", None),
+        )
         delete_method = getattr(self.admin, "delete", None)
         if delete_method:
             await delete_method(request, user, self.md, obj)
         else:
             await self.adapter.delete(obj)
+        await self._handle_permission_change(previous=previous_state)
         return {"ok": True}
 
 
