@@ -164,7 +164,7 @@ any modifications are documented. BSD-licensed dependencies require preserving t
 | JsBarcode | 3.12.1 | MIT – header in `static/vendors/jsbarcode/JsBarcode.all.min.js` | Preserve the MIT header comments or provide equivalent attribution.
 | Select2 | 4.0.13 | MIT – header in `static/vendors/select2/js/select2.full.min.js` referencing upstream license file | Bundle the MIT license text linked in the header comment.
 | Choices.js | 11.1.0 | Upstream README reference in `static/vendors/choices/js/choices.js`; upstream project distributes an MIT license | Add the MIT license from <https://github.com/jshjohnson/Choices/blob/main/LICENSE> to satisfy attribution requirements.
-| Ace (Ace Editor builds) | n/a (vendored bundle) | BSD – see upstream license <https://github.com/ajaxorg/ace/blob/master/LICENSE> | Retain the BSD license text within your documentation or redistribution package.
+| Ace (Ace Editor builds) | 1.43.3 | BSD – see upstream license <https://github.com/ajaxorg/ace/blob/master/LICENSE> | Retain the BSD license text within your documentation or redistribution package.
 | JSONEditor | 9.x | MIT – bundled `static/vendors/json-editor/LICENSE` file | Keep the included MIT license file with the distributed assets.
 
 If you update any of the vendor bundles, refresh the version numbers above and bring along their current license files so
