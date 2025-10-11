@@ -68,7 +68,7 @@ jobs:
       - name: Build distribution
         if: steps.backend.outputs.has_backend == 'true'
         run: |
-          python -m pip install --upgrade build
+          python -m pip install --upgrade build twine
           python -m build
 
       - name: Verify built artifacts
