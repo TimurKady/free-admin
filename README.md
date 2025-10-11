@@ -164,17 +164,28 @@ any modifications are documented. BSD-licensed dependencies require preserving t
 
 | Asset | Version | License and source | Compliance notes |
 | --- | --- | --- | --- |
-| Bootstrap | 5.3.3 | MIT – license header embedded in `static/vendors/bootstrap/css/bootstrap.min.css` | Keep the MIT license reference visible and include the upstream license text when redistributing.
-| Bootstrap Icons | 1.11.3 | MIT – see header in `static/vendors/bootstrap-icons/font/bootstrap-icons.css` | Distribute alongside the MIT license text.
-| jQuery | 3.7.1 | MIT – header points to <https://jquery.org/license> | Retain the header notice and provide access to the MIT license.
-| JsBarcode | 3.12.1 | MIT – header in `static/vendors/jsbarcode/JsBarcode.all.min.js` | Preserve the MIT header comments or provide equivalent attribution.
-| Select2 | 4.0.13 | MIT – header in `static/vendors/select2/js/select2.full.min.js` referencing upstream license file | Bundle the MIT license text linked in the header comment.
-| Choices.js | 11.1.0 | Upstream README reference in `static/vendors/choices/js/choices.js`; upstream project distributes an MIT license | Add the MIT license from <https://github.com/jshjohnson/Choices/blob/main/LICENSE> to satisfy attribution requirements.
-| Ace (Ace Editor builds) | 1.43.3 | BSD – see upstream license <https://github.com/ajaxorg/ace/blob/master/LICENSE> | Retain the BSD license text within your documentation or redistribution package.
-| JSONEditor | 9.x | MIT – bundled `static/vendors/json-editor/LICENSE` file | Keep the included MIT license file with the distributed assets.
+| Bootstrap | 5.3.3 | MIT – bundled in `freeadmin/static/vendors/bootstrap/LICENSE` (upstream: <https://github.com/twbs/bootstrap>) | Keep the MIT license reference visible and ship the bundled license file with redistributions.
+| Bootstrap Icons | 1.11.3 | MIT – bundled in `freeadmin/static/vendors/bootstrap-icons/LICENSE` (upstream: <https://github.com/twbs/icons>) | Distribute alongside the provided MIT license file.
+| jQuery | 3.7.1 | MIT – bundled in `freeadmin/static/vendors/jquery/LICENSE.txt` (upstream: <https://jquery.org/license>) | Retain the header notice and make the MIT license text available via the bundled file.
+| JsBarcode | 3.12.1 | MIT – bundled in `freeadmin/static/vendors/jsbarcode/LICENSE` (upstream: <https://github.com/lindell/JsBarcode>) | Preserve the MIT header comments and keep the bundled license file with redistributed builds.
+| Select2 | 4.0.13 | MIT – bundled in `freeadmin/static/vendors/select2/LICENSE` (upstream: <https://github.com/select2/select2>) | Bundle the MIT license file and link from documentation where appropriate.
+| Choices.js | 11.1.0 | MIT – bundled in `freeadmin/static/vendors/choices/LICENSE` (upstream: <https://github.com/Choices-js/Choices>) | Ship the MIT license file together with the packaged assets.
+| Ace (Ace Editor builds) | 1.43.3 | BSD-3-Clause – bundled in `freeadmin/static/vendors/ace-builds/LICENSE` (upstream: <https://github.com/ajaxorg/ace-builds>) | Retain the BSD license text within your documentation or redistribution package.
+| JSONEditor | 9.x | MIT – bundled `freeadmin/static/vendors/json-editor/LICENSE` file | Keep the included MIT license file with the distributed assets.
 
 If you update any of the vendor bundles, refresh the version numbers above and bring along their current license files so
 that downstream consumers have access to the required texts.
+
+#### Distribution footprint review
+
+To keep release reviews straightforward we periodically record the size of bundled assets and build artifacts:
+
+* `du -sh freeadmin/static` → ~37 MB (vendor assets dominate the total, especially Bootstrap Icons and Ace Editor language/snippet packs).
+* `python -m build` produces:
+  * Wheel: `dist/freeadmin-0.1.0-py3-none-any.whl` ≈ 7.7 MB.
+  * Source archive: `dist/freeadmin-0.1.0.tar.gz` ≈ 6.2 MB.
+
+The sizes are acceptable for the current release cadence, but the Ace and JSONEditor test fixtures remain the largest contributors. If future distributions need to slim down further, consider pruning unused Ace modes/snippets or excluding JSONEditor test pages while keeping the required license files listed above.
 
 ## Credits
 
