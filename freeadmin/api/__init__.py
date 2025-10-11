@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-api
+"""api
 
 API endpoints for the admin interface.
 
@@ -11,12 +10,10 @@ Email: timurkady@yandex.com
 
 import asyncio
 
-from .base import AdminAPI, API_PREFIX, router
+from .base import AdminAPI
 
 __all__ = [
     "AdminAPI",
-    "router",
-    "API_PREFIX",
     "asyncio",
 ]
 

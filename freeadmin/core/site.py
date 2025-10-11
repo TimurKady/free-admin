@@ -37,7 +37,6 @@ from .sidebar import SidebarBuilder
 from .context import TemplateContextBuilder
 from .exceptions import AdminModelNotFound, PermissionDenied
 from ..crud import CrudRouterBuilder
-from ..api import API_PREFIX, router as api_router
 from ..api.cards import router as card_router
 from ..provider import TemplateProvider
 from .services.export import ExportService
@@ -1054,6 +1053,8 @@ class AdminSite(IconPathMixin):
             )
 
     def _attach_api_routes(self, router: APIRouter) -> None:
+        from ..apps.system.api.urls import API_PREFIX, router as api_router  # local import to avoid circular dependencies
+
         router.include_router(api_router, prefix=API_PREFIX)
         router.include_router(card_router)
 
