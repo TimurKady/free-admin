@@ -2,7 +2,7 @@
 """
 commands
 
-Click command factories for the free-admin CLI.
+Click command factories for the freeadmin CLI.
 
 Version:0.1.0
 Author: Timur Kady
@@ -41,7 +41,7 @@ class InitCommand:
             name="init",
             callback=self.execute,
             params=[click.Argument(["project_name"], required=False)],
-            help="Initialize a new free-admin project structure.",
+            help="Initialize a new freeadmin project structure.",
         )
 
     def _echo_success(self, report: CreationReport, project_name: str) -> None:
@@ -76,7 +76,7 @@ class AddCommand:
             name="add",
             callback=self.execute,
             params=[click.Argument(["app_name"], required=True)],
-            help="Add a new application to the current free-admin project.",
+            help="Add a new application to the current freeadmin project.",
         )
 
     def _echo_result(self, report: CreationReport, app_name: str) -> None:
@@ -136,7 +136,7 @@ class SuperuserCommand:
                     help="Reset password when updating an existing user",
                 ),
             ],
-            help="Create or update a free-admin superuser.",
+            help="Create or update a freeadmin superuser.",
         )
 
 

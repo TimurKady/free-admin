@@ -29,11 +29,10 @@ FreeAdmin is organized into clear layers:
 
 This modular design makes FreeAdmin both powerful and flexible, suitable for projects of any scale.
 
-Behind the scenes [`freeadmin/_bootstrap.py`](free-admin/_bootstrap.py) links the on-disk
-`free-admin/` directory with the canonical `freeadmin` namespace. The bootstrapper updates
-the package search path at import time so downstream projects, tooling, and editors can
-import modules from `freeadmin.*` without knowing about the hyphenated source folder or
-the bundled static assets that live alongside it.
+Behind the scenes the [`freeadmin/`](freeadmin/) directory contains both the Python
+modules and bundled static assets. The package structure now mirrors the canonical
+`freeadmin` namespace directly, so downstream projects, tooling, and editors can import
+modules from `freeadmin.*` without any bootstrap indirection.
 
 ## Installation
 

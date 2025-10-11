@@ -31,19 +31,12 @@ dependencies = [
 ]
 
 [project.scripts]
-free-admin = "freeadmin.cli:cli"
+freeadmin = "freeadmin.cli:cli"
 
 [project.urls]
-Homepage = "https://github.com/TimurKady/free-admin"
-Source = "https://github.com/TimurKady/free-admin"
-Documentation = "https://github.com/TimurKady/free-admin#readme"
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "Framework :: FastAPI",
-]
-
-[project.scripts]
-free-admin = "freeadmin.cli:cli"
+Homepage = "https://github.com/TimurKady/freeadmin"
+Source = "https://github.com/TimurKady/freeadmin"
+Documentation = "https://github.com/TimurKady/freeadmin#readme"
 
 [tool.setuptools]
 include-package-data = true
@@ -52,7 +45,7 @@ include-package-data = true
 include = ["freeadmin*"]
 
 [tool.setuptools.package-data]
-freeadmin = ["free-admin/**/*"]
+freeadmin = ["freeadmin/**/*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
