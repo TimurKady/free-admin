@@ -45,6 +45,7 @@ class BootManager:
         self._model_modules: set[str] = set()
         self._hub: "AdminHub | None" = None
         self._settings = settings or current_settings()
+        self._system_app: "SystemAppConfig | None" = None
         register_settings_observer(self._handle_settings_update)
 
     def _ensure_config(self) -> None:
@@ -119,12 +120,8 @@ class BootManager:
             session_cookie=session_cookie,
         )
 
-        from .pages.views import BuiltinPagesRegistrar
-        from .pages.user_menu import BuiltinUserMenuRegistrar
-
         admin_hub = self._ensure_hub()
-        BuiltinPagesRegistrar().register(admin_hub.admin_site)
-        BuiltinUserMenuRegistrar().register(admin_hub.admin_site)
+        self._ensure_system_app().ready(admin_hub.admin_site)
         admin_hub.init_app(app, packages=packages)
 
         @app.on_event("startup")
@@ -176,6 +173,15 @@ class BootManager:
 
             self._hub = admin_hub
         return self._hub
+
+    def _ensure_system_app(self) -> "SystemAppConfig":
+        """Return the lazily instantiated system application configuration."""
+
+        if self._system_app is None:
+            from .apps.system import SystemAppConfig
+
+            self._system_app = SystemAppConfig()
+        return self._system_app
 
     def reset(self) -> None:
         """Restore manager to an uninitialized state."""

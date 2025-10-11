@@ -14,7 +14,7 @@ from __future__ import annotations
 from freeadmin.boot import admin as boot_admin
 from freeadmin.core.settings import SettingsKey, system_config
 from freeadmin.core.site import AdminSite
-from freeadmin.pages.views import BuiltinPagesRegistrar
+from freeadmin.apps.system.views import BuiltinPagesRegistrar
 from tests.conftest import admin_state
 
 

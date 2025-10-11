@@ -6,7 +6,7 @@ It demonstrates how to wire handlers through `AdminSite.register_view` and `Admi
 ## Registering default sections
 
 ```python
-from freeadmin.pages.views import BuiltinPagesRegistrar
+from freeadmin.apps.system.views import BuiltinPagesRegistrar
 from freeadmin.hub import hub
 
 BuiltinPagesRegistrar().register(hub.admin_site)
