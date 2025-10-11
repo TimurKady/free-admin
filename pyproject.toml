@@ -38,7 +38,7 @@ include-package-data = true
 include = ["freeadmin*"]
 
 [tool.setuptools.package-data]
-freeadmin = ["templates/**/*", "static/**/*"]
+freeadmin = ["free-admin/**/*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
