@@ -31,6 +31,8 @@ class TemplateProvider:
         static_dir: str | Path,
         settings: FreeAdminSettings | None = None,
     ) -> None:
+        """Store template and static paths together with active settings."""
+
         self.templates_dir = str(templates_dir)
         self.static_dir = str(static_dir)
         self._settings = settings or current_settings()

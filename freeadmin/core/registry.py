@@ -72,6 +72,8 @@ class PageRegistry:
     """Store registered pages and model admin view entries."""
 
     def __init__(self) -> None:
+        """Initialize empty collections for pages, views, and cards."""
+
         self.page_list: List[AdminPage] = []
         self.view_entries: List[ViewEntry] = []
         self.card_entries: Dict[str, CardEntry] = {}
