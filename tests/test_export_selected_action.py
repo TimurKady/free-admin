@@ -29,7 +29,7 @@ from freeadmin.core.services.export import (
     SQLiteExportCacheBackend,
 )
 from freeadmin.core.actions.export_selected import ExportSelectedAction
-from freeadmin.api import AdminAPI
+from freeadmin.apps.system.api.views import AdminAPIConfiguration, AdminActionsListView
 from fastapi import HTTPException, Request
 import pytest
 from tests import adapter_models
@@ -187,7 +187,8 @@ class TestExportSelectedAction:
 
     def test_actions_endpoint_excludes_legacy_action(self) -> None:
         site = DummySite(self.admin)
-        api = AdminAPI()
+        config = AdminAPIConfiguration()
+        view = AdminActionsListView(config)
         scope = {
             "type": "http",
             "app": SimpleNamespace(state=SimpleNamespace(admin_site=site)),
@@ -199,7 +200,7 @@ class TestExportSelectedAction:
 
         request = Request(scope, receive)
         data = asyncio.run(
-            api.actions_list(request, app="app", model="item", user=self.user)
+            view.get(request, app="app", model="item", user=self.user)
         )
         names = {d["name"] for d in data}
         assert "export_selected_wizard" in names

@@ -41,7 +41,7 @@ class AdminActionRunner:
     ) -> dict:
         """Execute ``action`` immediately and return a serializable payload."""
 
-        from .api import AdminAPI  # local import to avoid circular
+        from .apps.system.api.views import AdminAPIConfiguration  # local import to avoid circular
         from .hub import admin_site as global_admin_site  # local import to avoid circular
 
         site = admin_site or global_admin_site
@@ -49,7 +49,7 @@ class AdminActionRunner:
         action_obj = admin.get_action(action)
         if action_obj is None:
             raise ActionNotFound(f"Unknown action: {action}")
-        params_validator = AdminAPI.ParamsValidator()
+        params_validator = AdminAPIConfiguration.ParamsValidator()
         params_validator.validate(action_obj.spec.params_schema, params)
         md = self.adapter.get_model_descriptor(admin.model)
         dummy_request = SimpleNamespace()

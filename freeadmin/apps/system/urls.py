@@ -11,8 +11,12 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from ...core.site import AdminSite
+from typing import TYPE_CHECKING
+
 from .views import BuiltinPagesRegistrar, BuiltinUserMenuRegistrar
+
+if TYPE_CHECKING:  # pragma: no cover - import for typing only
+    from ...core.site import AdminSite
 
 
 class SystemURLRegistrar:
@@ -24,7 +28,7 @@ class SystemURLRegistrar:
         self._page_registrar = BuiltinPagesRegistrar()
         self._user_menu_registrar = BuiltinUserMenuRegistrar()
 
-    def register(self, site: AdminSite) -> None:
+    def register(self, site: "AdminSite") -> None:
         """Register all system routes with ``site``."""
 
         self._page_registrar.register(site)

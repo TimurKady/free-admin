@@ -11,8 +11,12 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from ...core.site import AdminSite
+from typing import TYPE_CHECKING
+
 from ...core.settings import SettingsKey, system_config
+
+if TYPE_CHECKING:  # pragma: no cover - import for typing only
+    from ...core.site import AdminSite
 
 
 class BuiltinPagesRegistrar:
@@ -31,7 +35,7 @@ class BuiltinPagesRegistrar:
         self.settings_title = system_config.get_cached(SettingsKey.SETTINGS_PAGE_TITLE, "Settings")
         self.settings_icon = system_config.get_cached(SettingsKey.SETTINGS_PAGE_ICON, "bi-gear")
 
-    def register(self, site: AdminSite) -> None:
+    def register(self, site: "AdminSite") -> None:
         """Attach the built-in admin pages to ``site``."""
 
         @site.register_view(
@@ -88,7 +92,7 @@ class BuiltinUserMenuRegistrar:
 
         self.logout_path = system_config.get_cached(SettingsKey.LOGOUT_PATH, "/logout")
 
-    def register(self, site: AdminSite) -> None:
+    def register(self, site: "AdminSite") -> None:
         """Attach user menu entries to ``site``."""
 
         site.register_user_menu(

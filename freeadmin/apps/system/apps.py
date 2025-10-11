@@ -11,10 +11,12 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import ClassVar, TYPE_CHECKING
 
-from ...core.site import AdminSite
 from .urls import SystemURLRegistrar
+
+if TYPE_CHECKING:  # pragma: no cover - import for typing only
+    from ...core.site import AdminSite
 
 
 class SystemAppConfig:
@@ -35,7 +37,7 @@ class SystemAppConfig:
 
         return self._urls
 
-    def ready(self, site: AdminSite) -> None:
+    def ready(self, site: "AdminSite") -> None:
         """Register built-in URLs and menus against ``site``."""
 
         self._urls.register(site)
