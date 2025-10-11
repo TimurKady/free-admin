@@ -24,7 +24,7 @@ from freeadmin.router import AdminRouter
 from freeadmin.core.permissions import permission_checker
 from freeadmin.core.services.permissions import PermAction
 from freeadmin.core.auth import admin_auth_service
-from tests.adapter_models import models
+from tests.system_models import system_models
 import freeadmin.apps.system.admin  # ensure registration
 
 
@@ -43,16 +43,7 @@ class TestSettingsExport:
                 db_url="sqlite://:memory:",
                 modules={
                     "models": ["freeadmin.apps.system.models"],
-                    "admin": list(
-                        {
-                            models.user.__module__,
-                            models.user_permission.__module__,
-                            models.group.__module__,
-                            models.group_permission.__module__,
-                            models.content_type.__module__,
-                            models.system_setting.__module__,
-                        }
-                    ),
+                    "admin": list(system_models.module_names()),
                 },
             )
         )
@@ -82,7 +73,9 @@ class TestSettingsExport:
             admin_auth_service.get_current_admin_user
         ] = _current_user
         cls.client = TestClient(cls.app)
-        asyncio.run(models.user.create(username="u", email="u@example.com"))
+        asyncio.run(
+            system_models.models.user.create(username="u", email="u@example.com")
+        )
 
     @classmethod
     def teardown_class(cls) -> None:

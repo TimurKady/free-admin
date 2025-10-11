@@ -11,9 +11,9 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from .adapter_models import models, registry
+from .system_models import system_models
 
-__all__ = ["models", "registry"]
+__all__ = ["system_models"]
 
 
 # The End

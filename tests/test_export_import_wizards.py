@@ -67,7 +67,7 @@ fake_users.AdminUser = AdminUser
 fake_users.AdminUserPermission = AdminUserPermission
 sys.modules["freeadmin.adapters.tortoise.users"] = fake_users
 
-from tests import adapter_models
+from tests.system_models import system_models
 
 from freeadmin.core.models import ModelAdmin
 from freeadmin.core.site import AdminSite
@@ -135,16 +135,7 @@ class TestExportImportWizards:
                 db_url="sqlite://:memory:",
                 modules={
                     "models": [__name__],
-                    "admin": list(
-                        {
-                            adapter_models.models.user.__module__,
-                            adapter_models.models.user_permission.__module__,
-                            adapter_models.models.group.__module__,
-                            adapter_models.models.group_permission.__module__,
-                            adapter_models.models.content_type.__module__,
-                            adapter_models.models.system_setting.__module__,
-                        }
-                    ),
+                    "admin": list(system_models.module_names()),
                 },
             )
         )
