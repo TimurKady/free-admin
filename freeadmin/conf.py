@@ -171,6 +171,8 @@ class SettingsManager:
     """Central storage for the active ``FreeAdminSettings`` instance."""
 
     def __init__(self, initial: FreeAdminSettings | None = None) -> None:
+        """Prepare storage with an optional preconfigured ``initial`` settings."""
+
         self._lock = RLock()
         self._settings = initial
         self._callbacks: list[Callable[[FreeAdminSettings], None]] = []

@@ -11,8 +11,8 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from typing import Any
 import logging
+from typing import Any
 
 from .defaults import DEFAULT_SETTINGS
 from .keys import SettingsKey
@@ -31,10 +31,14 @@ class SystemConfig:
     """
 
     def __init__(self) -> None:
+        """Initialize an empty in-memory cache for system settings."""
+
         self._cache: dict[str, Any] = {}
 
     @property
-    def adapter(self):
+    def adapter(self) -> Any:
+        """Return the active data adapter responsible for persistence."""
+
         from ...boot import admin as boot_admin
 
         return boot_admin.adapter
