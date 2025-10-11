@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+
+jobs:
+  test-and-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+
+      - name: Run test suite
+        run: |
+          if [ -f pyproject.toml ] || [ -f setup.cfg ] || [ -f setup.py ]; then
+            pip install -e .
+          fi
+          pytest
+
+      - name: Detect build backend availability
+        id: backend
+        run: |
+          python <<'PY'
+          import os
+          import pathlib
+          import tomllib
+
+          class BuildBackendInspector:
+              def __init__(self, project_root: pathlib.Path) -> None:
+                  self._project_root = project_root
+
+              def has_backend(self) -> bool:
+                  """Return True when a build backend is declared for the project."""
+                  setup_file = self._project_root / "setup.py"
+                  if setup_file.is_file():
+                      return True
+                  pyproject_file = self._project_root / "pyproject.toml"
+                  if not pyproject_file.is_file():
+                      return False
+                  data = tomllib.loads(pyproject_file.read_text(encoding="utf-8"))
+                  build_system = data.get("build-system")
+                  if not isinstance(build_system, dict):
+                      return False
+                  backend_value = build_system.get("build-backend")
+                  return isinstance(backend_value, str) and backend_value.strip() != ""
+
+          inspector = BuildBackendInspector(pathlib.Path('.').resolve())
+          has_backend = inspector.has_backend()
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as github_output:
+              github_output.write(f"has_backend={'true' if has_backend else 'false'}\n")
+          PY
+
+      - name: Build distribution
+        if: steps.backend.outputs.has_backend == 'true'
+        run: |
+          python -m pip install --upgrade build
+          python -m build
+
+      - name: Verify built artifacts
+        if: steps.backend.outputs.has_backend == 'true'
+        run: python -m twine check dist/*
