@@ -15,6 +15,7 @@ class DemoConfig(ExampleAppConfig):
 
     app_label = "demo"
     name = "freeadmin.example.apps.demo"
+    models = ("freeadmin.example.apps.demo.models",)
 
     def __init__(self) -> None:
         """Instantiate helpers required for the demo showcase."""
