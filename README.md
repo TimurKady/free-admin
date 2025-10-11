@@ -131,23 +131,44 @@ FreeAdmin is **dual-licensed**:
   This option allows proprietary, closed-source, or commercial use of the software.
   To obtain a commercial license, contact with [me](https://github.com/TimurKady).
 
-## Open Source Acknowledgements
+## Third-party licenses
 
-FreeAdmin makes use of the following open-source projects:
+The package depends on and bundles third-party components. When redistributing the project (including deployment in a
+SaaS environment) you must retain the notices listed below and keep the referenced license texts available to users.
 
-* [FastAPI](https://fastapi.tiangolo.com/) — web framework.
-* [Tortoise ORM](https://tortoise.github.io/) — ORM.
-* [Pydantic](https://docs.pydantic.dev/) — data validation.
-* [JSON-Editor](https://github.com/json-editor/json-editor) — JSON Schema editor.
-* [Bootstrap 5](https://getbootstrap.com/) — frontend UI.
-* [Bootstrap Icons](https://icons.getbootstrap.com/).
-* [Jinja2](https://palletsprojects.com/p/jinja/) — templating.
-* [Ace Editor](https://ace.c9.io/) — code editor integration.
-* [Starlette](https://www.starlette.io/) — ASGI toolkit.
-* [OpenPyXL](https://openpyxl.readthedocs.io/) — Excel support.
-* [Click](https://click.palletsprojects.com/) — CLI.
-* [aiofiles](https://github.com/Tinche/aiofiles) — async file I/O.
-* [Uvicorn](https://www.uvicorn.org/) — ASGI server.
+### Python runtime dependencies
+
+| Dependency | License | Compliance notes |
+| --- | --- | --- |
+| FastAPI | MIT | Include the upstream MIT license and copyright notice when redistributing binary or source builds.
+| Starlette | BSD-3-Clause | Preserve the BSD disclaimer and copyright notice in any redistributed copies or documentation.
+| Jinja2 | BSD-3-Clause | Keep the BSD license text together with any redistributed source/binary artifacts.
+| itsdangerous | BSD-3-Clause | Preserve the BSD license notice and warranty disclaimer when shipping the software.
+| Tortoise-ORM | Apache-2.0 | Provide the Apache 2.0 license text and propagate any NOTICE file; document local modifications if you change the code.
+| python-multipart | Apache-2.0 | Ship the Apache 2.0 license text and carry forward any NOTICE information.
+| Pydantic | MIT | Bundle the MIT license text and include attribution in your documentation or “About” page.
+| PyJWT | MIT | Keep the MIT license text together with the distributed package.
+| openpyxl | MIT | Retain the MIT copyright statement and license grant in redistributed materials.
+
+For MIT-licensed dependencies the standard requirement is to provide the full MIT license and attribution. For the
+Apache 2.0 dependencies ensure that the license text and NOTICE file (if present) remain accessible to end users and that
+any modifications are documented. BSD-licensed dependencies require preserving their license and disclaimer text.
+
+### Bundled frontend assets
+
+| Asset | Version | License and source | Compliance notes |
+| --- | --- | --- | --- |
+| Bootstrap | 5.3.3 | MIT – license header embedded in `static/vendors/bootstrap/css/bootstrap.min.css` | Keep the MIT license reference visible and include the upstream license text when redistributing.
+| Bootstrap Icons | 1.11.3 | MIT – see header in `static/vendors/bootstrap-icons/font/bootstrap-icons.css` | Distribute alongside the MIT license text.
+| jQuery | 3.7.1 | MIT – header points to <https://jquery.org/license> | Retain the header notice and provide access to the MIT license.
+| JsBarcode | 3.12.1 | MIT – header in `static/vendors/jsbarcode/JsBarcode.all.min.js` | Preserve the MIT header comments or provide equivalent attribution.
+| Select2 | 4.0.13 | MIT – header in `static/vendors/select2/js/select2.full.min.js` referencing upstream license file | Bundle the MIT license text linked in the header comment.
+| Choices.js | 11.1.0 | Upstream README reference in `static/vendors/choices/js/choices.js`; upstream project distributes an MIT license | Add the MIT license from <https://github.com/jshjohnson/Choices/blob/main/LICENSE> to satisfy attribution requirements.
+| Ace (Ace Editor builds) | n/a (vendored bundle) | BSD – see upstream license <https://github.com/ajaxorg/ace/blob/master/LICENSE> | Retain the BSD license text within your documentation or redistribution package.
+| JSONEditor | 9.x | MIT – bundled `static/vendors/json-editor/LICENSE` file | Keep the included MIT license file with the distributed assets.
+
+If you update any of the vendor bundles, refresh the version numbers above and bring along their current license files so
+that downstream consumers have access to the required texts.
 
 ## Credits
 
