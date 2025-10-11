@@ -1,6 +1,6 @@
 # Commercial License for FastAPI FreeAdmin
 
-Copyright (c) 2025 Your Name
+Copyright (c) 2025 Timur Kadı
 
 This software is dual-licensed:
 
