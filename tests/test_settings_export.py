@@ -25,7 +25,7 @@ from freeadmin.core.permissions import permission_checker
 from freeadmin.core.services.permissions import PermAction
 from freeadmin.core.auth import admin_auth_service
 from tests.adapter_models import models
-import freeadmin.admin.user  # ensure registration
+import freeadmin.apps.system.admin  # ensure registration
 
 
 class TestSettingsExport:

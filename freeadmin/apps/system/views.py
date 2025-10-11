@@ -2,7 +2,7 @@
 """
 views
 
-Free Page Builder.
+System application page and menu registrars.
 
 Version:0.1.0
 Author: Timur Kady
@@ -10,12 +10,17 @@ Email: timurkady@yandex.com
 """
 
 from __future__ import annotations
-from ..core.site import AdminSite
-from ..core.settings import SettingsKey, system_config
+
+from ...core.site import AdminSite
+from ...core.settings import SettingsKey, system_config
 
 
 class BuiltinPagesRegistrar:
+    """Register built-in admin pages for the system application."""
+
     def __init__(self) -> None:
+        """Initialize cached settings-driven page metadata."""
+
         self.views_prefix = system_config.get_cached(SettingsKey.VIEWS_PREFIX, "/views")
         self.views_title = system_config.get_cached(SettingsKey.VIEWS_PAGE_TITLE, "Views")
         self.views_icon = system_config.get_cached(SettingsKey.VIEWS_PAGE_ICON, "bi-eye")
@@ -27,6 +32,8 @@ class BuiltinPagesRegistrar:
         self.settings_icon = system_config.get_cached(SettingsKey.SETTINGS_PAGE_ICON, "bi-gear")
 
     def register(self, site: AdminSite) -> None:
+        """Attach the built-in admin pages to ``site``."""
+
         @site.register_view(
             path=self.views_prefix,
             name=self.views_title,
@@ -34,6 +41,8 @@ class BuiltinPagesRegistrar:
             include_in_sidebar=False,
         )
         async def views_placeholder(request, user):
+            """Render a placeholder response for registered views."""
+
             page_title = await system_config.get(SettingsKey.VIEWS_PAGE_TITLE)
             return site.build_template_ctx(request, user, page_title=page_title)
 
@@ -44,13 +53,49 @@ class BuiltinPagesRegistrar:
             include_in_sidebar=False,
         )
         async def orm_home(request, user):
-            page_title = await system_config.get(SettingsKey.ORM_PAGE_TITLE)
-            return site.build_template_ctx(request, user, page_title=page_title, is_settings=False)
+            """Render the ORM landing page."""
 
-        @site.register_settings(path=self.settings_prefix, name=self.settings_title, icon=self.settings_icon)
+            page_title = await system_config.get(SettingsKey.ORM_PAGE_TITLE)
+            return site.build_template_ctx(
+                request,
+                user,
+                page_title=page_title,
+                is_settings=False,
+            )
+
+        @site.register_settings(
+            path=self.settings_prefix,
+            name=self.settings_title,
+            icon=self.settings_icon,
+        )
         async def settings_home(request, user):
+            """Render the Settings landing page."""
+
             page_title = await system_config.get(SettingsKey.SETTINGS_PAGE_TITLE)
-            return site.build_template_ctx(request, user, page_title=page_title, is_settings=True)
+            return site.build_template_ctx(
+                request,
+                user,
+                page_title=page_title,
+                is_settings=True,
+            )
+
+
+class BuiltinUserMenuRegistrar:
+    """Register the default user menu entries."""
+
+    def __init__(self) -> None:
+        """Initialize cached metadata for user menu items."""
+
+        self.logout_path = system_config.get_cached(SettingsKey.LOGOUT_PATH, "/logout")
+
+    def register(self, site: AdminSite) -> None:
+        """Attach user menu entries to ``site``."""
+
+        site.register_user_menu(
+            title="Logout",
+            path=self.logout_path,
+            icon="bi-box-arrow-right",
+        )
+
 
 # The End
-
