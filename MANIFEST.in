@@ -1,0 +1,8 @@
+include README.md
+include LICENSE
+include COMMERCIAL-LICENSE.md
+recursive-include docs *.md
+recursive-include freeadmin/templates *
+recursive-include freeadmin/static *
+global-exclude __pycache__
+global-exclude *.py[cod]
