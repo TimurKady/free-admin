@@ -32,7 +32,7 @@ from freeadmin.core.actions.export_selected import ExportSelectedAction
 from freeadmin.apps.system.api.views import AdminAPIConfiguration, AdminActionsListView
 from fastapi import HTTPException, Request
 import pytest
-from tests import adapter_models
+from tests.system_models import system_models
 
 
 class Item(models.Model):
@@ -64,16 +64,7 @@ class TestExportSelectedAction:
                 db_url="sqlite://:memory:",
                 modules={
                     "models": [__name__],
-                    "admin": list(
-                        {
-                            adapter_models.models.user.__module__,
-                            adapter_models.models.user_permission.__module__,
-                            adapter_models.models.group.__module__,
-                            adapter_models.models.group_permission.__module__,
-                            adapter_models.models.content_type.__module__,
-                            adapter_models.models.system_setting.__module__,
-                        }
-                    ),
+                    "admin": list(system_models.module_names()),
                 },
             )
         )

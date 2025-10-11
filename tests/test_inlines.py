@@ -26,7 +26,7 @@ from freeadmin.boot import admin as boot_admin
 from freeadmin.core.auth import admin_auth_service
 from freeadmin.core.permissions import permission_checker
 from freeadmin.core.services.permissions import PermAction
-from tests import adapter_models
+from tests.system_models import system_models
 
 
 class Parent(models.Model):
@@ -78,16 +78,7 @@ class TestInlineAdmin:
                 db_url="sqlite://:memory:",
                 modules={
                     "models": [__name__],
-                    "admin": list(
-                        {
-                            adapter_models.models.user.__module__,
-                            adapter_models.models.user_permission.__module__,
-                            adapter_models.models.group.__module__,
-                            adapter_models.models.group_permission.__module__,
-                            adapter_models.models.content_type.__module__,
-                            adapter_models.models.system_setting.__module__,
-                        }
-                    ),
+                    "admin": list(system_models.module_names()),
                 },
             )
         )
@@ -122,7 +113,7 @@ class TestInlineAdmin:
         resp = self.client.get(f"/panel/orm/models/parent/{parent.id}/_inlines")
         assert resp.status_code == 200
         spec = resp.json()[0]
-        assert spec["app"] == "models"
+        assert spec["app"] == Parent.__module__.split(".")[0]
         assert spec["model"] == "child"
         assert spec["parent_fk"] == "parent"
         assert spec["columns"] == ["name"]
