@@ -12,8 +12,6 @@ from pathlib import Path
 from types import ModuleType
 from typing import Final, Iterable
 
-import sys
-
 
 class NamespaceBootstrapper:
     """Expose modules stored in the hyphenated directory through the canonical package."""
@@ -53,16 +51,11 @@ class NamespaceBootstrapper:
                 raise RuntimeError(message)
         return self._source_dir
 
-
-PACKAGE_NAME: Final[str] = __name__.rpartition(".")[0]
 PACKAGE_ROOT: Final[Path] = Path(__file__).resolve().parent
 CANDIDATES: Final[tuple[Path, ...]] = (
-    PACKAGE_ROOT / "free-admin",
+    PACKAGE_ROOT,
     PACKAGE_ROOT.parent / "free-admin",
 )
-
-bootstrapper = NamespaceBootstrapper(sys.modules[PACKAGE_NAME], CANDIDATES)
-bootstrapper.initialize()
 
 
 # The End
