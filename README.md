@@ -121,7 +121,7 @@ Full documentation is available in the [Documentation](docs/index.md). Topics in
 * Internationalization (i18n).
 
 ## License
-
+#### FreeAdmin licenses
 FreeAdmin is **dual-licensed**:
 
 * **AGPL-3.0** (default): You are free to use, modify, and distribute this project under the terms of the GNU Affero General Public License v3.0.
