@@ -2,7 +2,7 @@
 """
 cli
 
-CLI utilities for the free-admin toolkit.
+CLI utilities for the freeadmin toolkit.
 
 Version:0.1.0
 Author: Timur Kady

@@ -2,7 +2,7 @@
 """
 cli
 
-Click entry point for the free-admin toolkit.
+Click entry point for the freeadmin toolkit.
 
 Version:0.1.0
 Author: Timur Kady
@@ -38,8 +38,8 @@ class FreeAdminCLI:
     def create_cli(self) -> click.Group:
         """Build the Click group with all registered commands."""
         group = click.Group(
-            name="free-admin",
-            help="Command line tools for managing free-admin projects.",
+            name="freeadmin",
+            help="Command line tools for managing freeadmin projects.",
         )
         group.add_command(self._init_command.to_click_command())
         group.add_command(self._add_command.to_click_command())
