@@ -29,15 +29,21 @@ FreeAdmin is organized into clear layers:
 
 This modular design makes FreeAdmin both powerful and flexible, suitable for projects of any scale.
 
+Behind the scenes [`freeadmin/_bootstrap.py`](free-admin/_bootstrap.py) links the on-disk
+`free-admin/` directory with the canonical `freeadmin` namespace. The bootstrapper updates
+the package search path at import time so downstream projects, tooling, and editors can
+import modules from `freeadmin.*` without knowing about the hyphenated source folder or
+the bundled static assets that live alongside it.
+
 ## Installation
 
 ```bash
-pip install free-admin
+pip install freeadmin
 ```
 
 ### Requirements
 
-* Python 3.10+
+* Python 3.11+
 * FastAPI
 * Tortoise ORM
 * PostgreSQL (recommended)
@@ -49,12 +55,13 @@ Here is the minimal setup to get started with FreeAdmin:
 ### 1. Create an Admin class
 
 ```python
-from contrib.admin.core.model import ModelAdmin
-from contrib.admin.hub import admin_site
+from freeadmin.core.models import ModelAdmin
+from freeadmin.hub import admin_site
 from apps.blog.models import Post
 
 
 class PostAdmin(ModelAdmin):
+    """Admin configuration describing how blog posts appear in the panel."""
     list_display = ("id", "title", "created_at")
 
 
@@ -65,7 +72,7 @@ admin_site.register(Post, PostAdmin)
 
 ```python
 from fastapi import FastAPI
-from contrib.admin.boot import admin
+from freeadmin.boot import admin
 from my_project.adapters import MyAdapter
 
 
