@@ -12,23 +12,7 @@ You can plug it into any environment — **FastAPI**, **Tortoise ORM**, **SQLAlc
 Where Django-Admin is tightly coupled to Django’s models and middleware,  
 **FreeAdmin decouples** these concerns into a flexible architecture:
 
-```
-
-┌──────────────────────────────┐
-│           AdminSite          │
-│     central registry & UI    │
-├──────────────────────────────┤
-│        ModelAdmin API        │
-│ declarative model management │
-├──────────────────────────────┤
-│      Adapter / Connector     │
-│ bridges ORM or data source   │
-├──────────────────────────────┤
-│        Frontend Widgets      │
-│  Bootstrap5 + JSONEditor UI  │
-└──────────────────────────────┘
-
-````
+![Admin UI Screenshot](images/scr-0.jpg)
 
 This layered design makes the admin system:
 - **Portable:** works with any Python web stack.
@@ -57,8 +41,6 @@ This layered design makes the admin system:
 - **Custom backend:** define your own `Adapter` to connect FreeAdmin to any data source.
 - **Internal dashboards:** combine admin pages, cards, and widgets for operational visibility.
 
-
-![Admin UI Screenshot](images/scr-0.jpg)
 
 ---
 
