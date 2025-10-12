@@ -55,3 +55,6 @@ include = [
     "MANIFEST.in",
     "pyproject.toml",
 ]
+
+[tool.setuptools.package-data]
+freeadmin = ["static/**/*", "templates/**/*"]
