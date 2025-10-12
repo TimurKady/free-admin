@@ -10,7 +10,6 @@
 
 ## Overview
 
-FreeAdmin is a modern, ORM-agnostic administration panel inspired by Django Admin, but built for the FastAPI ecosystem. It provides a powerful, extensible interface for managing your application data and settings with minimal boilerplate.
 FreeAdmin delivers a modular administration panel for FastAPI projects that couples a Django-inspired workflow with asynchronous services and a Bootstrap 5 UI. It supports CRUD automation, live dashboards, and custom pages without sacrificing extensibility or security controls.
 
 * **ORM-first data management**. Model admins encapsulate the entire CRUD experience: list tables expose configurable columns, default ordering, and instant search/filter controls, while detail forms respect custom field layouts, widgets, and readonly rules. Each admin class can further tailor queryset hooks for list, detail, and form operations, ensuring that row-level security and select/prefetch strategies stay under application control.
@@ -26,6 +25,8 @@ FreeAdmin delivers a modular administration panel for FastAPI projects that coup
     Exports follow a similar pipeline: query adapters collect the dataset, serializers normalize fields, and writers produce CSV, JSON, or XLSX files stored in a temporary cache with automatic cleanup and streaming helpers for large downloads.
 
 * **Additional highlights**. FreeAdmin ships with JSON Schema-driven forms, reusable widgets, role-based access control, a CLI scaffold, and an extensible adapter layer so the panel can target multiple ORMs while keeping the Bootstrap frontend consistent.
+
+FreeAdmin is a modern, ORM-agnostic administration panel inspired by Django Admin, but built for the FastAPI ecosystem. It provides a powerful, extensible interface for managing your application data and settings with minimal boilerplate.
 
 ## Installation
 
