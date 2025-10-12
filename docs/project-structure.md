@@ -1,144 +1,151 @@
-# Project and App Structure
+# Project structure
 
-When you create a new FreeAdmin project with `freeadmin init`,  
-the CLI generates a predictable, modular layout that separates **core configuration** from **applications**.
+When you run `freeadmin init` the CLI creates a predictable tree so configuration, discovery, and application code stay organised. This document explains how each folder contributes to the runtime behaviour of FreeAdmin.
 
-## 1. Generated Project Layout
 
-A typical project after initialization looks like this:
+## 1. Root layout
+
+A freshly generated project looks like this:
 
 ```
-
 myproject/
-├── config/                 # Project configuration and bootstrap code
-│   ├── main.py             # Entry point (creates and runs the AdminSite)
-│   ├── orm.py              # ORM initialization (Tortoise or another backend)
-│   └── settings.py         # Global settings (apps, language, debug)
-│
-├── apps/                   # Business-domain applications
-│   ├── products/
-│   │   ├── **init**.py
-│   │   ├── app.py          # Application registration and metadata
-│   │   ├── models.py       # ORM models for this app
-│   │   ├── admin.py        # ModelAdmin, InlineAdmin, Cards, Views
-│   │   ├── views.py        # Optional: custom views
-│   │   └── cards.py        # Optional: dashboard cards
-│   └── orders/
-│       ├── app.py
-│       └── models.py
-│
-├── pages/                  # Optional: static or hybrid pages (HTML/Markdown)
-├── templates/              # Shared templates
-├── static/                 # Shared static assets
-└── .env                    # Environment configuration (optional)
-
-````
-
----
-
-## 2. Core Folder: `config/`
-
-The **`config/`** directory defines the project itself — not an app,  
-but the bootstrap logic that initializes and runs the admin system.
-
-| File | Purpose |
-|------|----------|
-| **`settings.py`** | Holds configuration like `INSTALLED_APPS`, language, debug flag, and other constants. |
-| **`orm.py`** | Configures the ORM (e.g. Tortoise) and connects it to your database. |
-| **`main.py`** | Entry point. Creates the `AdminSite`, loads all apps, and runs the development server. |
-
-Example:
-```python
-# config/main.py
-from freeadmin import AdminSite
-from config.settings import Settings
-
-site = AdminSite(title="My Company Admin")
-
-for app in Settings.INSTALLED_APPS:
-    site.load(app)
-
-if __name__ == "__main__":
-    site.run()
-````
-
----
-
-## 3. Application Folder: `apps/<name>/`
-
-Each folder inside `apps/` represents an **independent application**.  
-Applications are where your models, admin logic, and optional views live.
-
-| File | Purpose |
-|------|----------|
-| **`app.py`** | Defines `AppConfig` and registers models with the admin. |
-| **`models.py`** | Contains ORM model definitions. |
-| **`admin.py`** | Declares admin metadata: `ModelAdmin`, `InlineAdmin`, `Card`, `View`, etc. |
-| **`views.py`** | (Optional) Custom admin or user-facing views. |
-| **`cards.py`** | (Optional) Dashboard or model-related cards. |
-| **`widgets.py`** | (Optional) Custom form widgets or UI components. |
-
-Each `app.py` file must expose a variable named `default` —  
-this is how FreeAdmin automatically discovers and registers applications.
-
-Example:
-
-```python
-# apps/products/app.py
-from freeadmin import AppConfig
-from .models import Product
-from .admin import ProductAdmin
-
-class ProductsConfig(AppConfig):
-    app_label = "products"
-    name = "apps.products"
-
-    def ready(self):
-        self.register(Product, ProductAdmin)
-
-default = ProductsConfig()
+├── config/
+│   ├── main.py
+│   ├── orm.py
+│   └── settings.py
+├── apps/
+├── pages/
+├── static/
+├── templates/
+└── README.md
 ```
 
-Instead of keeping multiple Python files (`models.py`, `admin.py`, `views.py`, etc.) you can group them into a subfolder inside your application. 
-For example, it may be **models/** or **admin/** folder. In this case, don't forget to make imports in __init__.py inside such a folder
+Only `config/` contains executable code out of the box. Everything else is ready for you to populate with domain-specific logic, assets, or documentation.
 
----
 
-## 4. Optional Folder: `pages/`
+## 2. Configuration package (`config/`)
 
-`pages/` is an optional directory at the root of your project.
-It can contain static or semi-dynamic pages such as:
+The `config` package defines how the admin integrates with your FastAPI application and database. The CLI writes minimal placeholders that you are expected to customise:
 
-* documentation pages,
-* help or policy content,
-* or lightweight dashboards not tied to a specific app.
+| File | Purpose |
+| ---- | ------- |
+| `main.py` | Creates the FastAPI app and should call `BootManager.init()` to mount FreeAdmin. |
+| `orm.py` | Holds the Tortoise ORM initialisation logic. |
+| `settings.py` | Declares the `ProjectSettings` model backed by `pydantic.BaseSettings`. |
 
-Each page can be written in HTML, Markdown, or Jinja2, and rendered through a dedicated `PageView`.
+After customisation a typical `main.py` looks like this:
 
----
+```python
+from fastapi import FastAPI
 
-## 5. Why This Layout Matters
+from freeadmin.boot import BootManager
 
-FreeAdmin uses discovery rather than configuration files when `AdminSite.boot()` runs, it automatically:
+from config.orm import init_orm
 
-1. Loads apps from `Settings.INSTALLED_APPS`
-2. Imports their `app.py`
-3. Registers models and admin definitions
-4. Initializes ORM via `config/orm.py`
-5. Launches the web interface
 
-This convention ensures that every project — small or large — remains consistent and predictable.
+app = FastAPI(title="Project administration")
+boot = BootManager(adapter_name="tortoise")
 
----
+
+@app.on_event("startup")
+async def startup() -> None:
+    await init_orm()
+
+
+boot.init(app, packages=["apps"])
+```
+
+`boot.init()` wires the admin router, session middleware, and card publishers into the FastAPI application. The list of packages controls autodiscovery: every package listed is scanned for admin registrations.
+
+
+## 3. Application packages (`apps/<name>/`)
+
+Each folder inside `apps/` represents a logical component of your system. The CLI scaffolder creates empty modules so you can decide how to organise the code:
+
+| File | Typical contents |
+| ---- | ---------------- |
+| `models.py` | Tortoise ORM models. |
+| `admin.py` | `ModelAdmin` classes and calls to `admin_site.register`. |
+| `views.py` | Optional custom admin views registered with `admin_site.register_view`. |
+| `cards.py` | Optional dashboard card registrations. |
+| `app.py` | Optional `AppConfig` subclass for startup hooks. |
+
+A minimal `views.py` might expose a bespoke report page:
+
+```python
+from typing import Any
+
+from fastapi import Request
+
+from freeadmin.core.services.auth import AdminUserDTO
+from freeadmin.hub import admin_site
+
+
+@admin_site.register_view(path="/reports/sales", name="Sales report", label="Reports", icon="bi-graph-up")
+async def sales_report(request: Request, user: AdminUserDTO) -> dict[str, Any]:
+    data = await request.app.state.report_service.fetch_sales_summary()
+    return {
+        "page_message": "Latest sales metrics.",
+        "card_entries": [],
+        "context": {"totals": data},
+        "assets": {"css": (), "js": ()},
+    }
+```
+
+`AppConfig` (from `freeadmin.core.app`) lets you run code during discovery or startup. Example:
+
+```python
+from freeadmin.core.app import AppConfig
+from freeadmin.hub import admin_site
+
+from .admin import PostAdmin
+from .models import Post
+
+
+class BlogConfig(AppConfig):
+    app_label = "blog"
+    name = "apps.blog"
+
+    async def startup(self) -> None:
+        admin_site.register(app="blog", model=Post, admin_cls=PostAdmin)
+
+
+default = BlogConfig()
+```
+
+You can also register models directly inside `admin.py` if you prefer not to use an `AppConfig`. Both patterns are supported.
+
+
+## 4. Optional folders
+
+* `pages/` – store Markdown or HTML documents and expose them via custom admin views.
+* `static/` – add project-specific CSS or JavaScript. The boot manager mounts this directory alongside FreeAdmin's bundled assets.
+* `templates/` – override FreeAdmin templates or add new ones used by your custom views.
+
+All three folders are left empty so you can organise them according to your team's conventions.
+
+
+## 5. Discovery process
+
+During startup `BootManager` invokes the discovery service with the packages you supplied (for example `["apps"]`). Discovery imports each package's `admin.py`, `app.py`, and other modules that register resources on `admin_site`. Once discovery finishes the admin site knows about:
+
+* Model admins declared via `admin_site.register`.
+* Standalone views registered with `admin_site.register_view`.
+* Cards registered with `admin_site.register_card`.
+* Optional startup hooks implemented on `AppConfig.startup()`.
+
+Understanding this flow helps when you need to debug why an admin class is not appearing — ensure the module containing the registration is importable and that the package is listed for discovery.
+
 
 ## 6. Summary
 
-| Type            | Defined In     | Description                                              |
-| --------------- | -------------- | -------------------------------------------------------- |
-| **Project**     | `config/`      | Contains core logic (`main.py`, `orm.py`, `settings.py`) |
-| **Application** | `apps/<name>/` | Encapsulates business logic and admin definitions        |
-| **Page Layer**  | `pages/`       | Optional presentation content outside app structure      |
+| Area | Location | Notes |
+| ---- | -------- | ----- |
+| FastAPI integration | `config/main.py` | Instantiates `BootManager` and mounts the admin router. |
+| ORM setup | `config/orm.py` | Configures database connections for Tortoise. |
+| Environment configuration | `config/settings.py` | Wraps environment variables with a typed settings model. |
+| Domain code | `apps/` | Holds models, admins, cards, and optional startup hooks. |
+| Presentation assets | `templates/`, `static/` | Extend or override frontend resources. |
+| Supplementary content | `pages/` | Provide documentation or helper pages accessible from the admin. |
 
----
-
-
+Following this structure keeps your project organised and makes FreeAdmin's discovery process predictable as your code base grows.
