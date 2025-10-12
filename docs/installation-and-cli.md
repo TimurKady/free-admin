@@ -4,7 +4,7 @@
 
 ---
 
-## 0) Prerequisites
+## Spep 0. Prerequisites
 
 * **Python** 3.10+ (3.12 recommended)
 * **pip** and **venv** available in PATH
@@ -19,7 +19,7 @@
 
 ---
 
-## 1) Create and activate a virtual environment
+## Spep 1. Create and activate a virtual environment
 
 **macOS / Linux**
 
@@ -39,7 +39,7 @@ python -m venv .venv
 
 ---
 
-## 2) Install FreeAdmin
+## Spep 2. Install FreeAdmin
 
 From PyPI (recommended):
 
@@ -57,7 +57,7 @@ pip install ./freeadmin-*.tar.gz
 
 ---
 
-## 3) Initialize a new project
+## Spep 3. Initialize a new project
 
 Create a project skeleton named **`myproject`**:
 
@@ -83,7 +83,7 @@ myproject/
 
 ---
 
-## 4) Configure the database (SQLite quickstart)
+## Spep 4. Configure the database (SQLite quickstart)
 
 Open **`config/orm.py`** and put a minimal Tortoise config (example):
 
@@ -108,7 +108,7 @@ async def init_orm():
 
 ---
 
-## 5) Configure settings
+## Spep 5. Configure settings
 
 Edit **`config/settings.py`** and list your applications:
 
@@ -130,7 +130,7 @@ class Settings:
 
 ---
 
-## 6) Create your first app
+## Spep 6. Create your first app
 
 Generate an app named **`products`**:
 
@@ -153,7 +153,7 @@ apps/products/
 
 ---
 
-## 7) Define a model and its admin
+## Spep 7. Define a model and its admin
 
 **`apps/products/models.py`**
 
@@ -203,7 +203,7 @@ default = ProductsConfig()
 
 ---
 
-## 8) Wire up the AdminSite and run
+## Spep 8. Wire up the AdminSite and run
 
 Open **`config/main.py`** and ensure it loads apps and starts the site:
 
@@ -237,7 +237,7 @@ Open **[http://localhost:8000/admin/](http://localhost:8000/admin/)**
 
 ---
 
-## 9) Create an admin user (quick bootstrap)
+## Spep 9. Create an admin user (quick bootstrap)
 
 FreeAdmin bundles a ready‑to‑use `AdminUser` model (and its permissions) when you rely on the Tortoise ORM adapter. The adapter automatically registers these models with your project so you do **not** need to create a custom auth model for local administration.
 
@@ -254,13 +254,13 @@ The command initialises the ORM, ensures the system tables exist, and then creat
 
 ---
 
-## 10) Static assets (front‑end)
+## Spep 10. Static assets (front‑end)
 
 FreeAdmin comes with a minimal set of front-end tools (Bootstrap 5, jQuery, Choices.js, JSONEditor). If you use additional JavaScript and CSS tables, save them in the static/.../ folders and include them in the template of the page you need. Alternatively, you can specify them as assets when declaring your views.
 
 ---
 
-## 11) Common pitfalls (read this!)
+## Spep 11. Common pitfalls
 
 * **Virtualenv not active** → install lands globally or wrong Python used. Activate `.venv`.
 * **App not discovered** → ensure app is listed in `Settings.INSTALLED_APPS` and `app.py` exposes `default`.
@@ -270,10 +270,9 @@ FreeAdmin comes with a minimal set of front-end tools (Bootstrap 5, jQuery, Choi
 
 ---
 
-## 12) Next steps
+## Spep 12. Next steps
 
 * Add filters, actions, and inlines to your `ModelAdmin`
 * Create custom **Views** and **Cards**
 * Integrate your real authentication and permissions
-* Switch from SQLite to Postgres
 
