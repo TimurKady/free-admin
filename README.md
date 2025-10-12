@@ -115,7 +115,7 @@ Then open [http://127.0.0.1:8000/admin](http://127.0.0.1:8000/admin).
 
 ## Documentation
 
-Commıng soon
+See the [Documentation](https://github.com/TimurKady/freeadmin/blob/main/docs/index.md).
 
 ## Roadmap
 
