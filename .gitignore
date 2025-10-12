@@ -11,6 +11,7 @@ __pycache__/
 build/
 develop-eggs/
 dist/
+!freeadmin/static/vendors/json-editor/dist/
 downloads/
 eggs/
 .eggs/
