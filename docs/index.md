@@ -50,7 +50,7 @@ Instead of tying you to one framework or ORM, it lets you describe your data and
 
 ## Getting Started
 
-Follow the **[Quick Start guide](quick-start.md)** to:
+Follow the **[Installation and Start guide](installation-and-cli.md)** to:
 - Create your first FreeAdmin project via CLI
 - Configure your `app.py`
 - Register a model and admin class
