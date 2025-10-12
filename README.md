@@ -1,4 +1,4 @@
-# FreeAdmin
+# FastAPI FreeAdmin
 
 *Modular admin panel for FastAPI and Tortoise ORM*
 
