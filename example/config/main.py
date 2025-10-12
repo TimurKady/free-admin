@@ -51,8 +51,8 @@ class ExampleApplication:
         """Configure FreeAdmin integration and return the FastAPI app."""
 
         discovery_packages = self._packages or [
-            "freeadmin.example.apps",
-            "freeadmin.example.pages",
+            "example.apps",
+            "example.pages",
         ]
         self._boot.init(
             self._app,

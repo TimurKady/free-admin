@@ -14,7 +14,7 @@ class DemoConfig(AppConfig):
     """Initialize demo dashboard resources for the admin panel."""
 
     app_label = "demo"
-    name = "freeadmin.example.apps.demo"
+    name = "example.apps.demo"
 
     def __init__(self) -> None:
         """Instantiate helpers required for the demo showcase."""
