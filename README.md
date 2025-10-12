@@ -60,63 +60,70 @@ pip install freeadmin
 
 ## Quickstart
 
-Here is the minimal setup to get started with FreeAdmin:
+Follow these high-level steps to get an admin interface up and running. Detailed instructions live in [`docs/quick-start.md`](docs/quick-start.md).
 
-### 1. Create an Admin class
+### 1. Scaffold a project
+
+Use the CLI to create the basic layout and change into the new directory:
+
+```bash
+freeadmin init demo_admin
+cd demo_admin
+freeadmin add blog
+```
+
+### 2. Define your models and admin configuration
+
+Populate `apps/blog/models.py` and `apps/blog/admin.py` with your domain objects and admin classes:
 
 ```python
+from tortoise import fields
+from tortoise.models import Model
+
 from freeadmin.core.models import ModelAdmin
 from freeadmin.hub import admin_site
-from apps.blog.models import Post
+
+
+class Post(Model):
+    id = fields.IntField(pk=True)
+    title = fields.CharField(max_length=255)
+    created_at = fields.DatetimeField(auto_now_add=True)
+
+    class Meta:
+        app = "blog"
 
 
 class PostAdmin(ModelAdmin):
     """Admin configuration describing how blog posts appear in the panel."""
+
     list_display = ("id", "title", "created_at")
 
 
-admin_site.register(Post, PostAdmin)
+admin_site.register(app="blog", model=Post, admin_cls=PostAdmin)
 ```
 
-### 2. Mount the panel in the main application
+### 3. Mount the admin panel
+
+Initialise FreeAdmin inside your FastAPI application (usually in `config/main.py`):
 
 ```python
 from fastapi import FastAPI
 from freeadmin.boot import admin
-from my_project.adapters import MyAdapter
 
 
 app = FastAPI()
-admin.init(app, adapter=MyAdapter(), packages=["apps"])
+admin.init(app, packages=["apps"])
 ```
-
-### 3. What is `apps`?
-
-The `apps` package is a common convention: each subpackage represents a separate application or domain area (e.g. `apps.blog`, `apps.users`, `apps.orders`).
-It’s recommended to place your models inside their respective app folders instead of keeping all models in one large file.
-
-Example structure:
-
-```
-my_project/
-    apps/
-        blog/
-            models.py
-            admin.py
-        users/
-            models.py
-            admin.py
-```
-
-This makes it easier to maintain and scale larger projects.
 
 ### 4. Run the server
 
 ```bash
-uvicorn main:app --reload
+export FREEADMIN_DATABASE_URL="sqlite:///./db.sqlite3"
+freeadmin create-superuser
+uvicorn config.main:app --reload
 ```
 
-Then open [http://127.0.0.1:8000/admin](http://127.0.0.1:8000/admin).
+Open [http://127.0.0.1:8000/panel](http://127.0.0.1:8000/panel) and log in with the credentials you created.
 
 ## Documentation
 
