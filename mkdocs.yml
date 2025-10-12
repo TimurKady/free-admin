@@ -24,7 +24,7 @@ nav:
       - Project and App Structure: project-structure.md
       - Installation and CLI: installation-and-cli.md
       - Configuration: configuration.md
-      - Models and Admin Models:
+      - Models and Admin Models: models-and-admin-models.md
       - First Run Example:
    - Using the Admin Interface:
       - Working with ORM / CRUD:
