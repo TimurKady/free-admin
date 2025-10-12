@@ -38,7 +38,7 @@ nav:
       - Cards and Views API:
       - Adapters and DB Connectors:
       - Routing and Boot Process:
-      - Frontend and Widgets
+      - Frontend and Widgets:
   - Development Roadmap:
       - Release Checklist:
       - Future Features:
@@ -65,4 +65,4 @@ plugins:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/TimurKady/django-fast-treenode
+      link: https://github.com/TimurKady/freeadmin
