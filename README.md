@@ -16,30 +16,26 @@ FreeAdmin delivers a modular administration panel for FastAPI projects that coup
 * **ORM-first data management**
 
     Model admins encapsulate the entire CRUD experience: list tables expose configurable columns, default ordering, and instant search/filter controls, while detail forms respect custom field layouts, widgets, and readonly rules. Each admin class can further tailor queryset hooks for list, detail, and form operations, ensuring that row-level security and select/prefetch strategies stay under application control.
+
     Related data does not require context switching. Inline admin components embed nested forms directly inside the parent editor, reusing the same queryset hooks and action system so teams can manage one-to-many relationships with the same validation and RBAC guarantees as top-level models.
 
 * **Custom admin views and pages**
 
-Beyond CRUD, the site router can mount arbitrary FastAPI handlers as admin views. Registered pages automatically join the sidebar next to ORM models, inherit shared layout/breadcrumb logic, and can opt into the settings area when needed. This makes it straightforward to add dashboards, reports, or workflow-specific screens without leaving the admin shell.
+    Beyond CRUD, the site router can mount arbitrary FastAPI handlers as admin views. Registered pages automatically join the sidebar next to ORM models, inherit shared layout/breadcrumb logic, and can opt into the settings area when needed. This makes it straightforward to add dashboards, reports, or workflow-specific screens without leaving the admin shell.
 
-## Live cards with Server-Sent Events
+* **Live cards with Server-Sent Events**
 
-The cards subsystem streams real-time updates through a dedicated SSE API. Each card endpoint issues signed access tokens, enforces per-user permissions, and reuses cached state so dashboards can recover the latest payload instantly while background publishers push fresh events.
+    The cards subsystem streams real-time updates through a dedicated SSE API. Each card endpoint issues signed access tokens, enforces per-user permissions, and reuses cached state so dashboards can recover the latest payload instantly while background publishers push fresh events.
 
-## Import and export pipelines
+* **Import and export pipelines**
 
-Bulk data moves through dedicated services. The import workflow caches uploads, parses CSV/JSON/XLSX files, filters selected fields, and persists rows via the active `ModelAdmin`, all while producing detailed progress reports and supporting dry runs.
+    Bulk data moves through dedicated services. The import workflow caches uploads, parses CSV/JSON/XLSX files, filters selected fields, and persists rows via the active `ModelAdmin`, all while producing detailed progress reports and supporting dry runs.
 
-Exports follow a similar pipeline: query adapters collect the dataset, serializers normalize fields, and writers produce CSV, JSON, or XLSX files stored in a temporary cache with automatic cleanup and streaming helpers for large downloads.
+    Exports follow a similar pipeline: query adapters collect the dataset, serializers normalize fields, and writers produce CSV, JSON, or XLSX files stored in a temporary cache with automatic cleanup and streaming helpers for large downloads.
 
-## Additional highlights
+* **Additional highlights**
 
-FreeAdmin ships with JSON Schema-driven forms, reusable widgets, role-based access control, a CLI scaffold, and an extensible adapter layer so the panel can target multiple ORMs while keeping the Bootstrap frontend consistent.
-
-
-
-
-
+    FreeAdmin ships with JSON Schema-driven forms, reusable widgets, role-based access control, a CLI scaffold, and an extensible adapter layer so the panel can target multiple ORMs while keeping the Bootstrap frontend consistent.
 
 
 ## Architecture
