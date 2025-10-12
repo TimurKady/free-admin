@@ -1,6 +1,12 @@
 # FastAPI FreeAdmin
 
-*Modular admin panel for FastAPI and Tortoise ORM*
+**Modular admin panel for FastAPI and Tortoise ORM**
+
+[![Tests](https://github.com/TimurKady/freeadmin/actions/workflows/test.yaml/badge.svg?branch=main)](https://github.com/TimurKady/freeadmin/actions/workflows/test.yaml)
+[![Docs](https://readthedocs.org/projects/freeadmin/badge/?version=latest)](https://freeadmin.readthedocs.io/)
+[![PyPI](https://img.shields.io/pypi/v/freeadmin.svg)](https://pypi.org/project/freeadmin/)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![Sponsor](https://img.shields.io/github/sponsors/TimurKady)](https://github.com/sponsors/TimurKady)
 
 ## Overview
 
