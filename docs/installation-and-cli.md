@@ -1,25 +1,23 @@
 # Installation and CLI
 
-**A step‑by‑step guide you can follow with your eyes closed. No prior framework required.**
+This guide walks through installing FreeAdmin, generating a project skeleton, and wiring the admin panel into a FastAPI + Tortoise ORM stack. The steps mirror the behaviour of the built-in CLI so the examples match the code that ships with this repository.
 
----
 
-## Spep 0. Prerequisites
+## Step 0. Prerequisites
 
-* **Python** 3.10+ (3.12 recommended)
-* **pip** and **venv** available in PATH
-* A terminal: Bash (macOS/Linux) or PowerShell (Windows)
+* **Python 3.11+** (the package targets Python 3.11 and newer).
+* **pip** and **venv** available on your PATH.
+* A database supported by **Tortoise ORM**. SQLite works for local testing; PostgreSQL is recommended for production.
 
-> Tip: Check versions
->
-> ```bash
-> python --version
-> pip --version
-> ```
+Check your interpreter and pip versions:
 
----
+```bash
+python --version
+pip --version
+```
 
-## Spep 1. Create and activate a virtual environment
+
+## Step 1. Create and activate a virtual environment
 
 **macOS / Linux**
 
@@ -35,244 +33,211 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-> To leave the venv later: `deactivate`
+Deactivate later with `deactivate`.
 
----
 
-## Spep 2. Install FreeAdmin
+## Step 2. Install FreeAdmin
 
-From PyPI (recommended):
+Install the latest release from PyPI:
 
 ```bash
 pip install freeadmin
 ```
 
-From a local source (if you have a wheel or sdist):
+You can also install from a local clone by running `pip install .` inside the repository root.
 
-```bash
-pip install ./dist/freeadmin-*.whl
-# or
-pip install ./freeadmin-*.tar.gz
-```
 
----
+## Step 3. Scaffold a project
 
-## Spep 3. Initialize a new project
-
-Create a project skeleton named **`myproject`**:
+Use the CLI to create the base layout:
 
 ```bash
 freeadmin init myproject
 cd myproject
 ```
 
-You will get:
+The generator creates the following structure:
 
 ```
 myproject/
 ├── config/
-│   ├── main.py        # Entry point – creates and runs AdminSite
-│   ├── orm.py         # ORM bootstrap (SQLite by default in this guide)
-│   └── settings.py    # Global settings: INSTALLED_APPS, DEBUG, etc.
-├── apps/              # Your business apps live here
-├── pages/             # (optional) Static / hybrid pages
+│   ├── main.py        # FastAPI application factory
+│   ├── orm.py         # Placeholder for ORM configuration
+│   └── settings.py    # Pydantic settings model
+├── apps/              # Your domain applications
+├── pages/             # Optional static/markdown pages
+├── static/            # Static assets
 ├── templates/         # Shared templates
-├── static/            # Shared static assets
-└── .env               # (optional) environment variables
+└── README.md          # Short reminder about the scaffold
 ```
 
----
+The generated files are intentionally minimal so you can adapt them to your stack.
 
-## Spep 4. Configure the database (SQLite quickstart)
 
-Open **`config/orm.py`** and put a minimal Tortoise config (example):
+## Step 4. Configure project settings
+
+Edit `config/settings.py` to describe your environment. The scaffold uses `pydantic.BaseSettings`, so environment variables automatically override defaults:
+
+```python
+# config/settings.py
+from pydantic import BaseSettings
+
+
+class ProjectSettings(BaseSettings):
+    debug: bool = True
+    database_url: str = "sqlite:///db.sqlite3"
+
+
+settings = ProjectSettings()
+```
+
+If you prefer `.env` files, add `python-dotenv` to your project and call `load_dotenv()` before instantiating `ProjectSettings`.
+
+
+## Step 5. Configure Tortoise ORM
+
+Replace the placeholder in `config/orm.py` with a concrete configuration. The example below initialises Tortoise with a single SQLite database and two application modules:
 
 ```python
 # config/orm.py
 from tortoise import Tortoise
 
-async def init_orm():
+
+async def init_orm() -> None:
     await Tortoise.init(
-        db_url="sqlite://db.sqlite3",
+        db_url="sqlite:///db.sqlite3",
         modules={
             "models": [
-                "apps.products.models",  # add your apps here
-                "apps.orders.models",
-            ]
+                "apps.blog.models",
+            ],
         },
     )
     await Tortoise.generate_schemas()
 ```
 
-> You can switch to Postgres later by changing `db_url` (e.g. `postgres://user:pass@localhost:5432/dbname`).
+For PostgreSQL or another backend, change `db_url` accordingly (for example `postgres://user:pass@localhost:5432/dbname`).
 
----
 
-## Spep 5. Configure settings
+## Step 6. Create an application package
 
-Edit **`config/settings.py`** and list your applications:
-
-```python
-# config/settings.py
-from dataclasses import dataclass
-from typing import ClassVar, List
-
-@dataclass
-class Settings:
-    DEBUG: bool = True
-    LANGUAGE_CODE: str = "en"
-
-    INSTALLED_APPS: ClassVar[List[str]] = [
-        "apps.products",
-        # "apps.orders",
-    ]
-```
-
----
-
-## Spep 6. Create your first app
-
-Generate an app named **`products`**:
+Generate an app skeleton with the CLI:
 
 ```bash
-freeadmin add products
+freeadmin add blog
 ```
 
-This creates `apps/products/` with:
+This command adds `apps/blog/` containing empty files: `__init__.py`, `app.py`, `models.py`, `admin.py`, `views.py`, and `cards.py`. Fill these modules with your domain logic.
 
-```
-apps/products/
-├── __init__.py
-├── app.py         # AppConfig – registers models with AdminSite
-├── models.py      # ORM models
-├── admin.py       # ModelAdmin / InlineAdmin / Cards / Views
-└── (optional: views.py, cards.py, widgets.py)
-```
+Register the package in your settings or discovery list. With the default scaffold you simply pass `"apps"` to the boot manager so every subpackage under `apps/` is discovered.
 
-> **Pro tip:** For large apps, group code in `modules/` and import explicitly; do not import `__init__.py` from that folder.
 
----
+## Step 7. Define models and admin classes
 
-## Spep 7. Define a model and its admin
-
-**`apps/products/models.py`**
+Update `apps/blog/models.py` and `apps/blog/admin.py` to describe your data and how it should appear in the admin panel:
 
 ```python
+# apps/blog/models.py
 from tortoise import fields
 from tortoise.models import Model
 
-class Product(Model):
+
+class Post(Model):
     id = fields.IntField(pk=True)
-    name = fields.CharField(max_length=200)
-    price = fields.DecimalField(max_digits=10, decimal_places=2)
-    available = fields.BooleanField(default=True)
+    title = fields.CharField(max_length=255)
+    body = fields.TextField(null=True)
+    created_at = fields.DatetimeField(auto_now_add=True)
 
     class Meta:
-        table = "product"
-        ordering = ["name"]
+        table = "blog_post"
 ```
-
-**`apps/products/admin.py`**
 
 ```python
-from freeadmin import ModelAdmin
-from .models import Product
+# apps/blog/admin.py
+from freeadmin.core.models import ModelAdmin
+from freeadmin.hub import admin_site
 
-class ProductAdmin(ModelAdmin):
-    list_display = ["name", "price", "available"]
-    search_fields = ["name"]
-    ordering = ["name"]
+from .models import Post
+
+
+class PostAdmin(ModelAdmin):
+    """Expose blog posts through the administration panel."""
+
+    list_display = ("title", "created_at")
+    search_fields = ("title",)
+
+
+admin_site.register(app="blog", model=Post, admin_cls=PostAdmin)
 ```
 
-**`apps/products/app.py`**
+If you need to run startup logic (for example to register cards or background publishers) create `apps/blog/app.py` and expose a `default` instance of `freeadmin.core.app.AppConfig`.
 
-```python
-from freeadmin import AppConfig
-from .models import Product
-from .admin import ProductAdmin
 
-class ProductsConfig(AppConfig):
-    app_label = "products"
-    name = "apps.products"
+## Step 8. Mount the admin panel
 
-    def ready(self):
-        self.register(Product, ProductAdmin)
-
-default = ProductsConfig()
-```
-
----
-
-## Spep 8. Wire up the AdminSite and run
-
-Open **`config/main.py`** and ensure it loads apps and starts the site:
+Edit `config/main.py` so it builds the FastAPI application and initialises FreeAdmin via the boot manager:
 
 ```python
 # config/main.py
-import asyncio
-from freeadmin import AdminSite
-from config.settings import Settings
+from fastapi import FastAPI
+
+from freeadmin.boot import BootManager
+
 from config.orm import init_orm
 
-site = AdminSite(title="My Company Admin")
 
-async def bootstrap():
+app = FastAPI(title="My project admin")
+boot = BootManager(adapter_name="tortoise")
+
+
+@app.on_event("startup")
+async def startup() -> None:
     await init_orm()
-    for app in Settings.INSTALLED_APPS:
-        site.load(app)
-    await site.boot()
 
-if __name__ == "__main__":
-    asyncio.run(bootstrap())
-    site.run()  # starts the dev server (http://localhost:8000/admin/)
+
+boot.init(app, packages=["apps"])
 ```
 
-Now run it:
+The call to `boot.init()` mounts the admin routes at the path configured by `FREEADMIN_ADMIN_PATH` (default `/panel`) and schedules background services such as card publishers.
 
-```bash
-python config/main.py
-```
 
-Open **[http://localhost:8000/admin/](http://localhost:8000/admin/)**
+## Step 9. Configure the database URL
 
----
-
-## Spep 9. Create an admin user (quick bootstrap)
-
-FreeAdmin bundles a ready‑to‑use `AdminUser` model (and its permissions) when you rely on the Tortoise ORM adapter. The adapter automatically registers these models with your project so you do **not** need to create a custom auth model for local administration.
-
-Before running the CLI make sure the database connection is configured. For example, set `FREEADMIN_DATABASE_URL` or adjust the `db_url` inside `config/orm.py` so the CLI can open the database when it initialises the ORM.
-
-Once the connection details are in place, run the bundled superuser command:
+FreeAdmin reads `FREEADMIN_DATABASE_URL` when using the bundled Tortoise adapter. Export the variable or set it in your process manager before running the app:
 
 ```bash
 export FREEADMIN_DATABASE_URL="sqlite:///./db.sqlite3"
+```
+
+For PostgreSQL use a DSN such as `postgres://user:password@localhost:5432/mydb`.
+
+
+## Step 10. Create an admin user
+
+The CLI can create superusers for the bundled authentication models:
+
+```bash
 freeadmin create-superuser --username admin --email admin@example.com
 ```
 
-The command initialises the ORM, ensures the system tables exist, and then creates (or updates) the requested `AdminUser`. You can omit the flags to enter the details interactively if you prefer.
+If you omit the flags the command will prompt for the missing values. It initialises the ORM, ensures the auth tables exist, and stores the user record using the active adapter.
 
----
 
-## Spep 10. Static assets (front‑end)
+## Step 11. Run the development server
 
-FreeAdmin comes with a minimal set of front-end tools (Bootstrap 5, jQuery, Choices.js, JSONEditor). If you use additional JavaScript and CSS tables, save them in the static/.../ folders and include them in the template of the page you need. Alternatively, you can specify them as assets when declaring your views.
+Use Uvicorn (or your ASGI server of choice) to run the FastAPI application:
 
----
+```bash
+uvicorn config.main:app --reload
+```
 
-## Spep 11. Common pitfalls
+Visit `http://127.0.0.1:8000/panel` (or the prefix you configured) and sign in with the credentials created in the previous step. The default interface includes list and detail views for any registered `ModelAdmin`, plus navigation for cards and custom pages.
 
-* **Virtualenv not active** → install lands globally or wrong Python used. Activate `.venv`.
-* **App not discovered** → ensure app is listed in `Settings.INSTALLED_APPS` and `app.py` exposes `default`.
-* **DB models not loaded** → add your app’s `models` module path to `modules` in `init_orm()`.
-* **Import cycles** → don’t import heavy modules in `__init__.py`. Prefer explicit imports and a `modules/` folder.
-* **Assets not found** → check your static root/URL and that files exist under `static/`.
 
----
+## Step 12. Troubleshooting tips
 
-## Spep 12. Next steps
+* **CLI cannot find `apps/`:** run the command from the project root where the scaffold created the folder.
+* **Models not discovered:** ensure the module path (e.g. `apps.blog.models`) is listed in `modules["models"]` when initialising Tortoise.
+* **Missing static assets:** verify that `freeadmin.boot.BootManager.init()` has been called and that your ASGI server can serve the mounted static route.
+* **Session errors:** set `FREEADMIN_SESSION_SECRET` to a stable value in production so session cookies remain valid across restarts.
 
-* Add filters, actions, and inlines to your `ModelAdmin`
-* Create custom **Views** and **Cards**
-* Integrate your real authentication and permissions
-
+With these steps you now have a working FreeAdmin installation backed by FastAPI and Tortoise ORM. Continue exploring the other documentation chapters for more detail on cards, permissions, and custom views.

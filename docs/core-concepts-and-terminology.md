@@ -1,233 +1,220 @@
 # Core Concepts and Terminology
 
-Before building your first admin interface, it’s important to understand the key abstractions that form the foundation of FreeAdmin.
+Before extending FreeAdmin it helps to understand the main services, registries, and data structures that appear throughout the code base. The sections below summarise the pieces you will interact with most frequently when wiring the admin into a FastAPI project.
 
 
-## AdminSite
+## AdminSite and AdminHub
 
-The **AdminSite** is the central registry and runtime environment for all admin components.
+The **AdminSite** is the central registry. It stores model admins, custom views, dashboard cards, and menu entries. The site instance is created by the **AdminHub**, which also performs package discovery.
 
-It manages:
-- model and view registration
-- adapter configuration
-- routing and boot sequence
-- system-wide settings
+In day-to-day code you import the shared instance from `freeadmin.hub`:
+
+```python
+from freeadmin.hub import admin_site
+from freeadmin.core.models import ModelAdmin
+from .models import Product
+
+
+class ProductAdmin(ModelAdmin):
+    """Configure list display, filters, and widgets for Product."""
+
+    list_display = ("name", "price", "available")
+    search_fields = ("name",)
+
+
+admin_site.register(app="catalogue", model=Product, admin_cls=ProductAdmin)
+```
+
+The hub also exposes `hub.autodiscover([...])` for manual discovery, although most projects rely on `BootManager` to call it automatically during application start-up.
+
+
+## ModelAdmin
+
+A **ModelAdmin** describes how a model is displayed and edited. Subclasses inherit from `freeadmin.core.models.ModelAdmin` and define declarative attributes:
+
+* `list_display`, `search_fields`, and `ordering` control list views.
+* `fields`, `readonly_fields`, and `widgets_overrides` customise the edit form.
+* `actions` lists classes derived from `BaseAction` that are available on the changelist page.
+
+Model admins never execute ORM operations directly. Instead they delegate persistence to the active adapter supplied by the admin site.
+
+
+## InlineModelAdmin
+
+`InlineModelAdmin` classes describe related objects that appear on a parent form. They inherit from `freeadmin.core.inline.InlineModelAdmin` and define:
+
+* `model`: the related model class handled by the inline.
+* `parent_fk_name`: the foreign key on the inline that points to the parent object.
+* `display`: either `"tabular"` or `"stacked"`.
+
+Once declared, include the inline class in the parent `ModelAdmin.inlines` tuple. The admin site will render the inline editor automatically and reuse the parent permissions for add/change/delete operations.
+
+
+## Adapter
+
+An **adapter** bridges the admin runtime and the persistence layer. All adapters derive from `freeadmin.adapters.base.BaseAdapter`. The built-in adapter targets **Tortoise ORM** and ships with models for authentication (`AdminUser`) and content types (`AdminContentType`).
+
+Key responsibilities:
+
+* Provide queryset helpers such as `all()`, `filter()`, `count()`, and `order_by()`.
+* Create, update, and delete model instances in an async-friendly fashion.
+* Expose metadata through `get_model_descriptor()` so the admin site can build forms and tables.
+
+You can implement a custom adapter by subclassing `BaseAdapter` and registering it via `freeadmin.adapters.registry.register("name", adapter_instance)`.
+
+
+## BootManager and FastAPI integration
+
+`BootManager` (`freeadmin.boot`) is the entry point used by FastAPI applications. It performs three tasks:
+
+1. Loads the configured adapter and any bundled models.
+2. Adds middleware such as the admin guard and session management.
+3. Runs discovery, mounts the admin router, and schedules startup/shutdown hooks.
 
 Typical usage:
 
 ```python
-from freeadmin import AdminSite
-from myapp.models import Product
-from myapp.admin import ProductAdmin
+from fastapi import FastAPI
+from freeadmin.boot import BootManager
 
-site = AdminSite(title="My Admin")
-site.register(Product, ProductAdmin)
-site.run()
-````
 
-Think of it as the *root object* that holds your entire admin definition.
-
----
-
-## ModelAdmin
-
-A **ModelAdmin** describes how a data model is displayed and edited in the admin interface.
-It defines table columns, filters, search fields, forms, and actions.
-
-Example:
-
-```python
-from freeadmin import ModelAdmin
-
-class ProductAdmin(ModelAdmin):
-    list_display = ["name", "price", "available"]
-    search_fields = ["name"]
-    ordering = ["name"]
+app = FastAPI()
+boot = BootManager(adapter_name="tortoise")
+boot.init(app, packages=["my_project.apps"])
 ```
 
-ModelAdmin never touches your ORM directly — it delegates data operations to an **Adapter**.
+This snippet initialises the adapter, discovers admin registrations inside `my_project.apps`, and mounts the admin interface at the path configured in `FreeAdminSettings.admin_path` (default `/panel`).
 
----
-
-## InlineAdmin
-
-An **InlineAdmin** allows editing of related models directly within another model’s form.
-
-Example:
-
-```python
-class ProductImageInline(InlineAdmin):
-    model = ProductImage
-    fields = ["image", "alt_text"]
-```
-
-You register inlines inside a parent `ModelAdmin`:
-
-```python
-class ProductAdmin(ModelAdmin):
-    inlines = [ProductImageInline]
-```
-
----
-
-## Adapter (or Connector)
-
-An **Adapter** (sometimes referred to as a *Connector*) bridges the admin system with your data layer.
-It defines the CRUD operations and metadata extraction.
-
-Each Adapter implements a unified interface:
-
-```python
-class BaseAdapter:
-    def get_queryset(self, model): ...
-    def get_object(self, model, pk): ...
-    def save(self, obj): ...
-    def delete(self, obj): ...
-```
-
-Currently, the built-in adapters support **Tortoise ORM**. An adapter for **SQLAlchemy** will be added in the future, but you can easily add your own adapters right now.
-
----
 
 ## AdminRouter
 
-The **AdminRouter** is responsible for URL dispatching and endpoint mapping.
+`AdminRouter` mounts the admin application onto FastAPI. You rarely instantiate it manually because `BootManager.init()` performs the work, but the class is available if you need full control over the mounting process or want to embed the admin site inside another ASGI application.
 
-It automatically builds URLs for each registered model and view, e.g.:
 
-```
-/admin/products/
-/admin/products/add/
-/admin/products/1/change/
-/admin/settings/
-```
+## Cards
 
-Routers can be overridden or extended for integration with frameworks like FastAPI or Starlette.
-
----
-
-## Boot
-
-The **Boot** process initializes FreeAdmin:
-it loads settings, imports `admin.py` modules, registers models, and prepares the UI.
-
-Example:
+A **card** is a dashboard widget backed by templates and optional server-sent-event publishers. Register cards with `admin_site.register_card(...)`. Cards can stream live updates by registering a publisher through `admin_site.cards.register_publisher(publisher_instance)`.
 
 ```python
-site.boot()
-```
+from freeadmin.hub import admin_site
 
-Boot hooks can be added to inject custom logic during startup (logging, extensions, etc.).
-
----
-
-## Card
-
-A **Card** is a visual block displayed on dashboard pages or model views.
-Cards are used to present summaries, metrics, or custom HTML widgets.
-The advantage of cards is the ability to display changes in parameters in real time.
-
-Example:
-
-```python
-from freeadmin import Card
-
-class SalesOverview(Card):
-    title = "Monthly Sales"
-    template = "cards/sales_overview.html"
-```
-
-You can register cards globally or per model.
-
----
-
-## View
-
-A **View** defines a custom page or endpoint within the admin interface.
-It extends the core UI with domain-specific functionality.
-
-Example:
-
-```python
-from freeadmin import View
-
-class ImportDataView(View):
-    path = "import-data"
-    template = "admin/import_data.html"
-
-    async def post(self, request):
-        ...
-```
-
-Views can be bound to menu items or triggered from actions.
-Your views can integrate various JS scripts and CSS tables.
-
----
-
-## Action
-
-An **Action** represents an operation that can be executed on selected objects in a list view.
-
-Example:
-
-```python
-def mark_as_featured(request, queryset):
-    queryset.update(featured=True)
-
-class ProductAdmin(ModelAdmin):
-    actions = [mark_as_featured]
-```
-
-Actions can be synchronous or asynchronous, and may require user confirmation.
-
----
-
-## Widget
-
-A **Widget** is a frontend component that renders a field or UI element.
-
-Widgets are defined declaratively and powered by JavaScript libraries such as:
-
-* **Select2** (dropdown with autocomplete)
-* **Choices.js** (dropdowns)
-* **JSONEditor** (complex forms)
-* **JSBarcode** (barcode fields)
-
-Example:
-
-```python
-widgets = {
-    "category": "select2",
-    "metadata": "json-editor"
-}
-```
-
----
-
-## Settings
-
-**AdminSettings** store system-wide configuration such as titles, themes, and feature flags.
-
-```python
-site.settings.update(
-    title="FreeAdmin Demo",
-    theme="light",
-    locale="en"
+admin_site.register_card(
+    key="orders-today",
+    app="sales",
+    title="Orders today",
+    template="cards/orders_today.html",
+    icon="bi-receipt",
+    channel="sales:orders",
 )
 ```
 
-Settings can also be changed dynamically via the admin UI.
-
----
-
-## Key Takeaway
-
-FreeAdmin separates **definition**, **data**, and **presentation**:
-
-* **Definition:** what the admin should do (ModelAdmin, Card, View)
-* **Data:** how it talks to storage (Adapter)
-* **Presentation:** how it looks and behaves (Widgets, Frontend)
-
-This separation keeps the system simple, testable, and endlessly extensible.
+When the FastAPI app starts, publishers registered on the card manager begin broadcasting updates to connected clients.
 
 
+### Publishers
+
+Cards stream live data through subclasses of `freeadmin.core.sse.publisher.PublisherService`. A publisher attaches to a card key
+, fetches fresh state, and calls `publish()` whenever a new payload is available.
+
+```python
+import asyncio
+from collections.abc import Awaitable, Callable
+
+from freeadmin.core.sse.publisher import PublisherService
+from freeadmin.hub import admin_site
+
+
+class OrdersPublisher(PublisherService):
+    """Push hourly order totals to the dashboard."""
+
+    card_key = "orders-today"
+
+    def __init__(self, fetch_totals: Callable[[], Awaitable[dict[str, int]]]) -> None:
+        super().__init__()
+        self._fetch_totals = fetch_totals
+
+    async def run(self) -> None:
+        while True:
+            payload = await self._fetch_totals()
+            self.publish(payload)
+            await asyncio.sleep(300)
+
+
+async def fetch_totals() -> dict[str, int]:
+    # Query your persistence layer for the latest numbers.
+    return {"orders": 42}
+
+
+admin_site.cards.register_publisher(OrdersPublisher(fetch_totals))
+```
+
+Publishers are started automatically during FastAPI startup after cards are registered and remain active until application shutd
+own.
+
+
+## Views
+
+Custom admin pages are registered with `admin_site.register_view()`, which acts as a decorator over an async callable. The decorated function receives the `Request` object and the authenticated `AdminUserDTO`.
+
+```python
+from typing import Any
+from fastapi import Request
+from freeadmin.hub import admin_site
+
+
+@admin_site.register_view(path="/reports/export", name="Exports", icon="bi-download", label="Reports")
+async def export_report(request: Request, user: Any) -> dict[str, Any]:
+    return {
+        "page_message": "Start a new export run from this screen.",
+        "card_entries": [],
+        "assets": {"css": (), "js": ()},
+    }
+```
+
+The returned dictionary feeds the Jinja2 template responsible for rendering the page.
+
+
+## Actions
+
+Actions are operations that run on selected rows from the changelist. They inherit from `freeadmin.core.actions.base.BaseAction` (or one of the bundled subclasses) and implement an async `run()` method.
+
+```python
+from freeadmin.core.actions import BaseAction, ActionResult
+
+
+class MarkFeaturedAction(BaseAction):
+    """Flag selected products as featured."""
+
+    name = "mark_featured"
+    label = "Mark as featured"
+
+    async def run(self, qs, params, user):
+        count = await qs.update(featured=True)
+        return ActionResult(success=True, message=f"Updated {count} products.")
+```
+
+Add the class to a `ModelAdmin.actions` tuple to expose it in the UI.
+
+
+## Widgets
+
+Widgets are frontend components referenced from `ModelAdmin.widgets_overrides` or declared on the `Meta.widgets` attribute. FreeAdmin bundles several JavaScript libraries under `freeadmin/static/vendors/`, including **Choices.js**, **JSONEditor**, **Select2**, and **JSBarcode**. These widgets are instantiated automatically based on the metadata returned by admin classes.
+
+
+## Settings
+
+Global configuration lives inside `freeadmin.conf.FreeAdminSettings`. Instances are normally created with `FreeAdminSettings.from_env()`, which reads environment variables prefixed with `FREEADMIN_`.
+
+Important attributes include:
+
+* `admin_path`: the URL prefix where the admin is mounted (default `/panel`).
+* `session_secret` and `csrf_secret`: keys used for securing sessions and forms.
+* `event_cache_path`: storage location for card payload caching.
+* `brand_icon` and `admin_site_title`: values shown in the UI.
+
+To override defaults in code, call `freeadmin.conf.configure(settings_instance)` before initialising the boot manager.
+
+
+## Key takeaway
+
+FreeAdmin separates the **definition** of your admin (ModelAdmin, cards, views) from the **execution** (adapters, boot manager, router) and the **presentation** (Jinja2 templates and JavaScript widgets). By keeping each layer focused, the project remains easy to extend while still providing a ready-to-use administration panel for FastAPI and Tortoise ORM applications.

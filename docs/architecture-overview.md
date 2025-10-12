@@ -1,113 +1,139 @@
 # Architecture Overview
 
-FreeAdmin is designed as a modular, layered system.  
-Each layer has a single responsibility — and communicates through explicit, documented contracts.
+FreeAdmin follows a layered architecture. Each layer holds a narrow responsibility and communicates with the rest through explicit contracts. Understanding these boundaries makes it easier to customise a single part of the system without rewriting the entire admin panel.
 
-This makes the framework both **predictable for developers** and **adaptable to any backend**.
-
----
 
 ## Layers
 
-The system consists of four main layers:
+The runtime is split into four primary layers:
 
 ![dıagramm](images/img-1.svg)
 
-### 1. **Adapter / Connector Layer**
-The lowest layer that connects FreeAdmin to a specific data source.
+### 1. Adapter / connector layer
 
-- Abstracts ORM operations (e.g., Tortoise ORM, SQLAlchemy)
-- Exposes unified CRUD interface
-- Normalizes model metadata for the admin layer
-- Can be extended for APIs, remote services, or filesystems
+The adapter layer connects FreeAdmin to the persistence engine. The project currently ships with a production-ready adapter for **Tortoise ORM**. Other adapters can be registered through the adapter registry when you provide your own implementation of `BaseAdapter`.
+
+Responsibilities:
+
+* Provide CRUD primitives such as `get`, `get_or_none`, `save`, and `delete`.
+* Translate ORM-specific metadata (field definitions, verbose names) into structures understood by the admin layer.
+* Expose auxiliary models including the built-in `AdminUser` and `AdminContentType` classes.
+
+Example: registering a custom adapter so `BootManager` can load it:
+
+```python
+from collections.abc import Callable
+
+from sqlmodel import Session, select
+
+from freeadmin.adapters import BaseAdapter, registry
+
+
+class SQLModelAdapter:
+    """Adapter satisfying the :class:`BaseAdapter` protocol."""
+
+    name = "sqlmodel"
+    model_modules: list[str] = ["my_project.adapters.sqlmodel.auth"]
+
+    def __init__(self, session_factory: Callable[[], Session]) -> None:
+        self._session_factory = session_factory
+        self.user_model = ...  # expose adapter-specific auth models
+        self.content_type_model = ...
+
+    def all(self, model: type) -> list:
+        with self._session_factory() as session:
+            return session.exec(select(model)).all()
+
+    async def get(self, model: type, **filters):
+        with self._session_factory() as session:
+            return session.exec(select(model).filter_by(**filters)).one()
+
+    # Implement the remaining methods required by ``BaseAdapter`` ...
+
+
+registry.register(SQLModelAdapter(session_factory))
+```
+
+After registration you can boot the admin with `BootManager(adapter_name="sqlmodel")` and the runtime will delegate CRUD operati
+ons to your adapter.
+
+`BootManager` loads adapters lazily. When you call `BootManager(adapter_name="tortoise").init(app, packages=[...])`, the manager imports the adapter module, registers any bundled models, and makes the adapter instance available to the rest of the system.
+
+
+### 2. Core layer
+
+The core layer orchestrates discovery, routing, and permissions.
+
+Key components include:
+
+* `BootManager` (`freeadmin.boot`): initialises adapters, middleware, and FastAPI startup/shutdown hooks.
+* `AdminHub` and `AdminSite` (`freeadmin.hub`, `freeadmin.core.site`): keep registries for models, cards, views, menus, and settings pages.
+* `DiscoveryService` (`freeadmin.core.discovery`): scans declared packages for `app.py`, `admin.py`, and related modules that perform registrations.
+* `PermissionsService` and `PermissionChecker` (`freeadmin.core.services.permissions` and `freeadmin.core.permissions.checker`): enforce per-model and per-action access control.
+
+Together these services discover resources, expose HTTP routes, and wire system configuration such as settings pages and server-sent-event publishers.
+
+
+### 3. Admin layer
+
+The admin layer declares what appears in the interface and how it behaves.
+
+* `ModelAdmin` classes define list displays, filters, search fields, and form widgets. They are instantiated when `admin_site.register(...)` is called.
+* Inline editors reuse the same metadata to embed related models on detail forms.
+* Dashboard cards, standalone views, and user menu entries are registered as lightweight classes or registrar helpers that call the relevant `admin_site` methods.
+* Permissions can be enforced declaratively through the permission service or programmatically inside actions and views.
 
 Example:
 
 ```python
-class TortoiseAdapter(BaseAdapter):
-    def get_queryset(self, model):
-        return model.all()
+from freeadmin.core.models import ModelAdmin
+from freeadmin.hub import admin_site
+from .models import Product
 
-    def save(self, obj):
-        await obj.save()
-````
 
----
-
-### 2. **Core Layer**
-
-The central runtime of FreeAdmin — everything starts here.
-
-Key components:
-
-* `AdminSite`: manages registration of apps, models, and views
-* `AdminSettings`: stores global configuration
-* `AdminRouter`: handles URL routing and dispatch
-* `Boot`: initializes registry and loads extensions
-
-The Core Layer provides the infrastructure for your admin to **discover**, **configure**, and **serve** all registered modules.
-
----
-
-### 3. **Admin Layer**
-
-Defines *what* appears in the interface and *how* it behaves.
-
-* `ModelAdmin` and `InlineAdmin` describe model behavior (columns, filters, forms)
-* `Card`, `View`, and `Action` define higher-level UI constructs
-* Permissions and roles can be applied per model or globally
-
-Example:
-
-```python
 class ProductAdmin(ModelAdmin):
-    list_display = ["name", "price", "available"]
-    search_fields = ["name"]
-    ordering = ["name"]
+    """Describe how Product rows appear in the admin UI."""
+
+    list_display = ("name", "price", "available")
+    search_fields = ("name",)
+
+
+admin_site.register(app="catalogue", model=Product, admin_cls=ProductAdmin)
 ```
 
-Each class in this layer is **pure metadata** — no rendering or database logic.
+Each class in this layer is pure metadata — it does not talk to the database directly.
 
----
 
-### 4. **Frontend Layer**
+### 4. Frontend layer
 
-The visual part of FreeAdmin, implemented with minimal dependencies:
+The visual components are implemented with a small set of dependencies:
 
-* **Bootstrap 5.3** for layout and theme
-* **Choices.js** for advanced selects
-* **JSONEditor** for dynamic forms
-* **jQuery** for interaction and AJAX
-* **JSBarcode** for barcode widgets
+* Bootstrap 5.3 for layout and theming.
+* Choices.js for advanced select widgets.
+* Select2 for relational dropdowns used by legacy templates.
+* JSONEditor for complex JSON fields.
+* jQuery for lightweight DOM interactions.
+* JSBarcode for barcode rendering.
 
-Front-end components are declarative — rendered dynamically from metadata provided by the Admin Layer.
+Templates live under `freeadmin/templates/` and are rendered through Jinja2. They read the metadata prepared by the admin site context builders to decide which columns, filters, cards, and widgets to display.
 
-Example:
 
-```html
-<select data-widget="choices" data-source="/api/products/"></select>
-```
+## Runtime flow
 
----
+1. **Boot.** `BootManager.init(app, packages=[...])` configures middleware, sessions, and startup/shutdown hooks on your FastAPI instance.
+2. **Discovery.** `DiscoveryService` walks through the provided packages, importing modules that register models, cards, and custom views.
+3. **Registry setup.** Admin modules call `admin_site.register`, `admin_site.register_view`, or `admin_site.register_card` to populate the runtime registries.
+4. **Finalisation.** On FastAPI startup the admin site finalises content types, prepares cached menus, and starts card publishers.
+5. **Serving.** Requests flow through FastAPI routes where CRUD endpoints delegate to the adapter while templates render the UI based on admin metadata.
 
-## Runtime Flow
 
-1. **Boot Phase** — `AdminSite.boot()` loads all registered modules.
-2. **Discovery** — AdminSite scans apps and imports `admin.py`.
-3. **Registry Setup** — Each `ModelAdmin` registers itself with the site.
-4. **Routing** — URLs are built dynamically for registered views.
-5. **Serving** — Requests are handled via adapters, and results are rendered via widgets.
-
----
-
-## Modularity in Action
+## Modularity in action
 
 Each layer can be replaced or extended:
 
-* Write a custom **Adapter** to support a new ORM.
-* Override **AdminRouter** to integrate with your FastAPI app.
-* Add a new **Widget** or **Card** type to enrich the UI.
-* Create **Custom Boot hooks** to inject logic during startup.
+* Write a custom adapter by subclassing `BaseAdapter` and registering it with `freeadmin.adapters.registry`.
+* Provide an alternative router if you want to mount the admin under another ASGI application.
+* Add bespoke widgets or cards by extending the templates and registering new entries via the admin site.
+* Hook into the boot process to add extra startup or shutdown handlers on your FastAPI app.
 
-This modularity allows you to start small — with one model and one admin — and grow into a complete, enterprise-grade admin system.
-
+This modularity lets you start with a single model admin and grow into an extensive administrative dashboard as your project evolves.

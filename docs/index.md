@@ -1,76 +1,64 @@
-# FastAPI FreeAdmin
+﻿# FastAPI FreeAdmin
 
-Welcome to the FreeAdmin documentation. Use the navigation below to jump to the most common topics.
+Welcome to the FreeAdmin documentation. This guide focuses on the new documentation set that ships with the repository.
 
-**FreeAdmin** is a lightweight, framework-agnostic administration system inspired by Django-Admin — rebuilt from the ground up for modern Python backends.
+**FreeAdmin** is a modular administration system for **FastAPI** projects that use the asynchronous **Tortoise ORM**. The runtime is split into small, well-defined services so you can tailor registrations, permissions, and UI composition without leaving Python.
 
-It brings you a **modular**, **declarative**, and **fully customizable** admin interface that works anywhere:  
-FastAPI, Tortoise ORM, SQLAlchemy, or even your own data layer.
+The default distribution ships with:
 
----
+* A Bootstrap 5 powered interface rendered through Jinja2 templates.
+* Automatic CRUD scaffolding for models registered on the admin site.
+* Real-time dashboard cards delivered over server-sent events.
+* A FastAPI integration layer driven by `BootManager`, which wires the admin router, middleware, and background tasks into your application.
+
+Custom adapters can be added, but the package currently provides a production-ready adapter for **Tortoise ORM** out of the box.
+
 
 ## Why FreeAdmin
 
-FreeAdmin was created to make admin panels **as flexible as your codebase**.  
-Instead of tying you to one framework or ORM, it lets you describe your data and UI declaratively — the way you think about business logic, not how a specific web framework does.
+FreeAdmin was designed for teams that enjoy the declarative ergonomics of Django Admin but need an asynchronous stack and finer control over routing and discovery.
 
-- **Universal:** works with any Python web stack or ORM adapter.  
-- **Declarative:** define models, widgets, views, and actions in pure Python.  
-- **Composable:** every admin page, card, and widget can be extended or replaced.  
-- **Fast:** no build step, no React dependency — Bootstrap 5, jQuery, and JSON-Editor out of the box.  
-- **Self-contained:** drop into any project and get a complete admin system within minutes.
+* **Declarative metadata.** Admin classes describe columns, filters, cards, and views; the runtime handles persistence and rendering.
+* **Composable services.** The hub, router, permission checker, and card manager are pluggable components that can be swapped or extended.
+* **FastAPI-first.** The admin site is mounted directly on your FastAPI application, sharing middleware and dependency injection patterns.
+* **Async by default.** Adapters, actions, and background publishers run with asyncio-friendly interfaces.
 
----
 
-## Core Philosophy
+## How the pieces connect
 
-1. **Admin as Metadata** — your admin definitions are pure metadata; the runtime adapts to your backend.
-2. **Consistency Over Magic** — clear class contracts (`ModelAdmin`, `InlineAdmin`, `WidgetContext`, `AdminSite`).
-3. **Declarative UI** — each component can be rendered or overridden with minimal boilerplate.
-4. **Open by Design** — everything is extensible: adapters, routing, widgets, permissions.
-5. **Community First** — the project is AGPL-licensed to ensure long-term openness and collaboration.
+The boot sequence starts with `BootManager`, which loads the configured adapter, initialises discovery, and mounts the admin router on your FastAPI instance. Once initialised, the `AdminSite` keeps a registry of:
 
-```
-     AdminSite → ModelAdmin → Adapter → ORM → Database
-                            ↓
-             Forms & Widgets / Views / Cards
-```
+* Model admins and their CRUD routes.
+* Standalone admin views and menu entries.
+* Dashboard and inline cards with their background publishers.
+* Settings pages backed by the system configuration service.
 
----
+The architecture layers are described in detail in the [Architecture overview](architecture-overview.md).
 
-## What You Get
 
-- A fully functional **Admin site** with user menu, cards, settings pages, and permissions.  
-- **Automatic CRUD** pages for your models.  
-- Built-in widgets powered by **Bootstrap 5**, **Choices.js**, and **JSONEditor**.  
-- Seamless integration with **Tortoise ORM**, **FastAPI**, and other frameworks via adapters.  
-- A clean, extensible **API layer** for front-end and third-party tools.
+## Essential topics
 
----
+Start with the following chapters to assemble a working project:
 
-## Getting Started
+* [What is FreeAdmin?](what-is-freeadmin.md) – conceptual background and use cases.
+* [Core concepts and terminology](core-concepts-and-terminology.md) – a tour of the main classes you will interact with.
+* [Installation and CLI](installation-and-cli.md) – how to install the package, generate a scaffold, and run the admin panel.
+* [Project structure](project-structure.md) – how the scaffolded files fit together.
+* [Configuration](configuration.md) – adapting settings and database configuration.
 
-Follow the **[Installation and Start guide](installation-and-cli.md)** to:
-- Create your first FreeAdmin project via CLI
-- Configure your `app.py`
-- Register a model and admin class
-- Launch the admin site in your browser
+Additional references:
 
-You can also explore:
-- **[Admin Architecture](admin/ADMIN.md)** — how the system is structured internally
-- **[Widgets](admin/widgets.md)** — ready-to-use UI components
-- **[System Settings](admin/settings.md)** — managing configuration at runtime
+* [Release review checklist](release-review.md) – artefact verification steps for maintainers.
 
----
 
-## Road Ahead
+## Road ahead
 
-FreeAdmin is still evolving. The near-term roadmap includes:
-- More built-in widgets and cards
-- Optional dark theme
-- Improved API documentation
-- Integration examples for SQLAlchemy and Peewee
-- Enhanced role-based permissions and audit logging
+Active development is focused on:
 
-Join the journey — explore, adapt
+* Additional widgets for common form patterns.
+* Expanded card publishers with richer SSE tooling.
+* Improved configuration helpers for multi-database projects.
+* Reference adapters for other ORMs once their integration layers are production ready.
+
+You can explore the example project under `example/` to see the components working together.
 
