@@ -27,24 +27,6 @@ FreeAdmin delivers a modular administration panel for FastAPI projects that coup
 
 * **Additional highlights**. FreeAdmin ships with JSON Schema-driven forms, reusable widgets, role-based access control, a CLI scaffold, and an extensible adapter layer so the panel can target multiple ORMs while keeping the Bootstrap frontend consistent.
 
-
-## Architecture
-
-FreeAdmin is organized into clear layers:
-
-* **Core** — AdminSite, PageRegistry, CrudRouterBuilder, authentication and template services.
-* **ModelAdmin** — Encapsulates CRUD logic, filters, validation, and ORM bindings.
-* **RBAC** — Role and permission system for secure access control.
-* **Infrastructure** — ORM adapters, CLI tools, and widget framework.
-* **Frontend** — Bootstrap-based UI, JSON-Editor integration, and static assets.
-
-This modular design makes FreeAdmin both powerful and flexible, suitable for projects of any scale.
-
-Behind the scenes the [`freeadmin/`](freeadmin/) directory contains both the Python
-modules and bundled static assets. The package structure now mirrors the canonical
-`freeadmin` namespace directly, so downstream projects, tooling, and editors can import
-modules from `freeadmin.*` without any bootstrap indirection.
-
 ## Installation
 
 ```bash
