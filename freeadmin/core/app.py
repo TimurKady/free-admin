@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Application configuration primitives for the FreeAdmin core.
+"""Application configuration primitives for the Cortex admin core.
 
 Provide a unified configuration object shared by applications, agents and
 services.
@@ -27,15 +27,45 @@ class AppConfig:
         """Validate configuration attributes and derive defaults."""
 
         label = getattr(self.__class__, "app_label", "")
-        if not isinstance(label, str) or not label:
+        if not label:
             raise ValueError("AppConfig subclasses must define a non-empty 'app_label'")
-        self.app_label = label
+        self._app_label = label
+        self._name = getattr(self.__class__, "name", None) or self.__module__.rsplit(".", 1)[0]
+        self._connection = getattr(self.__class__, "connection", "default") or "default"
+        self._models = tuple(getattr(self.__class__, "models", ()) or ())
 
-        module_name = self.__class__.name or self.__module__.rsplit(".", 1)[0]
-        self.name = module_name
+    @property
+    def import_path(self) -> str:
+        """Return the dotted Python import path of the application package."""
 
-        connection_label = self.__class__.connection or "default"
-        self.connection = connection_label
+        return self._name
+
+    @property
+    def app_label(self) -> str:
+        """Return the short label associated with the application."""
+
+        return self._app_label
+
+    @property
+    def db_connection(self) -> str:
+        """Return the database connection label assigned to the application."""
+
+        return self._connection
+
+    def get_models_modules(self) -> list[str]:
+        """Return modules that expose ORM models for the application."""
+
+        return list(self._models)
+
+    async def startup(self) -> None:
+        """Execute asynchronous startup logic for the application."""
+
+        return None
+
+    async def ready(self) -> None:
+        """Backward compatible alias that delegates to :meth:`startup`."""
+
+        await self.startup()
 
     @classmethod
     def load(cls, module_path: str) -> "AppConfig":
@@ -48,8 +78,4 @@ class AppConfig:
         return config
 
 
-__all__ = ["AppConfig"]
-
-
 # The End
-
