@@ -17,13 +17,13 @@ theme:
 nav:
   - Home: index.md
   - Overview:
-      - What is FreeAdmin: 
-      - Architecture Overview: 
-      - Core Concepts and Terminology:
+      - What is FreeAdmin: what-is-freeadmin.md
+      - Architecture Overview: architecture-overview.md
+      - Core Concepts and Terminology: core-concepts-and-terminology.md
   - Getting Started:
-      - Project and App Structure:
-      - Installation and CLI:
-      - Configuration:
+      - Project and App Structure: project-structure.md
+      - Installation and CLI: installation-and-cli.md
+      - Configuration: configuration.md
       - Models and Admin Models:
       - First Run Example:
    - Using the Admin Interface:
