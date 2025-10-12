@@ -28,6 +28,8 @@ FreeAdmin delivers a modular administration panel for FastAPI projects that coup
 
 FreeAdmin is a modern, ORM-agnostic administration panel inspired by Django Admin, but built for the FastAPI ecosystem. It provides a powerful, extensible interface for managing your application data and settings with minimal boilerplate.
 
+![FreeAdmin dashboard preview](https://raw.githubusercontent.com/TimurKady/freeadmin/main/docs/images/scr-0.jpg)
+
 ## Installation
 
 ```bash
