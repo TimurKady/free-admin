@@ -7,15 +7,11 @@ This makes the framework both **predictable for developers** and **adaptable to 
 
 ---
 
-## Core Layers
+## Layers
 
 The system consists of four main layers:
 
-![dıagramm](images/img-0.svg)
-
----
-
-## Layer Responsibilities
+![dıagramm](images/img-1.svg)
 
 ### 1. **Adapter / Connector Layer**
 The lowest layer that connects FreeAdmin to a specific data source.
