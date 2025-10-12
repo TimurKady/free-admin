@@ -11,7 +11,7 @@ This makes the framework both **predictable for developers** and **adaptable to 
 
 The system consists of four main layers:
 
-![dıagramm](images/img-0.svg)
+![dıagramm](images/img-1.svg)
 
 ---
 
