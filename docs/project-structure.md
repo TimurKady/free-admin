@@ -66,19 +66,19 @@ if __name__ == "__main__":
 
 ## 3. Application Folder: `apps/<name>/`
 
-Each folder inside `apps/` represents an **independent application**.
+Each folder inside `apps/` represents an **independent application**.  
 Applications are where your models, admin logic, and optional views live.
 
-| File             | Purpose                                                                    |
-| ---------------- | -------------------------------------------------------------------------- |
-| **`app.py`**     | Defines `AppConfig` and registers models with the admin.                   |
-| **`models.py`**  | Contains ORM model definitions.                                            |
-| **`admin.py`**   | Declares admin metadata: `ModelAdmin`, `InlineAdmin`, `Card`, `View`, etc. |
-| **`views.py`**   | (Optional) Custom admin or user-facing views.                              |
-| **`cards.py`**   | (Optional) Dashboard or model-related cards.                               |
-| **`widgets.py`** | (Optional) Custom form widgets or UI components.                           |
+| File | Purpose |
+|------|----------|
+| **`app.py`** | Defines `AppConfig` and registers models with the admin. |
+| **`models.py`** | Contains ORM model definitions. |
+| **`admin.py`** | Declares admin metadata: `ModelAdmin`, `InlineAdmin`, `Card`, `View`, etc. |
+| **`views.py`** | (Optional) Custom admin or user-facing views. |
+| **`cards.py`** | (Optional) Dashboard or model-related cards. |
+| **`widgets.py`** | (Optional) Custom form widgets or UI components. |
 
-Each `app.py` file must expose a variable named `default` —
+Each `app.py` file must expose a variable named `default` —  
 this is how FreeAdmin automatically discovers and registers applications.
 
 Example:
@@ -99,6 +99,9 @@ class ProductsConfig(AppConfig):
 default = ProductsConfig()
 ```
 
+Instead of keeping multiple Python files (`models.py`, `admin.py`, `views.py`, etc.) you can group them into a subfolder inside your application. 
+For example, it may be **models/** or **admin/** folder. In this case, don't forget to make imports in __init__.py inside such a folder
+
 ---
 
 ## 4. Optional Folder: `pages/`
@@ -110,15 +113,13 @@ It can contain static or semi-dynamic pages such as:
 * help or policy content,
 * or lightweight dashboards not tied to a specific app.
 
-Each page can be written in HTML, Markdown, or Jinja2,
-and rendered through a dedicated `PageView`.
+Each page can be written in HTML, Markdown, or Jinja2, and rendered through a dedicated `PageView`.
 
 ---
 
 ## 5. Why This Layout Matters
 
-FreeAdmin uses discovery rather than configuration files:
-when `AdminSite.boot()` runs, it automatically:
+FreeAdmin uses discovery rather than configuration files when `AdminSite.boot()` runs, it automatically:
 
 1. Loads apps from `Settings.INSTALLED_APPS`
 2. Imports their `app.py`
