@@ -30,6 +30,12 @@ Instead of tying you to one framework or ORM, it lets you describe your data and
 4. **Open by Design** — everything is extensible: adapters, routing, widgets, permissions.
 5. **Community First** — the project is AGPL-licensed to ensure long-term openness and collaboration.
 
+```
+AdminSite → ModelAdmin → Adapter → ORM → Database
+                      ↓
+          Widgets / Views / Cards
+```
+
 ---
 
 ## What You Get
