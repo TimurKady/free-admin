@@ -188,6 +188,7 @@ A **Widget** is a frontend component that renders a field or UI element.
 
 Widgets are defined declaratively and powered by JavaScript libraries such as:
 
+* **Select2** (dropdown with autocomplete)
 * **Choices.js** (dropdowns)
 * **JSONEditor** (complex forms)
 * **JSBarcode** (barcode fields)
