@@ -239,37 +239,18 @@ Open **[http://localhost:8000/admin/](http://localhost:8000/admin/)**
 
 ## 9) Create an admin user (quick bootstrap)
 
-FreeAdmin is framework‑agnostic and does not impose an auth model. For a quick start with Tortoise, you can seed a simple user model **in your own app** and mark it as a superuser. Example sketch:
+FreeAdmin bundles a ready‑to‑use `AdminUser` model (and its permissions) when you rely on the Tortoise ORM adapter. The adapter automatically registers these models with your project so you do **not** need to create a custom auth model for local administration.
 
-```python
-# apps/users/models.py (example)
-from tortoise import fields
-from tortoise.models import Model
-class User(Model):
-    id = fields.IntField(pk=True)
-    username = fields.CharField(max_length=150, unique=True)
-    password_hash = fields.CharField(max_length=255)
-    is_superuser = fields.BooleanField(default=False)
+Before running the CLI make sure the database connection is configured. For example, set `FREEADMIN_DATABASE_URL` or adjust the `db_url` inside `config/orm.py` so the CLI can open the database when it initialises the ORM.
+
+Once the connection details are in place, run the bundled superuser command:
+
+```bash
+export FREEADMIN_DATABASE_URL="sqlite:///./db.sqlite3"
+freeadmin create-superuser --username admin --email admin@example.com
 ```
 
-Add a tiny bootstrap in **`config/orm.py`** after `generate_schemas()`:
-
-```python
-from apps.users.models import User
-from passlib.hash import bcrypt
-
-async def ensure_superuser():
-    if not await User.filter(username="admin").exists():
-        await User.create(
-            username="admin",
-            password_hash=bcrypt.hash("admin123"),
-            is_superuser=True,
-        )
-```
-
-…and call it from `init_orm()`.
-
-> In a real project, plug in your existing auth and permission system. The example above is purely for local testing.
+The command initialises the ORM, ensures the system tables exist, and then creates (or updates) the requested `AdminUser`. You can omit the flags to enter the details interactively if you prefer.
 
 ---
 
