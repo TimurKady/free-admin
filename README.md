@@ -11,17 +11,36 @@
 ## Overview
 
 FreeAdmin is a modern, ORM-agnostic administration panel inspired by Django Admin, but built for the FastAPI ecosystem. It provides a powerful, extensible interface for managing your application data and settings with minimal boilerplate.
+FreeAdmin delivers a modular administration panel for FastAPI projects that couples a Django-inspired workflow with asynchronous services and a Bootstrap 5 UI. It supports CRUD automation, live dashboards, and custom pages without sacrificing extensibility or security controls.
 
-## Features
+* **ORM-first data management**
 
-* **Three modes of operation**: ORM CRUD, system configuration panels, and custom views rendered as Bootstrap 5 cards with ready-made HTML (for example, assembled from database queries).
-* **JSON-Schema forms** powered by [JSON-Editor](https://github.com/json-editor/json-editor).
-* **Role-based access control (RBAC)** with fine-grained permissions at global and model levels.
-* **Import/Export wizard** with Excel (via OpenPyXL) and other formats.
-* **Inline editing** and reusable widgets.
-* **Command-line interface (CLI)** for scaffolding and admin management.
-* **Bootstrap 5 frontend** with ready-to-use templates, icons, and static assets.
-* **Extensible architecture** with modular adapters for multiple ORMs (starting with Tortoise ORM).
+    Model admins encapsulate the entire CRUD experience: list tables expose configurable columns, default ordering, and instant search/filter controls, while detail forms respect custom field layouts, widgets, and readonly rules. Each admin class can further tailor queryset hooks for list, detail, and form operations, ensuring that row-level security and select/prefetch strategies stay under application control.
+    Related data does not require context switching. Inline admin components embed nested forms directly inside the parent editor, reusing the same queryset hooks and action system so teams can manage one-to-many relationships with the same validation and RBAC guarantees as top-level models.
+
+* **Custom admin views and pages**
+
+Beyond CRUD, the site router can mount arbitrary FastAPI handlers as admin views. Registered pages automatically join the sidebar next to ORM models, inherit shared layout/breadcrumb logic, and can opt into the settings area when needed. This makes it straightforward to add dashboards, reports, or workflow-specific screens without leaving the admin shell.
+
+## Live cards with Server-Sent Events
+
+The cards subsystem streams real-time updates through a dedicated SSE API. Each card endpoint issues signed access tokens, enforces per-user permissions, and reuses cached state so dashboards can recover the latest payload instantly while background publishers push fresh events.
+
+## Import and export pipelines
+
+Bulk data moves through dedicated services. The import workflow caches uploads, parses CSV/JSON/XLSX files, filters selected fields, and persists rows via the active `ModelAdmin`, all while producing detailed progress reports and supporting dry runs.
+
+Exports follow a similar pipeline: query adapters collect the dataset, serializers normalize fields, and writers produce CSV, JSON, or XLSX files stored in a temporary cache with automatic cleanup and streaming helpers for large downloads.
+
+## Additional highlights
+
+FreeAdmin ships with JSON Schema-driven forms, reusable widgets, role-based access control, a CLI scaffold, and an extensible adapter layer so the panel can target multiple ORMs while keeping the Bootstrap frontend consistent.
+
+
+
+
+
+
 
 ## Architecture
 
