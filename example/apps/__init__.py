@@ -11,10 +11,9 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from .base import ExampleAppConfig
 from .demo.app import DemoConfig
 
-__all__ = ["DemoConfig", "ExampleAppConfig"]
+__all__ = ["DemoConfig"]
 
 # The End
 

@@ -1,22 +1,22 @@
 # -*- coding: utf-8 -*-
-"""
-base
+"""Application configuration primitives for the FreeAdmin core.
 
-Base configuration primitives for example admin apps.
+Provide a unified configuration object shared by applications, agents and
+services.
 
-Version:0.1.0
+Version: 0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """
 
 from __future__ import annotations
 
-from importlib import import_module
+import importlib
 from typing import ClassVar, Sequence
 
 
-class ExampleAppConfig:
-    """Represent metadata and hooks for an example admin application."""
+class AppConfig:
+    """Represent metadata and hooks for an application package."""
 
     name: ClassVar[str | None] = None
     app_label: ClassVar[str]
@@ -28,7 +28,7 @@ class ExampleAppConfig:
 
         label = getattr(self.__class__, "app_label", "")
         if not label:
-            raise ValueError("ExampleAppConfig subclasses must define a non-empty 'app_label'")
+            raise ValueError("AppConfig subclasses must define a non-empty 'app_label'")
         self._app_label = label
         self._name = getattr(self.__class__, "name", None) or self.__module__.rsplit(".", 1)[0]
         self._connection = getattr(self.__class__, "connection", "default") or "default"
@@ -57,30 +57,19 @@ class ExampleAppConfig:
 
         return list(self._models)
 
-    async def startup(self) -> None:
-        """Execute asynchronous startup logic for the application."""
-
-        return None
-
-    async def ready(self) -> None:
-        """Backward compatible alias that delegates to :meth:`startup`."""
-
-        await self.startup()
-
     @classmethod
-    def load(cls, module_path: str) -> "ExampleAppConfig":
-        """Import an application module and return its configuration instance."""
+    def load(cls, module_path: str) -> "AppConfig":
+        """Import an application module and return its ``AppConfig`` instance."""
 
-        module = import_module(f"{module_path}.app")
+        module = importlib.import_module(f"{module_path}.app")
         config = getattr(module, "default", None)
-        if not isinstance(config, ExampleAppConfig):
-            raise TypeError(
-                f"{module_path}.app must define a 'default' ExampleAppConfig instance"
-            )
+        if not isinstance(config, AppConfig):
+            raise TypeError(f"{module_path}.app must define a 'default' AppConfig instance")
         return config
 
 
-__all__ = ["ExampleAppConfig"]
+__all__ = ["AppConfig"]
+
 
 # The End
 

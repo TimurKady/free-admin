@@ -3,14 +3,14 @@
 
 from __future__ import annotations
 
-from ..base import ExampleAppConfig
+from freeadmin.core.app import AppConfig
 from freeadmin.hub import admin_site
 
 from .service import TemperaturePublisher
 from .views import DemoDashboard
 
 
-class DemoConfig(ExampleAppConfig):
+class DemoConfig(AppConfig):
     """Initialize demo dashboard resources for the admin panel."""
 
     app_label = "demo"
