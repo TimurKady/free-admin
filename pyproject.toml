@@ -14,7 +14,10 @@ license-files = ["LICENSE"]
 keywords = ["fastapi", "admin", "tortoise-orm", "dashboard"]
 classifiers = [
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Framework :: FastAPI",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
 ]
 dependencies = [
     "click>=8.1,<9.0",
