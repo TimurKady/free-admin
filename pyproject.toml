@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=68"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
 
 [project]
 name = "freeadmin"
@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Reusable administrative interface extracted from Cortex."
 authors = [{ name = "Timur Kady", email = "timurkady@yandex.com" }]
 readme = "README.md"
-license = "AGPL-3.0-or-later"
+license = { text = "AGPL-3.0-or-later" }
 requires-python = ">=3.11"
 license-files = ["LICENSE"]
 keywords = ["fastapi", "admin", "tortoise-orm", "dashboard"]
@@ -38,14 +38,20 @@ Homepage = "https://github.com/TimurKady/freeadmin"
 Source = "https://github.com/TimurKady/freeadmin"
 Documentation = "https://github.com/TimurKady/freeadmin#readme"
 
-[tool.setuptools]
-include-package-data = true
-
-[tool.setuptools.packages.find]
-include = ["freeadmin*"]
-
-[tool.setuptools.package-data]
-freeadmin = ["freeadmin/**/*"]
-
 [tool.pytest.ini_options]
 pythonpath = ["."]
+
+[tool.hatch.build.targets.wheel]
+packages = ["freeadmin"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "freeadmin",
+    "docs",
+    "example",
+    "tests",
+    "LICENSE",
+    "README.md",
+    "MANIFEST.in",
+    "pyproject.toml",
+]
