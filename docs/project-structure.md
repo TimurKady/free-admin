@@ -64,11 +64,12 @@ Each folder inside `apps/` represents a logical component of your system. The CL
 
 | File | Typical contents |
 | ---- | ---------------- |
+| `app.py` | `AppConfig` subclass for startup hooks. |
 | `models.py` | Tortoise ORM models. |
 | `admin.py` | `ModelAdmin` classes and calls to `admin_site.register`. |
 | `views.py` | Optional custom admin views registered with `admin_site.register_view`. |
 | `cards.py` | Optional dashboard card registrations. |
-| `app.py` | Optional `AppConfig` subclass for startup hooks. |
+
 
 A minimal `views.py` might expose a bespoke report page:
 
