@@ -85,12 +85,11 @@ Expose the `default` variable at module scope—the loader requires it to access
 | --- | --- | --- |
 | **`app_label`** | Short identifier used by admin modules, registries and metrics. | Always override. Use a concise, unique label. |
 | **`name`** | Full dotted path of the package. Defaults to the module portion of `app.py` if omitted. | Override when the package lives outside the standard layout or you re-export config from another module. |
-| **`connection`** | Database connection label exposed via `db_connection`. Defaults to `"default"`. | Override when the app writes to a non-default database or analytical replica. |
-| **`models`** | Iterable of dotted modules that contain ORM models. Returned by `get_models_modules()` for loaders. | Override when the ORM models are split across multiple modules. |
-| **`import_path`** | Property returning the package path, useful for dynamic imports. | No override needed; use it when constructing dynamic imports. |
+| **`connection`** | Database connection label stored on the configuration instance. Defaults to `"default"`. | Override when the app writes to a non-default database or analytical replica. |
+| **`models`** | Iterable of dotted modules that contain ORM models. Kept as a class attribute for discovery helpers. | Override when the ORM models are split across multiple modules. |
 | **`load(module_path)`** | Class method that imports `<module_path>.app`, extracts `default` and verifies it is an `AppConfig` instance. | Rarely override—custom loaders may subclass `AppConfig` and extend the logic if necessary. |
 
-These pieces ensure a consistent lifecycle regardless of whether you configure an admin view, agent or background worker. During `__init__`, the base class validates that `app_label` exists, normalizes the package path and captures database routing rules so other components can reference them later via properties such as `db_connection`.
+These pieces ensure a consistent lifecycle regardless of whether you configure an admin view, agent or background worker. During `__init__`, the base class validates that `app_label` exists, normalizes the package path and captures database routing rules so other components can reference them later via the `connection` attribute.
 
 ## 5. Configure optional services
 
