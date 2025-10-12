@@ -275,23 +275,7 @@ async def ensure_superuser():
 
 ## 10) Static assets (front‑end)
 
-FreeAdmin ships with a minimal front‑end stack (Bootstrap 5, jQuery, Choices.js, JSONEditor). If you use vendor files directly, keep them under `static/vendor/` and include in your base template:
-
-```html
-<link href="/static/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
-<link href="/static/vendor/choices/choices.min.css" rel="stylesheet">
-<link href="/static/vendor/select2/css/select2.min.css" rel="stylesheet">
-<link href="/static/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
-
-<script src="/static/vendor/jquery/jquery-3.7.1.min.js"></script>
-<script src="/static/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-<script src="/static/vendor/choices/choices.min.js"></script>
-<script src="/static/vendor/ace/src-min-noconflict/ace.js"></script>
-<script src="/static/vendor/json-editor/jsoneditor.min.js"></script>
-<script src="/static/vendor/jsbarcode/JsBarcode.all.min.js"></script>
-```
-
-> You can swap or bundle assets with your own pipeline anytime.
+FreeAdmin comes with a minimal set of front-end tools (Bootstrap 5, jQuery, Choices.js, JSONEditor). If you use additional JavaScript and CSS tables, save them in the static/.../ folders and include them in the template of the page you need. Alternatively, you can specify them as assets when declaring your views.
 
 ---
 
