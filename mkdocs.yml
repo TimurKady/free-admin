@@ -25,7 +25,7 @@ nav:
       - Installation and CLI: installation-and-cli.md
       - Configuration: configuration.md
       - Models and Admin Models: models-and-admin-models.md
-      - First Run Example:
+      - First Run Example: first-run-example.md
    - Using the Admin Interface:
       - Working with ORM / CRUD:
       - Permissions and Roles:
