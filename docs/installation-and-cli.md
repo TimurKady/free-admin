@@ -1,6 +1,6 @@
 # Installation and CLI
 
-*A step‑by‑step guide you can follow with your eyes closed. No prior framework required.*
+**A step‑by‑step guide you can follow with your eyes closed. No prior framework required.**
 
 ---
 
