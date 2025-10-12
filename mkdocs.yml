@@ -1,0 +1,68 @@
+site_name: FastAPI FreeAdmin
+repo_url: https://github.com/TimurKady/freeadmin
+repo_name: freeadmin
+docs_dir: docs
+
+theme:
+  name: readthedocs
+  palette:
+    scheme: slate
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.expand
+    - search.highlight
+    - search.share
+
+nav:
+  - Home: index.md
+  - Overview:
+      - What is FreeAdmin: 
+      - Architecture Overview: 
+      - Core Concepts and Terminology:
+  - Getting Started:
+      - Project and App Structure:
+      - Installation and CLI:
+      - Configuration:
+      - Models and Admin Models:
+      - First Run Example:
+   - Using the Admin Interface:
+      - Working with ORM / CRUD:
+      - Permissions and Roles:
+      - Registering Views and Cards:
+      - Managing Settings:
+      - User Menu and UI Extensions:
+  - Advanced Usage and Development:
+      - Extending `Models` class:
+      - `ModelAdmin` and `InlineAdmin` Deep Dive:
+      - Cards and Views API:
+      - Adapters and DB Connectors:
+      - Routing and Boot Process:
+      - Frontend and Widgets
+  - Development Roadmap:
+      - Release Checklist:
+      - Future Features:
+      - Contribution Guidelines:
+  - Licensing:
+      - AGPLv3:
+      - Reuse and SaaS Notes:
+
+markdown_extensions:
+  - toc:
+      permalink: true
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.details
+  - pymdownx.keys
+  - pymdownx.emoji
+  - admonition
+
+plugins:
+  - search
+  - mkdocstrings
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/TimurKady/django-fast-treenode
