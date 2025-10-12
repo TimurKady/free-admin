@@ -11,36 +11,7 @@ This makes the framework both **predictable for developers** and **adaptable to 
 
 The system consists of four main layers:
 
-```
-
-                     ┌───────────────────────────────────────────┐
-                     │                 Frontend                  │
-                     │  HTML + Bootstrap 5 + Choices.js + jQuery │
-                     │  JSONEditor widgets and AJAX actions      │
-                     └───────────────────────────────────────────┘
-                                          ▲
-                                          │
-                     ┌───────────────────────────────────────────┐
-                     │               Admin Layer                 │
-                     │   ModelAdmin, InlineAdmin, Cards, Views   │
-                     │   Declarative definitions of UI logic     │
-                     └───────────────────────────────────────────┘
-                                          ▲
-                                          │
-                     ┌───────────────────────────────────────────┐
-                     │                 Core Layer                │
-                     │   AdminSite registry, routing, settings   │
-                     │   Manages adapters and model discovery    │
-                     └───────────────────────────────────────────┘
-                                          ▲
-                                          │
-                     ┌───────────────────────────────────────────┐
-                     │            Adapter / Connector            │
-                     │  Bridges ORM, API, or data source logic   │
-                     │  Provides CRUD interface and metadata     │
-                     └───────────────────────────────────────────┘
-
-````
+![dıagramm](images/img-0.svg)
 
 ---
 
