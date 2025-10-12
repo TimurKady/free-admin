@@ -51,8 +51,6 @@ app = FastAPI(title="Demo Admin")
 admin.init(app, packages=["apps"])
 ```
 
-Placing your admin modules under ``apps/<app_name>/admin.py`` ensures they are discovered when FreeAdmin scans the listed packages.
-
 ## 4. Add an application module
 
 Within the project root run the ``add`` command to create a new application package inside ``apps``. The command must be executed where the ``apps`` directory exists; otherwise it exits with a helpful message.
@@ -67,10 +65,6 @@ Populate ``apps/blog/models.py`` with your ORM models and ``apps/blog/admin.py``
 from tortoise import fields
 from tortoise.models import Model
 
-from freeadmin.core.models import ModelAdmin
-from freeadmin.hub import admin_site
-
-
 class Post(Model):
     id = fields.IntField(pk=True)
     title = fields.CharField(max_length=255)
@@ -81,6 +75,12 @@ class Post(Model):
         app = "blog"
         table = "blog_posts"
 
+```
+Placing your admin modules under ``apps/blog/admin.py`` ensures they are discovered when FreeAdmin scans the listed packages.
+
+```pyhon
+from freeadmin.core.models import ModelAdmin
+from freeadmin.hub import admin_site
 
 class PostAdmin(ModelAdmin):
     """Expose blog posts in the administration interface."""
@@ -102,8 +102,10 @@ Before you can sign in, run your migrations and create an administrative user. F
 export FREEADMIN_DATABASE_URL="sqlite:///./db.sqlite3"
 freeadmin create-superuser
 ```
-
 The command initialises the ORM using the configured adapter, ensures system settings are seeded, and then creates or updates the requested user account.
+
+!!! info
+    You can create a superuser later. When you first launch the system, you'll be redirected to the superuser registration page.
 
 ## 6. Run the server
 
