@@ -115,21 +115,12 @@ Then open [http://127.0.0.1:8000/admin](http://127.0.0.1:8000/admin).
 
 ## Documentation
 
-Full documentation is available in the [Documentation](docs/index.md). Topics include:
-
-* Getting Started
-* ModelAdmin API
-* RBAC configuration
-* Import/Export wizard
-* Widgets and Inline forms
-* CLI usage
-* Advanced customization
+Commıng soon
 
 ## Roadmap
 
 * Support for additional ORMs (SQLAlchemy, GINO).
 * Extended set of built-in widgets.
-* Multy-nested inline support.
 * Internationalization (i18n).
 
 ## License
