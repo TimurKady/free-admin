@@ -31,9 +31,9 @@ Instead of tying you to one framework or ORM, it lets you describe your data and
 5. **Community First** — the project is AGPL-licensed to ensure long-term openness and collaboration.
 
 ```
-AdminSite → ModelAdmin → Adapter → ORM → Database
-                      ↓
-          Widgets / Views / Cards
+     AdminSite → ModelAdmin → Adapter → ORM → Database
+                            ↓
+             Forms & Widgets / Views / Cards
 ```
 
 ---
