@@ -16,7 +16,6 @@ Because the admin layer is thin, you can bring your own asynchronous ORM. The
 examples below use Tortoise ORM, but the APIs highlighted here mirror the
 adapter contracts implemented in `freeadmin.core.base.BaseModelAdmin`.
 
----
 
 ## Defining an ORM model
 
@@ -49,8 +48,6 @@ class Product(Model):
 > **Narrative tip.** Choose descriptive `Meta.table` values and implement
 > `__str__`. FreeAdmin reuses them when it renders relation widgets, inline
 > badges, and selection lists.
-
----
 
 ## Registering models with the admin site
 
@@ -91,7 +88,6 @@ are predictable. If you prefer structured startup logic, wrap the registration
 inside an `AppConfig.startup()` method and import the config in your boot
 sequence.
 
----
 
 ## What a `ModelAdmin` does for you
 
@@ -143,8 +139,6 @@ Every CRUD operation flows through async hooks that you may override:
 These hooks live in `BaseModelAdmin`, so refer to the inline documentation for
 finer details before overriding them.
 
----
-
 ## Inline editors with `InlineModelAdmin`
 
 Inline descriptors let users edit related rows without leaving the parent form.
@@ -177,8 +171,6 @@ used by the parent admin, and surfaces a metadata payload describing columns,
 permissions, and badge counts. Advanced behaviour such as forced foreign key
 headers (`X-Force-FK-<field>`) is already handled inside `BaseModelAdmin.create`
 and `BaseModelAdmin.update`, so inline POST/DELETE requests remain minimal.
-
----
 
 ## Bulk actions
 
@@ -223,7 +215,6 @@ You can also reuse the built-in `DeleteSelectedAction` and
 `fetch_all`, `assign`, and queryset builders (`filter`, `order_by`), so writing
 async-friendly actions is a matter of orchestrating your domain logic.
 
----
 
 ## Working with enums and choice fields
 
@@ -251,7 +242,6 @@ The filter sidebar receives the enum values and their display labels; form
 widgets display the same readable names. No extra wiring is required as long as
 your adapter exposes `choices` in its model descriptor.
 
----
 
 ## Relations and search paths
 
@@ -281,7 +271,6 @@ When a user edits a product, FreeAdmin renders the `category` field as a select
 widget, populated through the adapter’s metadata APIs. Many-to-many widgets are
 handled in the same fashion, including add/remove semantics during save.
 
----
 
 ## Putting it all together
 
@@ -373,8 +362,6 @@ picture: models are available to FreeAdmin, the admin site understands how to
 list them, inline editors surface related data, and default bulk actions are
 ready. From there you can layer in custom permissions, bespoke widgets, or
 domain-specific actions by extending the documented hooks.
-
----
 
 ## Summary
 
