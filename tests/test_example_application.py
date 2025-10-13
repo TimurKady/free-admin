@@ -17,7 +17,9 @@ from unittest.mock import AsyncMock
 import pytest
 
 from example.config.main import ExampleApplication
+from example.config.orm import ExampleORMConfig
 from tests.sampleapp.app import default as sample_app_config
+from tortoise import Tortoise
 
 
 class TestExampleApplicationSmoke:
@@ -59,6 +61,53 @@ class TestExampleApplicationStartup:
             assert sample_app_config.ready_calls == 1
         finally:
             await app.router.shutdown()
+
+    @pytest.mark.asyncio
+    async def test_app_initialises_orm(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Verify the example app initialises and tears down Tortoise ORM."""
+
+        init_arguments: dict[str, object] = {}
+        shutdown_calls: list[bool] = []
+
+        async def fake_init(*, db_url: str, modules: dict[str, list[str]]) -> None:
+            init_arguments["db_url"] = db_url
+            init_arguments["modules"] = modules
+
+        async def fake_close() -> None:
+            shutdown_calls.append(True)
+
+        monkeypatch.setattr(Tortoise, "init", fake_init)
+        monkeypatch.setattr(Tortoise, "close_connections", fake_close)
+
+        custom_dsn = "sqlite:///example.db"
+        orm_config = ExampleORMConfig(dsn=custom_dsn)
+        application = ExampleApplication(orm=orm_config)
+        app = application.configure()
+
+        boot_manager = application.boot_manager
+        hub = boot_manager._ensure_hub()
+        hub.admin_site.finalize = AsyncMock()
+        hub.admin_site.cards.start_publishers = AsyncMock()
+        hub.admin_site.cards.shutdown_publishers = AsyncMock()
+        boot_manager._config = SimpleNamespace(
+            ensure_seed=AsyncMock(),
+            reload=AsyncMock(),
+        )
+
+        await app.router.startup()
+        try:
+            assert init_arguments["db_url"] == custom_dsn
+            modules = init_arguments["modules"]
+            assert "example.apps.demo.models" in modules["models"]
+            assert {
+                "freeadmin.adapters.tortoise.content_type",
+                "freeadmin.adapters.tortoise.groups",
+                "freeadmin.adapters.tortoise.users",
+            }.issubset(set(modules["models"]))
+        finally:
+            await app.router.shutdown()
+
+        assert shutdown_calls == [True]
 
 
 # The End
