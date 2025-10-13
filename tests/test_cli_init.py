@@ -13,7 +13,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from freeadmin.utils.cli.project_initializer import ProjectInitializer
+from freeadmin.utils.cli.project_initializer import (
+    ProjectInitializer,
+    ROUTER_TEMPLATE_CLASS_NAME,
+)
 
 
 class TestProjectInitializerConfigTemplates:
@@ -27,11 +30,15 @@ class TestProjectInitializerConfigTemplates:
 
         main_content = (config_dir / "main.py").read_text(encoding="utf-8")
         orm_content = (config_dir / "orm.py").read_text(encoding="utf-8")
+        routers_path = config_dir / "routers.py"
+        assert routers_path.exists()
+        routers_content = routers_path.read_text(encoding="utf-8")
         settings_content = (config_dir / "settings.py").read_text(encoding="utf-8")
         routers_content = (config_dir / "routers.py").read_text(encoding="utf-8")
 
         assert "ApplicationFactory" in main_content
         assert "ORMSettings" in orm_content
+        assert ROUTER_TEMPLATE_CLASS_NAME in routers_content
         assert "ProjectSettings" in settings_content
         assert "RouterAggregator" in routers_content
 
