@@ -87,6 +87,9 @@ app = application.configure()
 After logging in you are greeted by the **Demo** dashboard, a compact showcase of
 several FreeAdmin features.
 
+
+[*Demo dashboard*](images/scr-1.jpg)
+
 ### Demo application
 
 The demo application is defined in `example/apps/demo/`. The `DemoConfig`
