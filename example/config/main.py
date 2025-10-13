@@ -18,7 +18,9 @@ from fastapi import FastAPI
 
 from freeadmin.boot import BootManager
 
-from .orm import ExampleORMConfig
+from .orm import (
+    ExampleORMConfig,
+)
 from .routers import ExampleAdminRouters
 from .settings import ExampleSettings
 
