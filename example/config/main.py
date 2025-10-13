@@ -58,14 +58,14 @@ class ExampleApplication:
             "example.apps",
             "example.pages",
         ]
+        if not self._orm_events_bound:
+            self._orm_lifecycle.bind(self._app)
+            self._orm_events_bound = True
         self._boot.init(
             self._app,
             adapter=self._orm.adapter_name,
             packages=discovery_packages,
         )
-        if not self._orm_events_bound:
-            self._orm_lifecycle.bind(self._app)
-            self._orm_events_bound = True
         self._routers.mount(self._app)
         return self._app
 
