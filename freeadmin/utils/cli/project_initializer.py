@@ -67,15 +67,55 @@ Application bootstrap for {project_name}.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+from typing import List
+
 from fastapi import FastAPI
+
+from freeadmin.boot import BootManager
+
+from .orm import ORMLifecycle, ORMSettings
+from .settings import ProjectSettings
 
 
 class ApplicationFactory:
     """Create FastAPI applications for the project."""
 
+    def __init__(
+        self,
+        *,
+        settings: ProjectSettings | None = None,
+        orm_settings: ORMSettings | None = None,
+        packages: Iterable[str] | None = None,
+    ) -> None:
+        """Configure dependencies required to build the application."""
+
+        self._settings = settings or ProjectSettings()
+        self._orm_settings = orm_settings or ORMSettings()
+        self._orm_lifecycle: ORMLifecycle = self._orm_settings.create_lifecycle()
+        self._boot = BootManager(adapter_name=self._orm_lifecycle.adapter_name)
+        self._app = FastAPI(title=self._settings.project_title)
+        self._packages: List[str] = list(packages or ["apps", "pages"])
+        self._orm_events_bound = False
+
     def build(self) -> FastAPI:
-        """Return a FastAPI instance with default metadata."""
-        return FastAPI(title="{project_name} administration")
+        """Return a FastAPI instance wired with FreeAdmin integration."""
+
+        self._bind_orm_events()
+        self._boot.init(
+            self._app,
+            adapter=self._orm_lifecycle.adapter_name,
+            packages=self._packages,
+        )
+        return self._app
+
+    def _bind_orm_events(self) -> None:
+        """Attach ORM lifecycle hooks to the FastAPI application."""
+
+        if self._orm_events_bound:
+            return
+        self._orm_lifecycle.bind(self._app)
+        self._orm_events_bound = True
 
 
 app = ApplicationFactory().build()
@@ -95,13 +135,66 @@ from __future__ import annotations
 
 from typing import Dict
 
+from fastapi import FastAPI
+
 
 class ORMSettings:
     """Provide placeholder ORM configuration values."""
 
+    def __init__(self, *, adapter_name: str = "tortoise") -> None:
+        """Store the adapter identifier used by the ORM lifecycle."""
+
+        self._adapter_name = adapter_name
+
+    @property
+    def adapter_name(self) -> str:
+        """Return the adapter identifier configured for the project."""
+
+        return self._adapter_name
+
     def template(self) -> Dict[str, str]:
         """Return a dictionary with example ORM configuration."""
+
         return {{"default": "sqlite:///db.sqlite3"}}
+
+    def create_lifecycle(self) -> ORMLifecycle:
+        """Return an ORM lifecycle configured with these settings."""
+
+        return ORMLifecycle(settings=self)
+
+
+class ORMLifecycle:
+    """Manage ORM startup and shutdown hooks for FastAPI."""
+
+    def __init__(self, *, settings: ORMSettings) -> None:
+        """Persist settings required to bind lifecycle handlers."""
+
+        self._settings = settings
+
+    @property
+    def adapter_name(self) -> str:
+        """Expose the adapter identifier for BootManager wiring."""
+
+        return self._settings.adapter_name
+
+    async def startup(self) -> None:
+        """Placeholder coroutine executed on FastAPI startup."""
+
+        return None
+
+    async def shutdown(self) -> None:
+        """Placeholder coroutine executed on FastAPI shutdown."""
+
+        return None
+
+    def bind(self, app: FastAPI) -> None:
+        """Register lifecycle handlers on a FastAPI application."""
+
+        app.add_event_handler("startup", self.startup)
+        app.add_event_handler("shutdown", self.shutdown)
+
+
+__all__ = ["ORMSettings", "ORMLifecycle"]
 
 
 # The End
@@ -124,6 +217,7 @@ class ProjectSettings(BaseSettings):
 
     debug: bool = True
     database_url: str = "sqlite:///db.sqlite3"
+    project_title: str = "{project_name} administration"
 
 
 settings = ProjectSettings()

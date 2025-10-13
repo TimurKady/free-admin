@@ -34,13 +34,16 @@ class TestProjectInitializerConfigTemplates:
         assert routers_path.exists()
         routers_content = routers_path.read_text(encoding="utf-8")
         settings_content = (config_dir / "settings.py").read_text(encoding="utf-8")
-        routers_content = (config_dir / "routers.py").read_text(encoding="utf-8")
 
-        assert "ApplicationFactory" in main_content
+        assert "BootManager" in main_content
+        assert "self._boot.init" in main_content
+        assert '"apps", "pages"' in main_content
+        assert "self._orm_lifecycle.bind" in main_content
         assert "ORMSettings" in orm_content
+        assert "ORMLifecycle" in orm_content
         assert ROUTER_TEMPLATE_CLASS_NAME in routers_content
         assert "ProjectSettings" in settings_content
-        assert "RouterAggregator" in routers_content
+        assert "project_title" in settings_content
 
 
 # The End
