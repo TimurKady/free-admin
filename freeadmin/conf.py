@@ -79,7 +79,7 @@ class FreeAdminSettings:
         cls,
         env: Mapping[str, str] | None = None,
         *,
-        prefix: str = "FREEADMIN_",
+        prefix: str = "FA_",
     ) -> "FreeAdminSettings":
         """Build a settings instance from environment variables."""
         source = env or os.environ
