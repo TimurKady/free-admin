@@ -3,9 +3,5 @@ include LICENSE
 include COMMERCIAL-LICENSE.md
 recursive-include freeadmin/templates *
 recursive-include freeadmin/static *
-prune freeadmin/static/vendors/json-editor/tests
-prune freeadmin/static/vendors/json-editor/docs
-prune freeadmin/static/vendors/json-editor/config
-prune freeadmin/static/vendors/json-editor/src
 global-exclude __pycache__
 global-exclude *.py[cod]
