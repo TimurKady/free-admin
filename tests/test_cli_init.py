@@ -28,10 +28,12 @@ class TestProjectInitializerConfigTemplates:
         main_content = (config_dir / "main.py").read_text(encoding="utf-8")
         orm_content = (config_dir / "orm.py").read_text(encoding="utf-8")
         settings_content = (config_dir / "settings.py").read_text(encoding="utf-8")
+        routers_content = (config_dir / "routers.py").read_text(encoding="utf-8")
 
         assert "ApplicationFactory" in main_content
         assert "ORMSettings" in orm_content
         assert "ProjectSettings" in settings_content
+        assert "RouterAggregator" in routers_content
 
 
 # The End

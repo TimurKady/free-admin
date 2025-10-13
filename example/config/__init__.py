@@ -13,9 +13,15 @@ from __future__ import annotations
 
 from .ORM import ExampleORMConfig
 from .main import ExampleApplication
+from .routers import ExampleRouterAggregator
 from .settings import ExampleSettings
 
-__all__ = ["ExampleApplication", "ExampleORMConfig", "ExampleSettings"]
+__all__ = [
+    "ExampleApplication",
+    "ExampleORMConfig",
+    "ExampleRouterAggregator",
+    "ExampleSettings",
+]
 
 # The End
 
