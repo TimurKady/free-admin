@@ -13,13 +13,13 @@ from __future__ import annotations
 
 from .orm import ExampleORMConfig
 from .main import ExampleApplication
-from .routers import ExampleAdminRouters
+from .routers import ExampleRouterAggregator
 from .settings import ExampleSettings
 
 __all__ = [
     "ExampleApplication",
-    "ExampleAdminRouters",
     "ExampleORMConfig",
+    "ExampleRouterAggregator",
     "ExampleSettings",
 ]
 

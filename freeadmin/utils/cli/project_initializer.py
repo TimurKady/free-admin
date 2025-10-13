@@ -50,6 +50,7 @@ class ConfigTemplateProvider:
             "main.py": self._main_template().format(project_name=self._project_name),
             "orm.py": self._orm_template().format(project_name=self._project_name),
             "settings.py": self._settings_template().format(project_name=self._project_name),
+            "routers.py": self._routers_template().format(project_name=self._project_name),
         }
 
     def _main_template(self) -> str:
@@ -120,6 +121,90 @@ class ProjectSettings(BaseSettings):
 
 
 settings = ProjectSettings()
+
+
+# The End
+
+'''
+
+    def _routers_template(self) -> str:
+        return '''# -*- coding: utf-8 -*-
+"""
+routers
+
+Routing configuration aggregator for {project_name}.
+"""
+
+from __future__ import annotations
+
+from fastapi import APIRouter, FastAPI
+from fastapi.responses import PlainTextResponse, RedirectResponse
+
+from freeadmin.api.cards import public_router as card_public_router
+from freeadmin.core.settings import SettingsKey, system_config
+from freeadmin.hub import admin_site
+from freeadmin.router import AdminRouter
+
+
+class RouterAggregator:
+    """Aggregate routers required for the {project_name} admin surface."""
+
+    def __init__(self) -> None:
+        """Initialize the router aggregator with admin and public routers."""
+
+        self._admin_router = AdminRouter(admin_site)
+        self._card_router = card_public_router
+        self._public_router = APIRouter()
+        self._configure_public_routes()
+
+    def _configure_public_routes(self) -> None:
+        login_path = system_config.get_cached(SettingsKey.LOGIN_PATH, "/login")
+        logout_path = system_config.get_cached(SettingsKey.LOGOUT_PATH, "/logout")
+        robots_path = "/robots.txt"
+
+        @self._public_router.get(login_path, include_in_schema=False)
+        async def login_redirect() -> RedirectResponse:
+            """Redirect visitors to the admin login form."""
+
+            admin_prefix = await system_config.get(
+                SettingsKey.ADMIN_PREFIX, "/admin"
+            )
+            return RedirectResponse(
+                f"{{admin_prefix}}{{login_path}}", status_code=303
+            )
+
+        @self._public_router.get(logout_path, include_in_schema=False)
+        async def logout_redirect() -> RedirectResponse:
+            """Redirect visitors to the admin logout endpoint."""
+
+            admin_prefix = await system_config.get(
+                SettingsKey.ADMIN_PREFIX, "/admin"
+            )
+            return RedirectResponse(
+                f"{{admin_prefix}}{{logout_path}}", status_code=303
+            )
+
+        @self._public_router.get(
+            robots_path,
+            include_in_schema=False,
+            response_class=PlainTextResponse,
+        )
+        async def robots_txt() -> PlainTextResponse:
+            """Return robots.txt directives from the system configuration."""
+
+            directives = await system_config.get(
+                SettingsKey.ROBOTS_DIRECTIVES,
+                "User-agent: *\\nDisallow: /\\n",
+            )
+            return PlainTextResponse(directives)
+
+    def mount(self, app: FastAPI) -> None:
+        """Include admin and public routes on ``app``."""
+
+        if getattr(app.state, "admin_site", None) is None:
+            self._admin_router.mount(app)
+        app.include_router(self._card_router)
+        app.include_router(self._public_router)
 
 
 # The End
