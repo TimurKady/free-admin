@@ -54,8 +54,16 @@ class DiscoveryService:
 
         roots = self._collect_package_roots(packages)
         app_configs: List[AppConfig] = []
+        discovered_packages: List[str] = []
+        seen_packages: Set[str] = set()
         for root in roots:
-            config = self._load_app_config(root.__name__)
+            discovered_packages.extend(self._collect_package_names(root, seen_packages))
+        loaded_configs: Set[str] = set()
+        for module_path in discovered_packages:
+            if module_path in loaded_configs:
+                continue
+            loaded_configs.add(module_path)
+            config = self._load_app_config(module_path)
             if config is not None:
                 app_configs.append(config)
         self._import_admin_modules(roots)
@@ -77,6 +85,29 @@ class DiscoveryService:
             if hasattr(module, "__path__"):
                 roots.append(module)
         return roots
+
+    def _collect_package_names(
+        self, module: ModuleType, seen: Set[str]
+    ) -> List[str]:
+        """Return package names for ``module`` including its nested packages."""
+        names: List[str] = []
+        module_name = module.__name__
+        if module_name in seen:
+            return names
+        seen.add(module_name)
+        names.append(module_name)
+        module_path = getattr(module, "__path__", None)
+        if module_path is None:
+            return names
+        prefix = module_name + "."
+        for _, submodule, ispkg in pkgutil.iter_modules(module_path, prefix):
+            if not ispkg:
+                continue
+            package = self._safe_import(submodule)
+            if package is None:
+                continue
+            names.extend(self._collect_package_names(package, seen))
+        return names
 
     def _import_admin_modules(self, roots: Iterable[ModuleType]) -> None:
         for root in roots:
