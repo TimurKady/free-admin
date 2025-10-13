@@ -42,7 +42,7 @@ class DemoHelloView:
     """Expose a standalone hello view with user statistics."""
 
     path = "/demo/hello"
-    name = "Hello word!"
+    name = "Hello world!"
     icon = "bi-person-check"
     label = "Demo"
     assets = {"js": ("js/demo-hello.js",), "css": ()}
@@ -85,7 +85,7 @@ class DemoHelloView:
         return await model.all().count()
 
     def _format_message(self, count: int) -> str:
-        return f"Hello word! Registered users: {count}"
+        return f"Hello world! Registered users: {count}"
 
     def _assets_payload(self) -> dict[str, tuple[str, ...]]:
         """Return a context-safe copy of the declared assets."""
