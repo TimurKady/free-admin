@@ -152,6 +152,7 @@ class BootManager:
         @app.on_event("startup")
         async def _finalize_admin_site() -> None:
             hub_ref = self._ensure_hub()
+            await hub_ref.start_app_configs()
             await hub_ref.admin_site.finalize()
             await hub_ref.admin_site.cards.start_publishers()
 
