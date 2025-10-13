@@ -45,6 +45,10 @@ pythonpath = ["."]
 
 [tool.hatch.build.targets.wheel]
 packages = ["freeadmin"]
+exclude = [
+    "docs",
+    "example",
+]
 [tool.hatch.build.targets.wheel.force-include]
 "COMMERCIAL-LICENSE.md" = "COMMERCIAL-LICENSE.md"
 
@@ -59,6 +63,10 @@ include = [
     "README.md",
     "MANIFEST.in",
     "pyproject.toml",
+]
+exclude = [
+    "docs",
+    "example",
 ]
 
 [tool.setuptools.package-data]
