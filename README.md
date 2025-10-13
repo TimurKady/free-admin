@@ -46,7 +46,7 @@ pip install freeadmin
 
 ## Quickstart
 
-Follow these high-level steps to get an admin interface up and running. Detailed instructions live in [`docs/quick-start.md`](docs/quick-start.md).
+Follow these high-level steps to get an admin interface up and running. Detailed instructions live in ([Installation and Getting Started Guide](https://github.com/TimurKady/freeadmin/blob/main/docs/installation-and-cli.md)).
 
 ### 1. Scaffold a project
 
