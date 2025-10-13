@@ -320,13 +320,32 @@ For PostgreSQL use a DSN such as `postgres://user:password@localhost:5432/mydb`.
 
 ## Step 10. Create an admin user
 
-The CLI can create superusers for the bundled authentication models:
+The CLI can create superusers for the bundled authentication models. Make sure the required tables already exist (for example by running your migrations or calling `Tortoise.generate_schemas()` after initialising the ORM) before executing the command:
 
 ```bash
 freeadmin create-superuser --username admin --email admin@example.com
 ```
 
-If you omit the flags the command will prompt for the missing values. It initialises the ORM, ensures the auth tables exist, and stores the user record using the active adapter.
+If you omit the flags the command will prompt for the missing values. The CLI initialises the ORM and stores the user record using the active adapter.
+
+For first-time setups you can create schemas programmatically after wiring the ORM configuration (see Step 5 for the scaffolded settings). One-off scripts often look like:
+
+```python
+import asyncio
+
+from tortoise import Tortoise
+
+
+async def prepare() -> None:
+    await Tortoise.init(
+        db_url="sqlite:///./db.sqlite3",
+        modules={"models": ["apps.blog.models", "freeadmin.contrib.auth.models"]},
+    )
+    await Tortoise.generate_schemas()
+
+
+asyncio.run(prepare())
+```
 
 
 ## Step 11. Run the development server
@@ -344,6 +363,7 @@ Visit `http://127.0.0.1:8000/admin` (or the prefix you configured) and sign in w
 
 * **CLI cannot find `apps/`:** run the command from the project root where the scaffold created the folder.
 * **Models not discovered:** ensure the module path (e.g. `apps.blog.models`) is listed in `modules["models"]` when initialising Tortoise.
+* **`create-superuser` fails because tables are missing:** run your migrations or execute `Tortoise.generate_schemas()` after initialising the ORM so the auth tables exist.
 * **Missing static assets:** verify that `freeadmin.boot.BootManager.init()` has been called and that your ASGI server can serve the mounted static route.
 * **Session errors:** set `FA_SESSION_SECRET` to a stable value in production so session cookies remain valid across restarts.
 
