@@ -35,8 +35,6 @@ class ConfigTemplateProvider:
     def _main_template(self) -> str:
         return '''# -*- coding: utf-8 -*-
 """
-main
-
 Application bootstrap for {project_name}.
 """
 
@@ -63,8 +61,6 @@ app = ApplicationFactory().build()
     def _orm_template(self) -> str:
         return '''# -*- coding: utf-8 -*-
 """
-orm
-
 Database configuration entry point for {project_name}.
 """
 
@@ -88,8 +84,6 @@ class ORMSettings:
     def _settings_template(self) -> str:
         return '''# -*- coding: utf-8 -*-
 """
-settings
-
 Primary configuration object for {project_name}.
 """
 
