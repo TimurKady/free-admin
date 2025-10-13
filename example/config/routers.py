@@ -2,7 +2,7 @@
 """
 routers
 
-Example router aggregator for the FreeAdmin demo application.
+Route assembly helpers for the FreeAdmin example project.
 
 Version:0.1.0
 Author: Timur Kady
