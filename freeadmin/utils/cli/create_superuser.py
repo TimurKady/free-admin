@@ -52,7 +52,7 @@ class SuperuserCreator:
             return
         db_url = self._settings.database_url
         if not db_url:
-            raise RuntimeError("FREEADMIN_DATABASE_URL is required for ORM initialization")
+            raise RuntimeError("FA_DATABASE_URL is required for ORM initialization")
         from tortoise import Tortoise  # lazy import to avoid hard dependency at module load
 
         modules = {"models": list(self.adapter.model_modules)}

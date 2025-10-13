@@ -197,15 +197,15 @@ async def startup() -> None:
 boot.init(app, packages=["apps"])
 ```
 
-The call to `boot.init()` mounts the admin routes at the path configured by `FREEADMIN_ADMIN_PATH` (default `/panel`) and schedules background services such as card publishers.
+The call to `boot.init()` mounts the admin routes at the path configured by `FA_ADMIN_PATH` (default `/panel`) and schedules background services such as card publishers.
 
 
 ## Step 9. Configure the database URL
 
-FreeAdmin reads `FREEADMIN_DATABASE_URL` when using the bundled Tortoise adapter. Export the variable or set it in your process manager before running the app:
+FreeAdmin reads `FA_DATABASE_URL` when using the bundled Tortoise adapter. Export the variable or set it in your process manager before running the app:
 
 ```bash
-export FREEADMIN_DATABASE_URL="sqlite:///./db.sqlite3"
+export FA_DATABASE_URL="sqlite:///./db.sqlite3"
 ```
 
 For PostgreSQL use a DSN such as `postgres://user:password@localhost:5432/mydb`.
@@ -238,6 +238,6 @@ Visit `http://127.0.0.1:8000/panel` (or the prefix you configured) and sign in w
 * **CLI cannot find `apps/`:** run the command from the project root where the scaffold created the folder.
 * **Models not discovered:** ensure the module path (e.g. `apps.blog.models`) is listed in `modules["models"]` when initialising Tortoise.
 * **Missing static assets:** verify that `freeadmin.boot.BootManager.init()` has been called and that your ASGI server can serve the mounted static route.
-* **Session errors:** set `FREEADMIN_SESSION_SECRET` to a stable value in production so session cookies remain valid across restarts.
+* **Session errors:** set `FA_SESSION_SECRET` to a stable value in production so session cookies remain valid across restarts.
 
 With these steps you now have a working FreeAdmin installation backed by FastAPI and Tortoise ORM. Continue exploring the other documentation chapters for more detail on cards, permissions, and custom views.

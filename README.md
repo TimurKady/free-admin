@@ -104,7 +104,7 @@ admin.init(app, packages=["apps"])
 ### 4. Run the server
 
 ```bash
-export FREEADMIN_DATABASE_URL="sqlite:///./db.sqlite3"
+export FA_DATABASE_URL="sqlite:///./db.sqlite3"
 freeadmin create-superuser
 uvicorn config.main:app --reload
 ```

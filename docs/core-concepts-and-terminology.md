@@ -203,7 +203,7 @@ Widgets are frontend components referenced from `ModelAdmin.widgets_overrides` o
 
 ## Settings
 
-Global configuration lives inside `freeadmin.conf.FreeAdminSettings`. Instances are normally created with `FreeAdminSettings.from_env()`, which reads environment variables prefixed with `FREEADMIN_`.
+Global configuration lives inside `freeadmin.conf.FreeAdminSettings`. Instances are normally created with `FreeAdminSettings.from_env()`, which reads environment variables prefixed with `FA_`.
 
 Important attributes include:
 
