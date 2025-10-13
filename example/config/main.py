@@ -18,7 +18,8 @@ from fastapi import FastAPI
 
 from freeadmin.boot import BootManager
 
-from .ORM import ExampleORMConfig
+from .orm import ExampleORMConfig
+from .routers import ExampleAdminRouters
 from .settings import ExampleSettings
 
 
@@ -38,6 +39,7 @@ class ExampleApplication:
         self._boot = BootManager(adapter_name=self._orm.adapter_name)
         self._app = FastAPI(title=self._settings.project_name)
         self._packages: List[str] = []
+        self._routers = ExampleAdminRouters()
 
     def register_packages(self, packages: Iterable[str]) -> None:
         """Register Python packages that expose admin resources."""
@@ -59,6 +61,7 @@ class ExampleApplication:
             adapter=self._orm.adapter_name,
             packages=discovery_packages,
         )
+        self._routers.attach_to(self._app)
         return self._app
 
     @property
