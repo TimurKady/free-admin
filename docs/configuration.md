@@ -7,13 +7,6 @@ FreeAdmin exposes configuration at two levels:
 
 This chapter focuses on the second group so you know which environment variables to set and how they affect the admin panel.
 
-## Visual configuration interface
-
-FreeAdmin ships with a built-in settings editor available from the admin navigation. The interface lists all recognised runtime options alongside their current values, validation hints, and effective defaults. Administrators can adjust the fields directly in the browser and persist changes without touching environment files, which is especially handy for staging deployments or teams who prefer point-and-click configuration.
-
-![FreeAdmin settings editor](images/scr-2.jpg)
-
-
 ## Environment variables
 
 `FreeAdminSettings.from_env()` reads variables with the `FREEADMIN_` prefix. Common entries include:
@@ -121,6 +114,11 @@ For production environments:
 * Consider setting distinct values for `FREEADMIN_SESSION_SECRET` and `FREEADMIN_CSRF_SECRET` to rotate them independently.
 * Store secrets in a vault or secret manager rather than committing them to source control.
 
+## Visual configuration interface
+
+FreeAdmin ships with a built-in settings editor available from the admin navigation. The interface lists all recognised runtime options alongside their current values, validation hints, and effective defaults. Administrators can adjust the fields directly in the browser and persist changes without touching environment files, which is especially handy for staging deployments or teams who prefer point-and-click configuration.
+
+![FreeAdmin settings editor](images/scr-2.jpg)
 
 ## Troubleshooting
 
