@@ -110,5 +110,49 @@ class TestExampleApplicationStartup:
         assert shutdown_calls == [True]
 
 
+class TestExampleApplicationDiscovery:
+    """Validate discovery of demo application resources."""
+
+    @pytest.mark.asyncio
+    async def test_demo_config_startup_invoked(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Ensure DemoConfig.startup executes when scanning nested packages."""
+
+        application = ExampleApplication()
+        application.register_packages(["example.apps"])
+        app = application.configure()
+
+        boot_manager = application.boot_manager
+        hub = boot_manager._ensure_hub()
+        hub.admin_site.finalize = AsyncMock()
+        hub.admin_site.cards.start_publishers = AsyncMock()
+        hub.admin_site.cards.shutdown_publishers = AsyncMock()
+        boot_manager._config = SimpleNamespace(
+            ensure_seed=AsyncMock(),
+            reload=AsyncMock(),
+        )
+
+        from example.apps.demo import app as demo_app_module
+
+        startup_mock = AsyncMock()
+        monkeypatch.setattr(demo_app_module.default, "startup", startup_mock)
+        previous_config = hub._app_configs.get("example.apps.demo")
+        was_started = "example.apps.demo" in hub._started_configs
+        hub._started_configs.discard("example.apps.demo")
+
+        await app.router.startup()
+        try:
+            assert startup_mock.await_count == 1
+        finally:
+            await app.router.shutdown()
+            if was_started:
+                hub._started_configs.add("example.apps.demo")
+            else:
+                hub._started_configs.discard("example.apps.demo")
+            if previous_config is None:
+                hub._app_configs.pop("example.apps.demo", None)
+            else:
+                hub._app_configs["example.apps.demo"] = previous_config
+
+
 # The End
 
