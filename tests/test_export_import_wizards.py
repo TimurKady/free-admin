@@ -178,7 +178,7 @@ class TestExportImportWizards:
             sys.modules.pop("freeadmin.adapters.tortoise.users", None)
 
     def test_export_wizard_lists_fields(self) -> None:
-        resp = self.client.get("/panel/orm/models/item/export/")
+        resp = self.client.get("/admin/orm/models/item/export/")
         assert resp.status_code == 200
         page = self.ExportWizardPage(resp.text)
         expected = list(self.admin.get_export_fields())
@@ -187,7 +187,7 @@ class TestExportImportWizards:
         assert len(values) == len(expected)
 
     def test_export_wizard_fields_selected_by_default(self) -> None:
-        resp = self.client.get("/panel/orm/models/item/export/")
+        resp = self.client.get("/admin/orm/models/item/export/")
         assert resp.status_code == 200
         page = self.ExportWizardPage(resp.text)
         expected = list(self.admin.get_export_fields())
@@ -196,7 +196,7 @@ class TestExportImportWizards:
         assert len(selected) == len(expected)
 
     def test_export_wizard_has_back_button(self) -> None:
-        resp = self.client.get("/panel/orm/models/item/export/")
+        resp = self.client.get("/admin/orm/models/item/export/")
         assert resp.status_code == 200
         page = self.ExportWizardPage(resp.text)
         assert page.has_back_button()
@@ -218,7 +218,7 @@ class TestExportImportWizards:
             },
         }
         resp = self.client.post(
-            "/panel/orm/models/item/export/preview", json=payload_filters
+            "/admin/orm/models/item/export/preview", json=payload_filters
         )
         assert resp.status_code == 200
         body = resp.json()
@@ -239,7 +239,7 @@ class TestExportImportWizards:
             "scope": {"type": "ids", "ids": [first.id, third.id]},
         }
         resp = self.client.post(
-            "/panel/orm/models/item/export/preview", json=payload_ids
+            "/admin/orm/models/item/export/preview", json=payload_ids
         )
         assert resp.status_code == 200
         body = resp.json()
@@ -260,7 +260,7 @@ class TestExportImportWizards:
             "scope": {"type": "query", "query": {"filters": {}}},
         }
         resp = self.client.post(
-            "/panel/orm/models/item/export/preview", json=payload_all
+            "/admin/orm/models/item/export/preview", json=payload_all
         )
         assert resp.status_code == 200
         body = resp.json()
@@ -280,7 +280,7 @@ class TestExportImportWizards:
         }
         for fmt, mime in formats.items():
             resp = self.client.post(
-                "/panel/orm/models/item/export/run",
+                "/admin/orm/models/item/export/run",
                 json={
                     "fmt": fmt,
                     "scope": {"type": "query", "query": {"filters": {}}},
@@ -288,7 +288,7 @@ class TestExportImportWizards:
             )
             assert resp.status_code == 200
             token = resp.json()["token"]
-            resp_file = self.client.get(f"/panel/orm/models/item/export/done/{token}")
+            resp_file = self.client.get(f"/admin/orm/models/item/export/done/{token}")
             assert resp_file.status_code == 200
             assert resp_file.headers["content-type"] == mime
             assert resp_file.headers["content-disposition"].startswith(
@@ -327,12 +327,12 @@ class TestExportImportWizards:
             },
         }
         resp = self.client.post(
-            "/panel/orm/models/item/export/run", json=payload
+            "/admin/orm/models/item/export/run", json=payload
         )
         assert resp.status_code == 200
         token = resp.json()["token"]
         resp_file = self.client.get(
-            f"/panel/orm/models/item/export/done/{token}"
+            f"/admin/orm/models/item/export/done/{token}"
         )
         assert resp_file.status_code == 200
         rows = json.loads(resp_file.content.decode())
@@ -354,12 +354,12 @@ class TestExportImportWizards:
             "scope": {"type": "ids", "ids": [first.id, third.id]},
         }
         resp = self.client.post(
-            "/panel/orm/models/item/export/run", json=payload
+            "/admin/orm/models/item/export/run", json=payload
         )
         assert resp.status_code == 200
         token = resp.json()["token"]
         resp_file = self.client.get(
-            f"/panel/orm/models/item/export/done/{token}"
+            f"/admin/orm/models/item/export/done/{token}"
         )
         assert resp_file.status_code == 200
         rows = json.loads(resp_file.content.decode())
@@ -384,12 +384,12 @@ class TestExportImportWizards:
             "scope_token": token,
         }
         resp = self.client.post(
-            "/panel/orm/models/item/export/run", json=payload
+            "/admin/orm/models/item/export/run", json=payload
         )
         assert resp.status_code == 200
         token = resp.json()["token"]
         resp_file = self.client.get(
-            f"/panel/orm/models/item/export/done/{token}"
+            f"/admin/orm/models/item/export/done/{token}"
         )
         assert resp_file.status_code == 200
         rows = json.loads(resp_file.content.decode())
@@ -399,24 +399,24 @@ class TestExportImportWizards:
     def test_export_endpoints_without_permission(self) -> None:
         self.user.permissions.discard(PermAction.export)
         resp = self.client.post(
-            "/panel/orm/models/item/export/preview", json={}
+            "/admin/orm/models/item/export/preview", json={}
         )
         assert resp.status_code == status.HTTP_403_FORBIDDEN
         assert resp.json() == {"detail": "Export not permitted"}
         resp = self.client.post(
-            "/panel/orm/models/item/export/run", json={}
+            "/admin/orm/models/item/export/run", json={}
         )
         assert resp.status_code == status.HTTP_403_FORBIDDEN
         assert resp.json() == {"detail": "Export not permitted"}
         resp = self.client.get(
-            "/panel/orm/models/item/export/done/invalid-token"
+            "/admin/orm/models/item/export/done/invalid-token"
         )
         assert resp.status_code == status.HTTP_403_FORBIDDEN
         assert resp.json() == {"detail": "Export not permitted"}
         self.user.permissions.add(PermAction.export)
 
     def test_import_wizard_has_back_button(self) -> None:
-        resp = self.client.get("/panel/orm/models/item/import/")
+        resp = self.client.get("/admin/orm/models/item/import/")
         assert resp.status_code == 200
         page = self.ImportWizardPage(resp.text)
         assert page.has_back_button()
@@ -425,14 +425,14 @@ class TestExportImportWizards:
         self.user.permissions.discard(getattr(PermAction, "import"))
         csv_data = "id,name,description\n1,foo,bar\n"
         resp = self.client.post(
-            "/panel/orm/models/item/import/preview",
+            "/admin/orm/models/item/import/preview",
             files={"file": ("items.csv", csv_data, "text/csv")},
             data={"fields": ["id", "name", "description"]},
         )
         assert resp.status_code == status.HTTP_403_FORBIDDEN
         assert resp.json() == {"detail": "Import not permitted"}
         resp = self.client.post(
-            "/panel/orm/models/item/import/run",
+            "/admin/orm/models/item/import/run",
             json={"token": "dummy", "fields": ["id"]},
         )
         assert resp.status_code == status.HTTP_403_FORBIDDEN
@@ -454,7 +454,7 @@ class TestExportImportWizards:
             "scope": {"type": "query", "query": {"filters": {}}},
         }
         resp = self.client.post(
-            "/panel/orm/models/item/export/preview", json=payload_preview
+            "/admin/orm/models/item/export/preview", json=payload_preview
         )
         assert resp.status_code == 200
 
@@ -463,12 +463,12 @@ class TestExportImportWizards:
             "scope": {"type": "query", "query": {"filters": {}}},
         }
         resp_run = self.client.post(
-            "/panel/orm/models/item/export/run", json=payload_run
+            "/admin/orm/models/item/export/run", json=payload_run
         )
         assert resp_run.status_code == 200
         token = resp_run.json()["token"]
         resp_done = self.client.get(
-            f"/panel/orm/models/item/export/done/{token}"
+            f"/admin/orm/models/item/export/done/{token}"
         )
         assert resp_done.status_code == 200
 
@@ -485,7 +485,7 @@ class TestExportImportWizards:
             rows.append(f"{i + 1},item{i},desc{i}\n")
         csv_data = "".join(rows)
         resp = self.client.post(
-            "/panel/orm/models/item/import/preview",
+            "/admin/orm/models/item/import/preview",
             files={"file": ("items.csv", csv_data, "text/csv")},
             data={"fields": ["id", "name", "description"]},
         )
@@ -497,7 +497,7 @@ class TestExportImportWizards:
         assert body["rows"][0]["id"] == "1"
 
         resp = self.client.post(
-            "/panel/orm/models/item/import/run",
+            "/admin/orm/models/item/import/run",
             json={"token": token, "fields": ["id", "name", "description"]},
         )
         assert resp.status_code == 200
@@ -523,14 +523,14 @@ class TestExportImportWizards:
             f"{existing.id + 1},two,newdesc\n"
         )
         resp_preview = self.client.post(
-            "/panel/orm/models/item/import/preview",
+            "/admin/orm/models/item/import/preview",
             files={"file": ("items.csv", csv_data, "text/csv")},
             data={"fields": ["id", "name", "description"]},
         )
         assert resp_preview.status_code == 200
         token = resp_preview.json()["token"]
         resp_run = self.client.post(
-            "/panel/orm/models/item/import/run",
+            "/admin/orm/models/item/import/run",
             json={"token": token, "fields": ["id", "name", "description"]},
         )
         assert resp_run.status_code == 200

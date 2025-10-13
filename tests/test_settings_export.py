@@ -85,7 +85,7 @@ class TestSettingsExport:
     def test_export_run_available(self) -> None:
         payload = {"scope": {"type": "ids", "ids": []}}
         resp = self.client.post(
-            "/panel/settings/admin/adminuser/export/run", json=payload
+            "/admin/settings/admin/adminuser/export/run", json=payload
         )
         assert resp.status_code == 200
         assert "token" in resp.json()

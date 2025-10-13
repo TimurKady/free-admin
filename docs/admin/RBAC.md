@@ -134,7 +134,7 @@ Each CRUD route maps to exactly one permission action. A dependency reads the
 `{app, model}` from the path, resolves the `ct_id` via
 `AdminSite.get_ct_id()` and enforces the required permission.
 
-The leading `/panel/orm/` segment comes from configuration: `panel` is the
+The leading `/admin/orm/` segment comes from configuration: `admin` is the
 `ADMIN_PREFIX` and `orm` is `PAGE_TYPE_ORM`, both defined in project
 settings.
 
@@ -142,11 +142,11 @@ settings.
 
 | HTTP route                                         | Action |
 | -------------------------------------------------- | ------ |
-| `GET /panel/orm/{app}/{model}/_list`               | view   |
-| `GET /panel/orm/{app}/{model}/{id}`                | view   |
-| `POST /panel/orm/{app}/{model}/`                   | add    |
-| `PUT/PATCH /panel/orm/{app}/{model}/{id}`          | change |
-| `DELETE /panel/orm/{app}/{model}/{id}`             | delete |
+| `GET /admin/orm/{app}/{model}/_list`               | view   |
+| `GET /admin/orm/{app}/{model}/{id}`                | view   |
+| `POST /admin/orm/{app}/{model}/`                   | add    |
+| `PUT/PATCH /admin/orm/{app}/{model}/{id}`          | change |
+| `DELETE /admin/orm/{app}/{model}/{id}`             | delete |
 
 ### Applying the Dependency
 

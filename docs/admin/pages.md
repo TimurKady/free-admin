@@ -77,7 +77,7 @@ async def blog_stats_view(request: Request):
 > **Note:** `AdminRouter.mount()` automatically adds the admin base path as a prefix,
 > so the route above resolves under the admin namespace without additional changes. Avoid
 > duplicating the admin prefix when registering the view; otherwise the final endpoint would
-> mount at `/panel/panel/...`, breaking `AdminSite.parse_section_path()` and sidebar
+> mount at `/admin/admin/...`, breaking `AdminSite.parse_section_path()` and sidebar
 > highlighting.
 
 The sidebar renders standalone views alongside registered models. When the `Blog` application exposes both a `PostAdmin` model and the

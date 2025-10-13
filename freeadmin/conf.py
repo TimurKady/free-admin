@@ -25,7 +25,7 @@ class FreeAdminSettings:
     secret_key: str = field(default_factory=lambda: "change-me")
     session_secret: str | None = None
     csrf_secret: str | None = None
-    admin_path: str = "/panel"
+    admin_path: str = "/admin"
     media_url: str = "/media/"
     media_root: Path = field(default_factory=lambda: Path.cwd() / "media")
     event_cache_path: str = ":memory:"
@@ -87,7 +87,7 @@ class FreeAdminSettings:
         secret_key = data.get("SECRET_KEY") or source.get("SECRET_KEY") or "change-me"
         session_secret = data.get("SESSION_SECRET")
         csrf_secret = data.get("CSRF_SECRET")
-        admin_path = data.get("ADMIN_PATH") or "/panel"
+        admin_path = data.get("ADMIN_PATH") or "/admin"
         media_url = data.get("MEDIA_URL") or "/media/"
         media_root = data.get("MEDIA_ROOT") or (Path.cwd() / "media")
         cache_path_raw = data.get("EVENT_CACHE_PATH")

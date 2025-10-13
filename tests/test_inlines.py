@@ -110,7 +110,7 @@ class TestInlineAdmin:
     def test_get_inlines_returns_metadata(self) -> None:
         parent = asyncio.run(Parent.create(name="p1"))
         asyncio.run(Child.create(parent=parent, name="c1"))
-        resp = self.client.get(f"/panel/orm/models/parent/{parent.id}/_inlines")
+        resp = self.client.get(f"/admin/orm/models/parent/{parent.id}/_inlines")
         assert resp.status_code == 200
         spec = resp.json()[0]
         assert spec["app"] == Parent.__module__.split(".")[0]
@@ -122,7 +122,7 @@ class TestInlineAdmin:
     def test_force_fk_header_on_create(self) -> None:
         parent = asyncio.run(Parent.create(name="p2"))
         resp = self.client.post(
-            "/panel/orm/models/child",
+            "/admin/orm/models/child",
             json={"name": "forced", "parent": 0},
             headers={"X-Force-FK-parent": str(parent.id)},
         )
@@ -137,21 +137,21 @@ class TestInlineAdmin:
 
     def test_inline_badge_updates_after_add_delete(self) -> None:
         parent = asyncio.run(Parent.create(name="p3"))
-        resp = self.client.get(f"/panel/orm/models/parent/{parent.id}/_inlines")
+        resp = self.client.get(f"/admin/orm/models/parent/{parent.id}/_inlines")
         assert resp.status_code == 200
         assert resp.json()[0]["count"] == 0
         resp_add = self.client.post(
-            "/panel/orm/models/child",
+            "/admin/orm/models/child",
             json={"name": "c1"},
             headers={"X-Force-FK-parent": str(parent.id)},
         )
         assert resp_add.status_code == 200
         child_id = resp_add.json()["id"]
-        resp = self.client.get(f"/panel/orm/models/parent/{parent.id}/_inlines")
+        resp = self.client.get(f"/admin/orm/models/parent/{parent.id}/_inlines")
         assert resp.json()[0]["count"] == 1
-        resp_del = self.client.delete(f"/panel/orm/models/child/{child_id}")
+        resp_del = self.client.delete(f"/admin/orm/models/child/{child_id}")
         assert resp_del.status_code == 200
-        resp = self.client.get(f"/panel/orm/models/parent/{parent.id}/_inlines")
+        resp = self.client.get(f"/admin/orm/models/parent/{parent.id}/_inlines")
         assert resp.json()[0]["count"] == 0
 
 

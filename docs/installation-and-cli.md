@@ -197,7 +197,7 @@ async def startup() -> None:
 boot.init(app, packages=["apps"])
 ```
 
-The call to `boot.init()` mounts the admin routes at the path configured by `FA_ADMIN_PATH` (default `/panel`) and schedules background services such as card publishers.
+The call to `boot.init()` mounts the admin routes at the path configured by `FA_ADMIN_PATH` (default `/admin`) and schedules background services such as card publishers.
 
 
 ## Step 9. Configure the database URL
@@ -230,7 +230,7 @@ Use Uvicorn (or your ASGI server of choice) to run the FastAPI application:
 uvicorn config.main:app --reload
 ```
 
-Visit `http://127.0.0.1:8000/panel` (or the prefix you configured) and sign in with the credentials created in the previous step. The default interface includes list and detail views for any registered `ModelAdmin`, plus navigation for cards and custom pages.
+Visit `http://127.0.0.1:8000/admin` (or the prefix you configured) and sign in with the credentials created in the previous step. The default interface includes list and detail views for any registered `ModelAdmin`, plus navigation for cards and custom pages.
 
 
 ## Step 12. Troubleshooting tips

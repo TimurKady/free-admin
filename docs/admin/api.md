@@ -6,7 +6,7 @@ into templates as the `window.ADMIN_API` object so that JavaScript and Python
 share the same values. See [System Settings](settings.md) for the full list of
 configuration keys and defaults:
 
-The examples assume the default prefixes `ADMIN_PREFIX=/panel`,
+The examples assume the default prefixes `ADMIN_PREFIX=/admin`,
 `API_PREFIX=/api`, and `API_LOOKUP=/lookup`; each value can be customized in
 the system settings.
 

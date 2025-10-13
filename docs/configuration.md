@@ -16,7 +16,7 @@ This chapter focuses on the second group so you know which environment variables
 | `FA_SECRET_KEY` | `change-me` | Base secret used when other keys are not provided. |
 | `FA_SESSION_SECRET` | derived from `SECRET_KEY` | Session signing key for the Starlette session middleware. |
 | `FA_CSRF_SECRET` | derived from `SECRET_KEY` | Secret used to sign CSRF tokens. |
-| `FA_ADMIN_PATH` | `/panel` | URL prefix where the admin is mounted. |
+| `FA_ADMIN_PATH` | `/admin` | URL prefix where the admin is mounted. |
 | `FA_MEDIA_URL` | `/media/` | Public prefix for uploaded files. |
 | `FA_MEDIA_ROOT` | `<cwd>/media` | Filesystem path where uploads are stored. |
 | `FA_EVENT_CACHE_PATH` | `:memory:` | SQLite file used for caching card payloads (or `:memory:` for in-memory caching). |
@@ -32,7 +32,7 @@ This chapter focuses on the second group so you know which environment variables
 | `FA_EXPORT_CACHE_PATH` | `<cwd>/freeadmin-export-cache.sqlite3` | SQLite file used for temporary export data. |
 | `FA_EXPORT_CACHE_TTL` | `300` | Cache lifetime for export artefacts. |
 
-Set these variables before your process starts (for example in a `.env` file, Docker container, or process manager). When a variable is not provided FreeAdmin falls back to sensible defaults and ensures derived values stay consistent (for example `session_secret` defaults to `secret_key`).
+Set these variables before your process starts (for example in a `.env` file, Docker container, or process manager). When a variable is not provided FreeAdmin falls back to sensible defaults and ensures derived values stay consistent (for example `session_secret` defaults to `secret_key`). Consider overriding `FA_ADMIN_PATH` in production to an uncommon value so automated scans cannot easily discover the admin endpoint.
 
 
 ## Programmatic configuration
@@ -111,6 +111,7 @@ Changes are reflected the next time the admin hub is created. If you adjust the 
 For production environments:
 
 * Generate a strong `FA_SECRET_KEY`. This value seeds all other secrets.
+* Change `FA_ADMIN_PATH` from the default `/admin` to a project-specific value to reduce the chance of automated probing.
 * Consider setting distinct values for `FA_SESSION_SECRET` and `FA_CSRF_SECRET` to rotate them independently.
 * Store secrets in a vault or secret manager rather than committing them to source control.
 
