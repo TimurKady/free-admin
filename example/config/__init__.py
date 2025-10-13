@@ -11,7 +11,9 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from .orm import ExampleORMConfig
+from .orm import (
+    ExampleORMConfig,
+)
 from .main import ExampleApplication
 from .routers import ExampleRouterAggregator
 from .settings import ExampleSettings

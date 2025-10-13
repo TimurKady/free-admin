@@ -81,7 +81,12 @@ class ExampleRouterAggregator:
         app.include_router(self._public_router)
 
 
-__all__ = ["ExampleRouterAggregator"]
+ExampleAdminRouters = ExampleRouterAggregator
+
+__all__ = [
+    "ExampleRouterAggregator",
+    "ExampleAdminRouters",
+]
 
 
 # The End
