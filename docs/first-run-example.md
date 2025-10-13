@@ -88,7 +88,7 @@ After logging in you are greeted by the **Demo** dashboard, a compact showcase o
 several FreeAdmin features.
 
 
-[*Demo dashboard*](images/scr-1.jpg)
+![Demo dashboard preview](images/scr-1.jpg)
 
 ### Demo application
 
