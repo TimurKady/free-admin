@@ -12,7 +12,7 @@ Email: timurkady@yandex.com
 from __future__ import annotations
 
 import logging
-from typing import Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional, Set
 
 from fastapi import FastAPI
 
@@ -21,6 +21,7 @@ from .conf import (
     current_settings,
     register_settings_observer,
 )
+from .core.app import AppConfig
 from .core.site import AdminSite
 from .core.discovery import DiscoveryService
 from .router import AdminRouter
@@ -46,21 +47,41 @@ class AdminHub:
             boot_admin.adapter, title=site_title, settings=self._settings
         )
         self.discovery = DiscoveryService()
+        self._app_configs: Dict[str, AppConfig] = {}
+        self._started_configs: Set[str] = set()
         register_settings_observer(self._handle_settings_update)
 
-    def autodiscover(self, packages: Iterable[str]) -> None:
-        """Discover admin modules, views, and services within ``packages``."""
+    def autodiscover(self, packages: Iterable[str]) -> List[AppConfig]:
+        """Discover application resources within ``packages``."""
 
         roots = list(packages)
         if not roots:
-            return
-        self.discovery.discover_all(roots)
+            return []
+        configs = self.discovery.discover_all(roots)
+        for config in configs:
+            self._app_configs.setdefault(config.import_path, config)
+        return configs
 
     def init_app(self, app: FastAPI, *, packages: Optional[List[str]] = None) -> None:
         """Convenience shortcut: autodiscover followed by mounting the admin."""
         if packages:
             self.autodiscover(packages)
         AdminRouter(self.admin_site).mount(app)
+
+    async def start_app_configs(self) -> None:
+        """Invoke startup hooks for discovered application configurations."""
+
+        for path, config in list(self._app_configs.items()):
+            if path in self._started_configs:
+                continue
+            try:
+                await config.ready()
+            except Exception:  # pragma: no cover - runtime guard
+                self.logger.exception(
+                    "Application configuration %s failed during startup", path
+                )
+                continue
+            self._started_configs.add(path)
 
     def _handle_settings_update(self, settings: FreeAdminSettings) -> None:
         """Propagate new configuration to managed services."""

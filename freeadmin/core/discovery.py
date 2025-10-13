@@ -17,6 +17,8 @@ import pkgutil
 from types import ModuleType
 from typing import Iterable, List, Set
 
+from .app import AppConfig
+
 
 class DiscoveryService:
     """Manage discovery of admin modules, views, and publisher services."""
@@ -47,14 +49,20 @@ class DiscoveryService:
         for suffix in ("service", "services"):
             self._import_named_modules(roots, suffix)
 
-    def discover_all(self, packages: Iterable[str]) -> None:
-        """Import admin modules, views, and services within ``packages``."""
+    def discover_all(self, packages: Iterable[str]) -> List[AppConfig]:
+        """Import resources within ``packages`` and return discovered configs."""
 
         roots = self._collect_package_roots(packages)
+        app_configs: List[AppConfig] = []
+        for root in roots:
+            config = self._load_app_config(root.__name__)
+            if config is not None:
+                app_configs.append(config)
         self._import_admin_modules(roots)
         self._import_named_modules(roots, "views")
         for suffix in ("service", "services"):
             self._import_named_modules(roots, suffix)
+        return app_configs
 
     def _collect_package_roots(self, packages: Iterable[str]) -> List[ModuleType]:
         roots: List[ModuleType] = []
@@ -101,6 +109,26 @@ class DiscoveryService:
             return None
         except ImportError:
             self.logger.exception("Failed to import module %s", module_name)
+            return None
+
+    def _load_app_config(self, module_path: str) -> AppConfig | None:
+        try:
+            return AppConfig.load(module_path)
+        except ModuleNotFoundError as exc:
+            missing = getattr(exc, "name", None)
+            if missing == f"{module_path}.app":
+                self.logger.debug(
+                    "AppConfig module %s.app not found during discovery", module_path
+                )
+                return None
+            self.logger.exception(
+                "Failed to import application config for %s", module_path
+            )
+            return None
+        except Exception:
+            self.logger.exception(
+                "Failed to load application configuration for %s", module_path
+            )
             return None
 
 

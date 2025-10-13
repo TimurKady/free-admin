@@ -125,6 +125,11 @@ class BootManager:
         admin_hub.init_app(app, packages=packages)
 
         @app.on_event("startup")
+        async def _start_application_configs() -> None:
+            hub_ref = self._ensure_hub()
+            await hub_ref.start_app_configs()
+
+        @app.on_event("startup")
         async def _finalize_admin_site() -> None:
             hub_ref = self._ensure_hub()
             await hub_ref.admin_site.finalize()
