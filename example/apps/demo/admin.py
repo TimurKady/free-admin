@@ -13,6 +13,7 @@ from .models import DemoNote
 class DemoNoteAdmin(ModelAdmin):
     """Expose DemoNote instances through the administration interface."""
 
+    model = DemoNote
     label = "Demo notes"
     list_display = ("id", "title", "created_at")
     search_fields = ("title", "body")

@@ -11,11 +11,17 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from .ORM import ExampleORMConfig
+from .orm import ExampleORMConfig
 from .main import ExampleApplication
+from .routers import ExampleAdminRouters
 from .settings import ExampleSettings
 
-__all__ = ["ExampleApplication", "ExampleORMConfig", "ExampleSettings"]
+__all__ = [
+    "ExampleApplication",
+    "ExampleAdminRouters",
+    "ExampleORMConfig",
+    "ExampleSettings",
+]
 
 # The End
 
