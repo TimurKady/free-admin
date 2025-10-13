@@ -42,6 +42,8 @@ class TestProjectInitializerConfigTemplates:
         assert "ORMSettings" in orm_content
         assert "ORMLifecycle" in orm_content
         assert ROUTER_TEMPLATE_CLASS_NAME in routers_content
+        assert "def get_admin_router" in routers_content
+        assert "_ROUTER_AGGREGATOR" in routers_content
         assert "ProjectSettings" in settings_content
         assert "project_title" in settings_content
 

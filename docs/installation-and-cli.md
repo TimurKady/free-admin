@@ -63,7 +63,7 @@ myproject/
 ├── config/
 │   ├── main.py        # FastAPI application factory
 │   ├── orm.py         # Placeholder for ORM configuration
-│   ├── routers.py     # Aggregates admin routes into a single include
+│   ├── routers.py     # Provides an aggregator class and helper for admin routes
 │   └── settings.py    # Pydantic settings model
 ├── apps/              # Your domain applications
 ├── pages/             # Optional static/markdown pages
@@ -72,7 +72,7 @@ myproject/
 └── README.md          # Short reminder about the scaffold
 ```
 
-The generated files are intentionally minimal so you can adapt them to your stack. `config/routers.py` ships with the helper that collects every admin router and exposes a single include that the FastAPI application can mount during startup.
+The generated files are intentionally minimal so you can adapt them to your stack. `config/routers.py` defines `ProjectRouterAggregator` together with a `get_admin_router()` helper. The helper returns a cached `APIRouter` instance so the admin site is not mounted multiple times; call `ProjectRouterAggregator.mount()` if you prefer the class-based API.
 
 
 ## Step 4. Configure project settings
@@ -220,7 +220,26 @@ app = ApplicationFactory().build()
 
 The default discovery packages (`apps` and `pages`) match the directories created by the CLI, so FreeAdmin autodiscovers model admins and content pages without further configuration. Update `config/orm.py` to implement real startup and shutdown hooks; the scaffolded `ORMLifecycle` class already registers them against FastAPI.
 
-`config/routers.py` continues to aggregate router registrations. Import it from `config/main.py` if you need to mount custom APIs alongside the admin interface.
+To mount the admin interface without double registration, create a `ProjectRouterAggregator` and call `mount()` during application setup:
+
+```python
+from fastapi import FastAPI
+from freeadmin.hub import admin_site
+
+from config.routers import ProjectRouterAggregator
+
+
+class ApplicationFactory:
+    def __init__(self) -> None:
+        self._routers = ProjectRouterAggregator()
+
+    def build(self) -> FastAPI:
+        app = FastAPI()
+        self._routers.mount(app, admin_site)
+        return app
+```
+
+`config/routers.py` continues to aggregate router registrations. Import `get_admin_router()` when you only need the router instance, or reuse `ProjectRouterAggregator.mount()` inside `config/main.py` if you want to include the admin and auxiliary routers together while avoiding duplicate mounts.
 
 
 ## Step 9. Configure the database URL
