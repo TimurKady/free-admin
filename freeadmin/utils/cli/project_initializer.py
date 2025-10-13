@@ -17,6 +17,9 @@ from typing import Dict, Iterable
 from .reporting import CreationReport
 
 
+ROUTER_TEMPLATE_CLASS_NAME = "ProjectRouterBinder"
+
+
 class PackageInitializer:
     """Create ``__init__`` markers for project package directories."""
 
@@ -50,6 +53,10 @@ class ConfigTemplateProvider:
             "main.py": self._main_template().format(project_name=self._project_name),
             "orm.py": self._orm_template().format(project_name=self._project_name),
             "settings.py": self._settings_template().format(project_name=self._project_name),
+            "routers.py": self._routers_template().format(
+                project_name=self._project_name,
+                router_class=ROUTER_TEMPLATE_CLASS_NAME,
+            ),
         }
 
     def _main_template(self) -> str:
@@ -120,6 +127,50 @@ class ProjectSettings(BaseSettings):
 
 
 settings = ProjectSettings()
+
+
+# The End
+
+'''
+
+    def _routers_template(self) -> str:
+        return '''# -*- coding: utf-8 -*-
+"""
+routers
+
+Routing helpers for {project_name}.
+"""
+
+from __future__ import annotations
+
+from typing import Type
+
+from fastapi import FastAPI
+
+from freeadmin.core.site import AdminSite
+from freeadmin.router import AdminRouter
+
+
+class {router_class}:
+    """Mount the FreeAdmin router for {project_name}."""
+
+    def __init__(
+        self,
+        *,
+        admin_router_cls: Type[AdminRouter] = AdminRouter,
+    ) -> None:
+        """Store the admin router class used for mounting."""
+
+        self._admin_router_cls = admin_router_cls
+
+    def mount(self, app: FastAPI, site: AdminSite) -> None:
+        """Attach the admin router for ``site`` onto ``app``."""
+
+        admin_router = self._admin_router_cls(site)
+        admin_router.mount(app)
+
+
+__all__ = ["{router_class}"]
 
 
 # The End
