@@ -17,7 +17,7 @@ from typing import Dict, Iterable
 from .reporting import CreationReport
 
 
-ROUTER_TEMPLATE_CLASS_NAME = "ProjectRouterBinder"
+ROUTER_TEMPLATE_CLASS_NAME = "ProjectRouterAggregator"
 
 
 class PackageInitializer:
