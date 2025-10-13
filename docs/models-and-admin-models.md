@@ -75,12 +75,12 @@ class ProductAdmin(ModelAdmin):
 admin_site.register(app="catalog", model=Product, admin_cls=ProductAdmin)
 ```
 
-* `app` becomes the slug visible in URLs (`/panel/orm/catalog/product/`).
+* `app` becomes the slug visible in URLs (`/admin/orm/catalog/product/`).
 * `model` is the ORM class itself.
 * `admin_cls` is instantiated lazily by `AdminSite.register()` and receives the
   adapter defined by the boot process.
 * Optional keyword arguments let you publish the descriptor under
-  `/panel/settings/…` (`settings=True`) or register it in both menus at once via
+  `/admin/settings/…` (`settings=True`) or register it in both menus at once via
   `admin_site.register_both()`.
 
 Registration normally lives in the app’s `admin.py` so that import side effects

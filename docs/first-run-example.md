@@ -21,7 +21,7 @@ app = application.configure()
 `ExampleApplication` wires three responsibilities:
 
 * `ExampleSettings` (`example/config/settings.py`) keeps track of project
-  metadata, the admin path (`/panel`), and the list of installed apps. Its
+  metadata, the admin path (`/admin`), and the list of installed apps. Its
   `describe()` helper returns a concise summary that is useful for debugging
   configuration during development.
 * `ExampleORMConfig` (`example/config/orm.py`) declares which adapter to use
@@ -73,7 +73,7 @@ app = application.configure()
        return application.configure()
    ```
 
-   The admin interface will be available at `http://127.0.0.1:8000/panel` once
+   The admin interface will be available at `http://127.0.0.1:8000/admin` once
    the server is running. On the first visit you will be redirected to the
    built-in setup screen where you can create the initial superuser. You can
    also create it ahead of time from the command line:

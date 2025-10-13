@@ -130,14 +130,14 @@ class TestExportImport:
         asyncio.run(_clear())
         first = asyncio.run(ExportItem.create(name="one", description="1"))
         second = asyncio.run(ExportItem.create(name="two", description="2"))
-        resp = self.client.post("/panel/orm/models/item/export")
+        resp = self.client.post("/admin/orm/models/item/export")
         assert resp.status_code == 200
         rows = resp.json()["rows"]
         assert {"id": first.id, "name": "one", "description": "1"} in rows
         assert {"id": second.id, "name": "two", "description": "2"} in rows
 
     def test_export_response_type(self) -> None:
-        resp = self.client.post("/panel/orm/models/item/export")
+        resp = self.client.post("/admin/orm/models/item/export")
         assert resp.status_code == 200
         assert resp.headers["content-type"].startswith("application/json")
         assert isinstance(resp.json()["rows"], list)
@@ -150,7 +150,7 @@ class TestExportImport:
         asyncio.run(_clear())
         parent = asyncio.run(ExportItem.create(name="parent", description="p"))
         child = asyncio.run(ExportChild.create(label="c", parent=parent))
-        resp = self.client.post("/panel/orm/models/child/export")
+        resp = self.client.post("/admin/orm/models/child/export")
         assert resp.status_code == 200
         rows = resp.json()["rows"]
         assert {"id": child.id, "label": "c", "parent": parent.id} in rows
@@ -167,7 +167,7 @@ class TestExportImport:
             ],
             "dry": True,
         }
-        resp = self.client.post("/panel/orm/models/item/import", json=payload)
+        resp = self.client.post("/admin/orm/models/item/import", json=payload)
         assert resp.status_code == 200
         assert resp.json()["count"] == 2
 
@@ -182,7 +182,7 @@ class TestExportImport:
                 {"name": "b", "description": "bbb"},
             ]
         }
-        resp = self.client.post("/panel/orm/models/item/import", json=payload)
+        resp = self.client.post("/admin/orm/models/item/import", json=payload)
         assert resp.status_code == 200
         assert resp.json()["count"] == 2
         assert asyncio.run(_count()) == 2
@@ -198,7 +198,7 @@ class TestExportImport:
                 {"name": "c", "description": "ccc"},
             ]
         }
-        resp = self.client.post("/panel/orm/models/item/import", json=payload)
+        resp = self.client.post("/admin/orm/models/item/import", json=payload)
         assert resp.status_code == 200
         assert resp.json()["count"] == 2
         assert asyncio.run(_count()) == 3
@@ -215,7 +215,7 @@ class TestExportImport:
 
         asyncio.run(_clear())
         payload = {"rows": [{"name": "z", "description": "zzz"}], "dry": True}
-        resp = self.client.post("/panel/orm/models/item/import", json=payload)
+        resp = self.client.post("/admin/orm/models/item/import", json=payload)
         assert resp.status_code == 200
         body = resp.json()
         assert body["dry"] is True

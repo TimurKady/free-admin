@@ -109,7 +109,7 @@ freeadmin create-superuser
 uvicorn config.main:app --reload
 ```
 
-Open [http://127.0.0.1:8000/panel](http://127.0.0.1:8000/panel) and log in with the credentials you created.
+Open [http://127.0.0.1:8000/admin](http://127.0.0.1:8000/admin) and log in with the credentials you created.
 
 ## Documentation
 

@@ -19,7 +19,7 @@ from typing import ClassVar
 class ExampleSettings:
     """Store runtime metadata for the FreeAdmin example project."""
 
-    ADMIN_PATH: ClassVar[str] = "/panel"
+    ADMIN_PATH: ClassVar[str] = "/admin"
     INSTALLED_APPS: ClassVar[list[str]] = [
         "example.apps.demo",
     ]

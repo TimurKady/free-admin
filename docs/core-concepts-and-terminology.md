@@ -83,7 +83,7 @@ boot = BootManager(adapter_name="tortoise")
 boot.init(app, packages=["my_project.apps"])
 ```
 
-This snippet initialises the adapter, discovers admin registrations inside `my_project.apps`, and mounts the admin interface at the path configured in `FreeAdminSettings.admin_path` (default `/panel`).
+This snippet initialises the adapter, discovers admin registrations inside `my_project.apps`, and mounts the admin interface at the path configured in `FreeAdminSettings.admin_path` (default `/admin`).
 
 
 ## AdminRouter
@@ -207,7 +207,7 @@ Global configuration lives inside `freeadmin.conf.FreeAdminSettings`. Instances 
 
 Important attributes include:
 
-* `admin_path`: the URL prefix where the admin is mounted (default `/panel`).
+* `admin_path`: the URL prefix where the admin is mounted (default `/admin`).
 * `session_secret` and `csrf_secret`: keys used for securing sessions and forms.
 * `event_cache_path`: storage location for card payload caching.
 * `brand_icon` and `admin_site_title`: values shown in the UI.

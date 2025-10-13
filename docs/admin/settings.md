@@ -41,7 +41,7 @@ await system_config.reload()
 | `DEFAULT_PER_PAGE` | Default page size | `20` | `int` |
 | `MAX_PER_PAGE` | Max page size | `100` | `int` |
 | `ACTION_BATCH_SIZE` | Batch size for admin actions | `100` | `int` |
-| `ADMIN_PREFIX` | Admin path prefix used to build final admin URLs; other paths like `LOGIN_PATH` and `LOGOUT_PATH` are appended to this prefix | `/panel` | `string` |
+| `ADMIN_PREFIX` | Admin path prefix used to build final admin URLs; other paths like `LOGIN_PATH` and `LOGOUT_PATH` are appended to this prefix | `/admin` | `string` |
 | `API_PREFIX` | API prefix | `/api` | `string` |
 | `API_SCHEMA` | Schema endpoint | `/schema` | `string` |
 | `API_LIST_FILTERS` | List filters endpoint | `/list_filters` | `string` |
