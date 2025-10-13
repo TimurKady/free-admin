@@ -63,7 +63,7 @@ class ExampleApplication:
             adapter=self._orm.adapter_name,
             packages=discovery_packages,
         )
-        self._routers.attach_to(self._app)
+        self._routers.mount(self._app)
         return self._app
 
     @property
