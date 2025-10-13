@@ -97,26 +97,79 @@ If you prefer `.env` files, add `python-dotenv` to your project and call `load_d
 
 ## Step 5. Configure Tortoise ORM
 
-Replace the placeholder in `config/orm.py` with a concrete configuration. The example below initialises Tortoise with a single SQLite database and two application modules:
+Replace the placeholder in `config/orm.py` with a concrete configuration. The scaffold generates `ORMSettings` and `ORMLifecycle` classes so you can describe the adapter and then bind lifecycle hooks to FastAPI:
 
 ```python
 # config/orm.py
+from __future__ import annotations
+
+from typing import Dict
+
+from fastapi import FastAPI
 from tortoise import Tortoise
 
 
-async def init_orm() -> None:
-    await Tortoise.init(
-        db_url="sqlite:///db.sqlite3",
-        modules={
-            "models": [
-                "apps.blog.models",
-            ],
-        },
-    )
-    await Tortoise.generate_schemas()
+class ORMSettings:
+    """Provide placeholder ORM configuration values."""
+
+    def __init__(self, *, adapter_name: str = "tortoise") -> None:
+        """Store the adapter identifier used by the ORM lifecycle."""
+
+        self._adapter_name = adapter_name
+
+    @property
+    def adapter_name(self) -> str:
+        """Return the adapter identifier configured for the project."""
+
+        return self._adapter_name
+
+    def template(self) -> Dict[str, str]:
+        """Return a dictionary with example ORM configuration."""
+
+        return {"default": "sqlite:///db.sqlite3"}
+
+    def create_lifecycle(self) -> ORMLifecycle:
+        """Return an ORM lifecycle configured with these settings."""
+
+        return ORMLifecycle(settings=self)
+
+
+class ORMLifecycle:
+    """Manage ORM startup and shutdown hooks for FastAPI."""
+
+    def __init__(self, *, settings: ORMSettings) -> None:
+        """Persist settings required to bind lifecycle handlers."""
+
+        self._settings = settings
+
+    @property
+    def adapter_name(self) -> str:
+        """Expose the adapter identifier for BootManager wiring."""
+
+        return self._settings.adapter_name
+
+    async def startup(self) -> None:
+        """Initialise Tortoise ORM connections when FastAPI boots."""
+
+        config = self._settings.template()
+        await Tortoise.init(
+            db_url=config["default"],
+            modules={"models": ["apps.blog.models"]},
+        )
+
+    async def shutdown(self) -> None:
+        """Close all Tortoise ORM connections during FastAPI shutdown."""
+
+        await Tortoise.close_connections()
+
+    def bind(self, app: FastAPI) -> None:
+        """Register lifecycle handlers on a FastAPI application."""
+
+        app.add_event_handler("startup", self.startup)
+        app.add_event_handler("shutdown", self.shutdown)
 ```
 
-For PostgreSQL or another backend, change `db_url` accordingly (for example `postgres://user:pass@localhost:5432/dbname`).
+For PostgreSQL or another backend, change the DSN returned from `ORMSettings.template()` and update the module list used during startup.
 
 
 ## Step 6. Create an application package
@@ -175,10 +228,13 @@ If you need to run startup logic (for example to register cards or background pu
 
 ## Step 8. Review the generated bootstrap
 
-`freeadmin init` now scaffolds a `config/main.py` that already wires the boot manager, binds the ORM lifecycle, and initialises FreeAdmin with sensible defaults:
+`freeadmin init` now scaffolds a `config/main.py` that already wires the boot manager, binds the ORM lifecycle through `ORMLifecycle.bind()`, and initialises FreeAdmin with sensible defaults:
 
 ```python
 # config/main.py
+from collections.abc import Iterable
+from typing import List
+
 from fastapi import FastAPI
 from freeadmin.boot import BootManager
 
@@ -194,13 +250,14 @@ class ApplicationFactory:
         *,
         settings: ProjectSettings | None = None,
         orm_settings: ORMSettings | None = None,
+        packages: Iterable[str] | None = None,
     ) -> None:
         self._settings = settings or ProjectSettings()
         self._orm_settings = orm_settings or ORMSettings()
-        self._orm_lifecycle = self._orm_settings.create_lifecycle()
+        self._orm_lifecycle: ORMLifecycle = self._orm_settings.create_lifecycle()
         self._boot = BootManager(adapter_name=self._orm_lifecycle.adapter_name)
         self._app = FastAPI(title=self._settings.project_title)
-        self._packages = ["apps", "pages"]
+        self._packages: List[str] = list(packages or ["apps", "pages"])
         self._orm_events_bound = False
 
     def build(self) -> FastAPI:
@@ -210,15 +267,23 @@ class ApplicationFactory:
         self._boot.init(
             self._app,
             adapter=self._orm_lifecycle.adapter_name,
-            packages=["apps", "pages"],
+            packages=self._packages,
         )
         return self._app
+
+    def _bind_orm_events(self) -> None:
+        """Attach ORM lifecycle hooks to the FastAPI application."""
+
+        if self._orm_events_bound:
+            return
+        self._orm_lifecycle.bind(self._app)
+        self._orm_events_bound = True
 
 
 app = ApplicationFactory().build()
 ```
 
-The default discovery packages (`apps` and `pages`) match the directories created by the CLI, so FreeAdmin autodiscovers model admins and content pages without further configuration. Update `config/orm.py` to implement real startup and shutdown hooks; the scaffolded `ORMLifecycle` class already registers them against FastAPI.
+The default discovery packages (`apps` and `pages`) match the directories created by the CLI, so FreeAdmin autodiscovers model admins and content pages without further configuration. Pass a different `packages` iterable to `ApplicationFactory` when you need to customise discovery. Update `config/orm.py` to implement real startup and shutdown hooks; the scaffolded `ORMLifecycle` class already binds them against FastAPI.
 
 To mount the admin interface without double registration, create a `ProjectRouterAggregator` and call `mount()` during application setup:
 
