@@ -35,6 +35,7 @@ class RouterAggregator:
         prefix: str | None = None,
         *,
         settings: FreeAdminSettings | None = None,
+        additional_routers: Iterable[tuple[APIRouter, str | None]] | None = None,
     ) -> None:
         """Initialise the aggregator with the admin site and base settings."""
 
@@ -51,6 +52,9 @@ class RouterAggregator:
         )
         self._admin_router: APIRouter | None = None
         self._mounted_apps: WeakSet[FastAPI] = WeakSet()
+        self._additional_routers: list[tuple[APIRouter, str | None]] = list(
+            additional_routers or ()
+        )
 
     @property
     def prefix(self) -> str:
@@ -88,15 +92,27 @@ class RouterAggregator:
         self._mounted_apps.add(app)
 
     def register_additional_routers(self, app: FastAPI) -> None:
-        """Register optional routers returned by :meth:`get_additional_routers`."""
+        """Register optional routers configured for the aggregator."""
 
-        for router, router_prefix in self.get_additional_routers():
+        for router, router_prefix in self._iter_additional_routers():
             app.include_router(router, prefix=router_prefix or "")
+
+    def add_additional_router(
+        self, router: APIRouter, prefix: str | None = None
+    ) -> None:
+        """Register ``router`` so it is mounted alongside the admin router."""
+
+        self._additional_routers.append((router, prefix))
 
     def get_additional_routers(self) -> Iterable[tuple[APIRouter, str | None]]:
         """Return routers that should be mounted alongside the admin router."""
 
         return ()
+
+    def _iter_additional_routers(self) -> Iterable[tuple[APIRouter, str | None]]:
+        yield from self._additional_routers
+        if self.__class__.get_additional_routers is not RouterAggregator.get_additional_routers:  # type: ignore[misc]
+            yield from self.get_additional_routers()
 
     def _ensure_templates(self) -> None:
         if self.site.templates is None:

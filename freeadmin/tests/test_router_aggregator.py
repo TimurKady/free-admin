@@ -11,7 +11,6 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from unittest.mock import MagicMock
 
 from fastapi import APIRouter, FastAPI
@@ -78,12 +77,13 @@ def test_subclass_can_register_extra_routers() -> None:
     class CustomRouterAggregator(RouterAggregator):
         """Router aggregator providing an extra router."""
 
-        def get_additional_routers(self) -> Iterable[tuple[APIRouter, str | None]]:  # type: ignore[override]
-            """Return the extra router configured for the test."""
+        def __init__(self, *, site: MagicMock) -> None:
+            """Attach the admin site and register the extra router."""
 
-            return ((extra_router, ""),)
+            super().__init__(site=site, prefix="/admin")
+            self.add_additional_router(extra_router, "")
 
-    aggregator = CustomRouterAggregator(site=site, prefix="/admin")
+    aggregator = CustomRouterAggregator(site=site)
     aggregator._provider.mount_static = MagicMock()  # type: ignore[attr-defined]
     aggregator._provider.mount_favicon = MagicMock()  # type: ignore[attr-defined]
     aggregator._provider.mount_media = MagicMock()  # type: ignore[attr-defined]
@@ -96,6 +96,39 @@ def test_subclass_can_register_extra_routers() -> None:
 
     aggregator.mount(app)
     assert site.build_router.call_count == 1
+
+
+def test_constructor_additional_router_registration() -> None:
+    """Routers passed into the constructor should be mounted."""
+
+    app = FastAPI()
+    admin_router = APIRouter()
+
+    @admin_router.get("/root")
+    def root() -> dict[str, str]:
+        return {"root": "ok"}
+
+    reports_router = APIRouter()
+
+    @reports_router.get("/reports")
+    def reports() -> dict[str, str]:
+        return {"reports": "ok"}
+
+    site = _build_site(admin_router)
+    aggregator = RouterAggregator(
+        site=site,
+        prefix="/admin",
+        additional_routers=((reports_router, "/extras"),),
+    )
+    aggregator._provider.mount_static = MagicMock()  # type: ignore[attr-defined]
+    aggregator._provider.mount_favicon = MagicMock()  # type: ignore[attr-defined]
+    aggregator._provider.mount_media = MagicMock()  # type: ignore[attr-defined]
+    aggregator.mount(app)
+
+    client = TestClient(app)
+    response = client.get("/extras/reports")
+    assert response.status_code == 200
+    assert response.json() == {"reports": "ok"}
 
 
 
