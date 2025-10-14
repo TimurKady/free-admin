@@ -37,7 +37,7 @@ class ExampleApplication:
         self._settings = settings or ExampleSettings()
         self._orm = orm or ExampleORMConfig()
         self._orm_lifecycle: ExampleORMLifecycle = self._orm.create_lifecycle()
-        self._boot = BootManager(adapter_name=self._orm.adapter_name)
+        self._boot = BootManager(adapter_name=self._orm_lifecycle.adapter_name)
         self._app = FastAPI(title=self._settings.project_name)
         self._packages: List[str] = []
         self._routers = ExampleAdminRouters()
@@ -63,7 +63,7 @@ class ExampleApplication:
             self._orm_events_bound = True
         self._boot.init(
             self._app,
-            adapter=self._orm.adapter_name,
+            adapter=self._orm_lifecycle.adapter_name,
             packages=discovery_packages,
         )
         self._routers.mount(self._app)

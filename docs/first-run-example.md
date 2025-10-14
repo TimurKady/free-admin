@@ -24,10 +24,14 @@ app = application.configure()
   metadata, the admin path (`/admin`), and the list of installed apps. Its
   `describe()` helper returns a concise summary that is useful for debugging
   configuration during development.
-* `ExampleORMConfig` (`example/config/orm.py`) declares which adapter to use
-  (`tortoise` by default) together with the database DSN. The configuration is
-  intentionally simple and points to an in-memory SQLite database so you can
-  explore the admin without provisioning external infrastructure.
+* `ExampleORMConfig` (`example/config/orm.py`) subclasses the shared
+  `freeadmin.orm.ORMConfig` helper. The base class exposes `describe()` and
+  `create_lifecycle()` methods out of the box, so the example configuration only
+  needs to list the project modules that contain models. Built-in adapter
+  modules are merged automatically which keeps the configuration declarative and
+  free from custom lifecycle code. The DSN defaults to an in-memory SQLite
+  database so you can explore the admin without provisioning external
+  infrastructure.
 * The `BootManager` binds the FastAPI app and discovers admin resources in the
   `example.apps` and `example.pages` packages. You can register additional
   packages before calling `configure()` if you want to experiment with your own
@@ -41,6 +45,21 @@ app = application.configure()
   ])
   app = application.configure()
   ```
+
+  The same pattern scales to your own projects. Subclass `ORMConfig` and provide
+  a module map to declare where your models live:
+
+  ```python
+  from freeadmin.orm import ORMConfig
+
+
+  class MyORMConfig(ORMConfig):
+      def __init__(self) -> None:
+          super().__init__(modules={"models": ["myproject.apps.blog.models"]})
+  ```
+
+  No extra lifecycle methods are required—the default implementation wires the
+  FastAPI startup and shutdown hooks for you.
 
 ## Launching the demo
 
