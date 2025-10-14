@@ -11,10 +11,14 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
+import logging
 from importlib import import_module
 from typing import Iterable, TYPE_CHECKING
 
 from ..core.app import AppConfig
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -79,20 +83,25 @@ class ModelRegistrar:
     def __init__(self) -> None:
         self._registry = ModelModuleRegistry()
         self._imported_modules: set[str] = set()
+        self._missing_modules: set[str] = set()
 
     def add_adapter(self, adapter: "BaseAdapter") -> None:
         """Collect adapter-provided modules and import them once."""
 
         base_modules = getattr(adapter, "model_modules", [])
         base_label = getattr(adapter, "system_app_label", "admin")
-        self._registry.register_base(base_label, base_modules)
+        available_modules: list[str] = []
         for dotted in base_modules:
-            self._import_module(dotted)
+            if dotted in self._missing_modules:
+                continue
+            if self._import_module(dotted):
+                available_modules.append(dotted)
+        self._registry.register_base(base_label, available_modules)
         if getattr(adapter, "name", None) == "tortoise":
             from tortoise import Tortoise
 
             if base_label in Tortoise.apps:
-                self._registry.mark_registered(base_label, base_modules)
+                self._registry.mark_registered(base_label, available_modules)
 
     def add_config(self, config: AppConfig) -> None:
         """Store ``config`` metadata and stage its models for registration."""
@@ -103,30 +112,53 @@ class ModelRegistrar:
         """Register pending modules with ``adapter`` when required."""
 
         pending = list(self._registry.iter_pending())
-        for _, modules in pending:
+        for app_label, modules in pending:
+            available_modules: list[str] = []
             for dotted in modules:
-                self._import_module(dotted)
-
-        if getattr(adapter, "name", None) == "tortoise":
-            from tortoise import Tortoise
-
-            for app_label, modules in pending:
-                if not modules:
+                if dotted in self._missing_modules:
                     continue
-                Tortoise.init_models(modules, app_label=app_label)
-                self._registry.mark_registered(app_label, modules)
+                if self._import_module(dotted):
+                    available_modules.append(dotted)
+
+            if getattr(adapter, "name", None) == "tortoise":
+                from tortoise import Tortoise
+
+                if not available_modules:
+                    LOGGER.warning(
+                        "Skipping Tortoise model registration for '%s': no modules available",
+                        app_label,
+                    )
+                    continue
+                Tortoise.init_models(available_modules, app_label=app_label)
+            if available_modules:
+                self._registry.mark_registered(app_label, available_modules)
 
     def clear(self) -> None:
         """Reset cached import and registration metadata."""
 
         self._registry.clear()
         self._imported_modules.clear()
+        self._missing_modules.clear()
 
-    def _import_module(self, dotted_path: str) -> None:
+    def _import_module(self, dotted_path: str) -> bool:
         if dotted_path in self._imported_modules:
-            return
-        import_module(dotted_path)
+            return True
+        if dotted_path in self._missing_modules:
+            return False
+        try:
+            import_module(dotted_path)
+        except ModuleNotFoundError as exc:
+            missing_name = exc.name or ""
+            if missing_name and (
+                missing_name == dotted_path or dotted_path.startswith(f"{missing_name}.")
+            ):
+                self._missing_modules.add(dotted_path)
+                self._missing_modules.add(missing_name)
+                LOGGER.debug("Model module '%s' is unavailable: %s", dotted_path, exc)
+                return False
+            raise
         self._imported_modules.add(dotted_path)
+        return True
 
 
 # The End
