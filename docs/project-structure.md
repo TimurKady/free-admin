@@ -9,7 +9,9 @@ A freshly generated project looks like this:
 
 ```
 myproject/
+├── __init__.py
 ├── config/
+│   ├── __init__.py
 │   ├── main.py
 │   ├── orm.py
 │   └── settings.py
