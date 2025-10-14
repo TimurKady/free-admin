@@ -11,32 +11,53 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from fastapi import APIRouter, FastAPI
+from collections.abc import Iterable
+
+from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse, RedirectResponse
 
 from freeadmin.api.cards import public_router as card_public_router
 from freeadmin.core.settings import SettingsKey, system_config
 from freeadmin.hub import admin_site
-from freeadmin.router import AdminRouter
+from freeadmin.router import RouterAggregator
 
 
-class ExampleRouterAggregator:
+class ExampleRouterAggregator(RouterAggregator):
     """Attach admin, card, and public routes to the demo application."""
 
     def __init__(self) -> None:
-        """Set up router instances ready to mount on an application."""
+        """Initialise the example router aggregator with default routes."""
 
-        self._admin_router = AdminRouter(admin_site)
+        super().__init__(admin_site)
         self._card_router = card_public_router
-        self._public_router = APIRouter()
-        self._configure_public_routes()
+        self._public_router = self._create_public_router()
 
-    def _configure_public_routes(self) -> None:
+    @property
+    def card_router(self) -> APIRouter:
+        """Return the router exposing card endpoints to the public."""
+
+        return self._card_router
+
+    @property
+    def public_router(self) -> APIRouter:
+        """Return the router exposing public redirect endpoints."""
+
+        return self._public_router
+
+    def get_additional_routers(self) -> Iterable[tuple[APIRouter, str | None]]:
+        """Return card and public routers to mount alongside the admin site."""
+
+        yield from super().get_additional_routers()
+        yield self.card_router, None
+        yield self.public_router, None
+
+    def _create_public_router(self) -> APIRouter:
+        router = APIRouter()
         login_path = system_config.get_cached(SettingsKey.LOGIN_PATH, "/login")
         logout_path = system_config.get_cached(SettingsKey.LOGOUT_PATH, "/logout")
         robots_path = "/robots.txt"
 
-        @self._public_router.get(login_path, include_in_schema=False)
+        @router.get(login_path, include_in_schema=False)
         async def login_redirect() -> RedirectResponse:
             """Redirect visitors to the admin login page."""
 
@@ -47,7 +68,7 @@ class ExampleRouterAggregator:
                 f"{admin_prefix}{login_path}", status_code=303
             )
 
-        @self._public_router.get(logout_path, include_in_schema=False)
+        @router.get(logout_path, include_in_schema=False)
         async def logout_redirect() -> RedirectResponse:
             """Redirect visitors to the admin logout endpoint."""
 
@@ -58,7 +79,7 @@ class ExampleRouterAggregator:
                 f"{admin_prefix}{logout_path}", status_code=303
             )
 
-        @self._public_router.get(
+        @router.get(
             robots_path,
             include_in_schema=False,
             response_class=PlainTextResponse,
@@ -72,13 +93,7 @@ class ExampleRouterAggregator:
             )
             return PlainTextResponse(directives)
 
-    def mount(self, app: FastAPI) -> None:
-        """Include the admin and supporting routers on ``app``."""
-
-        if getattr(app.state, "admin_site", None) is None:
-            self._admin_router.mount(app)
-        app.include_router(self._card_router)
-        app.include_router(self._public_router)
+        return router
 
 
 ExampleAdminRouters = ExampleRouterAggregator
