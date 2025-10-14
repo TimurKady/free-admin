@@ -200,40 +200,67 @@ If you need to run startup logic (for example to register cards or background pu
 
 ## Step 8. Review the generated bootstrap
 
-`freeadmin init` now scaffolds a `config/main.py` that already wires the boot manager, binds the ORM lifecycle through `ORMLifecycle.bind()`, and initialises FreeAdmin with sensible defaults. The scaffold subclasses `freeadmin.application.ApplicationFactory` so you can register extra packages or lifecycle hooks before building the FastAPI instance:
+`freeadmin init` now scaffolds a `config/main.py` that already wires the boot manager, binds the ORM lifecycle, and initialises FreeAdmin with sensible defaults. The scaffold provides an `ApplicationFactory` class so you can register extra packages or lifecycle hooks before building the FastAPI instance:
 
 ```python
 # config/main.py
 from collections.abc import Iterable
+from typing import List
 
-from freeadmin.application import ApplicationFactory as ApplicationFactoryBase
+from fastapi import FastAPI
 
-from .orm import ORMSettings
+from freeadmin.boot import BootManager
+from freeadmin.orm import ORMConfig
+
+from .orm import ORM
 from .settings import ProjectSettings
 
 
-class ApplicationFactory(ApplicationFactoryBase):
+class ApplicationFactory:
     """Create FastAPI applications for the project."""
 
     def __init__(
         self,
         *,
         settings: ProjectSettings | None = None,
-        orm_settings: type[ORMSettings] | ORMSettings | None = None,
+        orm: ORMConfig | None = None,
         packages: Iterable[str] | None = None,
     ) -> None:
-        super().__init__(
-            settings=settings or ProjectSettings(),
-            orm_config=orm_settings or ORMSettings,
-            packages=packages or ("apps", "pages"),
+        self._settings = settings or ProjectSettings()
+        self._orm = orm or ORM
+        self._orm_lifecycle = self._orm.create_lifecycle()
+        self._boot = BootManager(adapter_name=self._orm_lifecycle.adapter_name)
+        self._app = FastAPI(title=self._settings.project_title)
+        self._packages: List[str] = list(packages or ["apps", "pages"])
+        self._orm_events_bound = False
+
+    def build(self) -> FastAPI:
+        """Return a FastAPI instance wired with FreeAdmin integration."""
+
+        self._bind_orm_events()
+        self._boot.init(
+            self._app,
+            adapter=self._orm_lifecycle.adapter_name,
+            packages=self._packages,
         )
+        return self._app
+
+    def _bind_orm_events(self) -> None:
+        """Attach ORM lifecycle hooks to the FastAPI application."""
+
+        if self._orm_events_bound:
+            return
+        self._orm_lifecycle.bind(self._app)
+        self._orm_events_bound = True
 
 application = ApplicationFactory()
-application.register_startup_hook(lambda: print("ready"))
 app = application.build()
+
+
+# The End
 ```
 
-The default discovery packages (`apps` and `pages`) match the directories created by the CLI, so FreeAdmin autodiscovers model admins and content pages without further configuration. Pass a different `packages` iterable to `ApplicationFactory` when you need to customise discovery. Update `config/orm.py` to implement real startup and shutdown hooks; the scaffolded `ORMLifecycle` class already binds them against FastAPI.
+The default discovery packages (`apps` and `pages`) match the directories created by the CLI, so FreeAdmin autodiscovers model admins and content pages without further configuration. Pass a different `packages` iterable to `ApplicationFactory` when you need to customise discovery. Update `config/orm.py` to implement real startup and shutdown hooks for your adapter.
 
 To mount the admin interface without double registration, create a `ProjectRouterAggregator` and call `mount()` during application setup:
 
