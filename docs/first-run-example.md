@@ -24,14 +24,14 @@ app = application.configure()
   metadata, the admin path (`/admin`), and the list of installed apps. Its
   `describe()` helper returns a concise summary that is useful for debugging
   configuration during development.
-* `ExampleORMConfig` (`example/config/orm.py`) subclasses the shared
-  `freeadmin.orm.ORMConfig` helper. The base class exposes `describe()` and
-  `create_lifecycle()` methods out of the box, so the example configuration only
-  needs to list the project modules that contain models. Built-in adapter
-  modules are merged automatically which keeps the configuration declarative and
-  free from custom lifecycle code. The DSN defaults to an in-memory SQLite
-  database so you can explore the admin without provisioning external
-  infrastructure.
+* `ExampleORMConfig` (`example/config/orm.py`) exports a ready-to-use
+  `ORMConfig` instance produced by :meth:`freeadmin.orm.ORMConfig.build`. The
+  declarative mapping lists project models alongside the admin/system modules
+  that ship with the FreeAdmin Tortoise adapter. The helper still exposes
+  `describe()` and `create_lifecycle()` methods which keeps lifecycle
+  integration ergonomic while avoiding custom subclasses. The DSN defaults to an
+  in-memory SQLite database so you can explore the admin without provisioning
+  external infrastructure.
 * The `BootManager` binds the FastAPI app and discovers admin resources in the
   `example.apps` and `example.pages` packages. You can register additional
   packages before calling `configure()` if you want to experiment with your own
@@ -46,16 +46,22 @@ app = application.configure()
   app = application.configure()
   ```
 
-  The same pattern scales to your own projects. Subclass `ORMConfig` and provide
-  a module map to declare where your models live:
+  The same pattern scales to your own projects. Duplicate the configuration map
+  and feed it to :meth:`ORMConfig.build` to declare where your models live:
 
   ```python
+  from copy import deepcopy
+
   from freeadmin.orm import ORMConfig
+  from example.config.orm import DB_ADAPTER, ORM_CONFIG
 
 
-  class MyORMConfig(ORMConfig):
-      def __init__(self) -> None:
-          super().__init__(modules={"models": ["myproject.apps.blog.models"]})
+  def build_my_config() -> ORMConfig:
+      """Return an ORMConfig tailored to the application's needs."""
+      settings = deepcopy(ORM_CONFIG)
+      settings["connections"]["default"] = "sqlite:///myproject.db"
+      settings["apps"]["models"]["models"].append("myproject.apps.blog.models")
+      return ORMConfig.build(adapter_name=DB_ADAPTER, config=settings)
   ```
 
   No extra lifecycle methods are required—the default implementation wires the

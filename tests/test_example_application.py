@@ -11,15 +11,24 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
+from copy import deepcopy
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
 
 from example.config.main import ExampleApplication
-from example.config.orm import ExampleORMConfig
+from example.config.orm import (
+    ADMIN_APP_MODULES,
+    MODELS_APP_MODULES,
+    SYSTEM_APP_MODULES,
+    ExampleORMConfig,
+)
 from tests.sampleapp.app import default as sample_app_config
 from tortoise import Tortoise
+
+from freeadmin.adapters.tortoise.adapter import Adapter as TortoiseAdapter
+from freeadmin.orm import ORMConfig
 
 
 class TestExampleApplicationSmoke:
@@ -69,9 +78,8 @@ class TestExampleApplicationStartup:
         init_arguments: dict[str, object] = {}
         shutdown_calls: list[bool] = []
 
-        async def fake_init(*, db_url: str, modules: dict[str, list[str]]) -> None:
-            init_arguments["db_url"] = db_url
-            init_arguments["modules"] = modules
+        async def fake_init(*, config: dict[str, object]) -> None:
+            init_arguments["config"] = config
 
         async def fake_close() -> None:
             shutdown_calls.append(True)
@@ -80,7 +88,12 @@ class TestExampleApplicationStartup:
         monkeypatch.setattr(Tortoise, "close_connections", fake_close)
 
         custom_dsn = "sqlite:///example.db"
-        orm_config = ExampleORMConfig(dsn=custom_dsn)
+        custom_config = deepcopy(ExampleORMConfig.config)
+        custom_config["connections"][ExampleORMConfig.default_connection_name] = custom_dsn
+        orm_config = ORMConfig.build(
+            adapter_name=ExampleORMConfig.adapter_name,
+            config=custom_config,
+        )
         application = ExampleApplication(orm=orm_config)
         app = application.configure()
 
@@ -96,14 +109,17 @@ class TestExampleApplicationStartup:
 
         await app.router.startup()
         try:
-            assert init_arguments["db_url"] == custom_dsn
-            modules = init_arguments["modules"]
-            assert "example.apps.demo.models" in modules["models"]
-            assert {
-                "freeadmin.adapters.tortoise.content_type",
-                "freeadmin.adapters.tortoise.groups",
-                "freeadmin.adapters.tortoise.users",
-            }.issubset(set(modules["models"]))
+            recorded_config = init_arguments["config"]
+            assert recorded_config["connections"][
+                ExampleORMConfig.default_connection_name
+            ] == custom_dsn
+            apps = recorded_config["apps"]
+            project_modules = set(apps["models"]["models"])
+            assert set(MODELS_APP_MODULES).issubset(project_modules)
+            system_modules = set(apps["system"]["models"])
+            assert set(SYSTEM_APP_MODULES).issubset(system_modules)
+            admin_modules = set(apps["admin"]["models"])
+            assert set(ADMIN_APP_MODULES).issubset(admin_modules)
         finally:
             await app.router.shutdown()
 
