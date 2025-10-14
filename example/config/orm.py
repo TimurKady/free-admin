@@ -41,7 +41,7 @@ class ExampleORMConfig(ORMConfig):
         default_modules: Dict[str, List[str]] = {
             "models": ["example.apps.demo.models"],
         }
-        if not modules:
+        if modules is None:
             return default_modules
         project_modules: Dict[str, List[str]] = {
             label: [str(value) for value in values]
@@ -55,9 +55,7 @@ class ExampleORMConfig(ORMConfig):
         return project_modules
 
 
-ExampleORMLifecycle = ORMLifecycle
-
-__all__ = ["ExampleORMConfig", "ExampleORMLifecycle", "ORMLifecycle"]
+__all__ = ["ExampleORMConfig", "ORMLifecycle"]
 
 # The End
 
