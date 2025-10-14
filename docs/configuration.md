@@ -66,12 +66,13 @@ from pydantic import BaseSettings
 class ProjectSettings(BaseSettings):
     debug: bool = True
     database_url: str = "sqlite:///db.sqlite3"
+    project_title: str = "myproject administration"
 
 
 settings = ProjectSettings()
 ```
 
-You can combine both settings layers by exporting `FA_DATABASE_URL` from the same `.env` file used by your project settings. FreeAdmin's boot manager will pick up the database URL automatically when initialising the Tortoise adapter.
+You can combine both settings layers by exporting `FA_DATABASE_URL` from the same `.env` file used by your project settings. FreeAdmin's boot manager will pick up the database URL automatically when initialising the Tortoise adapter, while the `project_title` attribute feeds the FastAPI application's title and the admin navigation header.
 
 
 ## Database URL
