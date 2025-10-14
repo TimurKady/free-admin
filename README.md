@@ -93,12 +93,11 @@ admin_site.register(app="blog", model=Post, admin_cls=PostAdmin)
 Initialise FreeAdmin inside your FastAPI application (usually in `config/main.py`):
 
 ```python
-from fastapi import FastAPI
-from freeadmin.boot import admin
+from freeadmin.application import ApplicationFactory
 
 
-app = FastAPI()
-admin.init(app, packages=["apps"])
+application = ApplicationFactory()
+app = application.build()
 ```
 
 ### 4. Run the server

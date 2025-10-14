@@ -15,7 +15,7 @@ boots the admin site.
 from example import ExampleApplication
 
 application = ExampleApplication()
-app = application.configure()
+app = application.build()
 ```
 
 `ExampleApplication` wires three responsibilities:
@@ -32,10 +32,10 @@ app = application.configure()
   integration ergonomic while avoiding custom subclasses. The DSN defaults to an
   in-memory SQLite database so you can explore the admin without provisioning
   external infrastructure.
-* The `BootManager` binds the FastAPI app and discovers admin resources in the
-  `example.apps` and `example.pages` packages. You can register additional
-  packages before calling `configure()` if you want to experiment with your own
-  resources:
+* The `ApplicationFactory` base class binds the FastAPI app and discovers admin
+  resources in the `example.apps` and `example.pages` packages. You can register
+  additional packages before calling `build()` if you want to experiment with
+  your own resources:
 
   ```python
   application.register_packages([
@@ -43,8 +43,12 @@ app = application.configure()
       "example.pages",
       "myproject.admin",  # add your own package
   ])
-  app = application.configure()
+  app = application.build()
   ```
+
+  The factory also exposes `register_startup_hook()` and
+  `register_shutdown_hook()` so you can plug in project-specific lifecycle
+  handlers before building the app.
 
   The same pattern scales to your own projects. Duplicate the configuration map
   and feed it to :meth:`ORMConfig.build` to declare where your models live:
@@ -95,7 +99,7 @@ app = application.configure()
 
    def app() -> FastAPI:
        application = ExampleApplication()
-       return application.configure()
+       return application.build()
    ```
 
    The admin interface will be available at `http://127.0.0.1:8000/admin` once
