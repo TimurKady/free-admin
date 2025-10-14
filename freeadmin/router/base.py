@@ -11,15 +11,16 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 from pathlib import Path
+
 from fastapi import FastAPI
 
-from .conf import FreeAdminSettings, current_settings
-from .core.settings import SettingsKey, system_config
-from .core.site import AdminSite
-from .provider import TemplateProvider
+from ..conf import FreeAdminSettings, current_settings
+from ..core.settings import SettingsKey, system_config
+from ..core.site import AdminSite
+from ..provider import TemplateProvider
 
-ASSETS_DIR = Path(__file__).parent / "static"
-TEMPLATES_DIR = Path(__file__).parent / "templates"
+ASSETS_DIR = Path(__file__).resolve().parent.parent / "static"
+TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
 
 
 class AdminRouter:
