@@ -11,13 +11,36 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
+import importlib.util
 import logging
-from typing import Any
+import sqlite3
+from typing import Any, Tuple
+
+from tortoise import exceptions as tortoise_exceptions
 
 from .defaults import DEFAULT_SETTINGS
 from .keys import SettingsKey
 from ...boot import admin as boot_admin
 SystemSetting = boot_admin.adapter.system_setting_model
+
+if importlib.util.find_spec("asyncpg") is not None:
+    from asyncpg import exceptions as asyncpg_exceptions
+
+    ASYNCPG_ERRORS: Tuple[type[BaseException], ...] = (
+        asyncpg_exceptions.UndefinedTableError,
+    ) if hasattr(asyncpg_exceptions, "UndefinedTableError") else ()
+else:
+    ASYNCPG_ERRORS = ()
+
+TORTOISE_OPERATIONAL_ERRORS: Tuple[type[BaseException], ...] = (
+    tortoise_exceptions.OperationalError,
+)
+if hasattr(tortoise_exceptions, "DBOperationalError"):
+    TORTOISE_OPERATIONAL_ERRORS += (tortoise_exceptions.DBOperationalError,)
+
+DATABASE_OPERATION_ERRORS: Tuple[type[BaseException], ...] = (
+    sqlite3.OperationalError,
+) + TORTOISE_OPERATIONAL_ERRORS + ASYNCPG_ERRORS
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +72,16 @@ class SystemConfig:
         Inserts any missing keys from :data:`DEFAULT_SETTINGS` and reloads the
         cache afterwards.
         """
+
+        try:
+            await self._seed_defaults()
+        except DATABASE_OPERATION_ERRORS as exc:
+            logger.warning(
+                "Skipping system configuration seed due to database error: %s", exc
+            )
+
+    async def _seed_defaults(self) -> None:
+        """Perform the default seeding workflow within a transaction."""
 
         async with self.adapter.in_transaction():
             # migrate legacy page-type keys if present
@@ -90,18 +123,27 @@ class SystemConfig:
     async def reload(self) -> None:
         """Reload settings from the database into the in-memory cache."""
 
-        self._cache.clear()
         type_map = {k.value: t for k, (_, t) in DEFAULT_SETTINGS.items()}
-        qs = self.adapter.values(self.adapter.all(SystemSetting), "key", "value")
-        for record in await self.adapter.fetch_all(qs):
-            key = record["key"]
-            value_type = type_map.get(key, "string")
-            self._cache[key] = self._cast(record["value"], value_type)
+        try:
+            new_cache: dict[str, Any] = {}
+            qs = self.adapter.values(self.adapter.all(SystemSetting), "key", "value")
+            for record in await self.adapter.fetch_all(qs):
+                key = record["key"]
+                value_type = type_map.get(key, "string")
+                new_cache[key] = self._cast(record["value"], value_type)
 
-        # Ensure defaults for any keys still missing (in case DB lacked them)
-        for key_enum, (value, value_type) in DEFAULT_SETTINGS.items():
-            key = key_enum.value
-            self._cache.setdefault(key, self._cast(value, value_type))
+            # Ensure defaults for any keys still missing (in case DB lacked them)
+            for key_enum, (value, value_type) in DEFAULT_SETTINGS.items():
+                key = key_enum.value
+                new_cache.setdefault(key, self._cast(value, value_type))
+        except DATABASE_OPERATION_ERRORS as exc:
+            logger.warning(
+                "Skipping system configuration reload due to database error: %s", exc
+            )
+            return
+
+        self._cache.clear()
+        self._cache.update(new_cache)
 
     def get_cached(self, key: SettingsKey | str, default: Any | None = None) -> Any:
         """Return ``key`` value directly from the in-memory cache.
@@ -198,6 +240,9 @@ class SystemConfig:
 # Module-level singleton ------------------------------------------------------
 
 system_config = SystemConfig()
+
+
+# The End
 
 __all__ = ["SystemConfig", "system_config"]
 
