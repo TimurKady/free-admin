@@ -104,6 +104,7 @@ Replace the placeholder in `config/orm.py` with a concrete configuration. The sc
 from copy import deepcopy
 from typing import Any, Dict
 
+from freeadmin.adapters.tortoise.adapter import Adapter as TortoiseAdapter
 from freeadmin.orm import ORMConfig
 
 DB_ADAPTER = "tortoise"
@@ -113,7 +114,8 @@ APPLICATION_MODEL_MODULES: tuple[str, ...] = (
 SYSTEM_MODEL_MODULES: tuple[str, ...] = (
     "freeadmin.apps.system.models",
 )
-ADMIN_MODEL_MODULES: tuple[str, ...] = ()
+# Include adapter-provided admin models to enable the FreeAdmin UI resources.
+ADMIN_MODEL_MODULES: tuple[str, ...] = tuple(TortoiseAdapter.model_modules)
 
 ORM_CONFIG: Dict[str, Dict[str, Any]] = {
     "connections": {
