@@ -38,7 +38,7 @@ class TestExampleApplicationSmoke:
         """Ensure configuring the example attaches the admin site to the app."""
 
         application = ExampleApplication()
-        app = application.configure()
+        app = application.build()
 
         assert getattr(app.state, "admin_site", None) is not None
 
@@ -53,7 +53,7 @@ class TestExampleApplicationStartup:
         sample_app_config.ready_calls = 0
         application = ExampleApplication()
         application.register_packages(["tests.sampleapp"])
-        app = application.configure()
+        app = application.build()
 
         boot_manager = application.boot_manager
         hub = boot_manager._ensure_hub()
@@ -94,8 +94,8 @@ class TestExampleApplicationStartup:
             adapter_name=ExampleORMConfig.adapter_name,
             config=custom_config,
         )
-        application = ExampleApplication(orm=orm_config)
-        app = application.configure()
+        application = ExampleApplication()
+        app = application.build(orm_config=orm_config)
 
         boot_manager = application.boot_manager
         hub = boot_manager._ensure_hub()
@@ -135,7 +135,7 @@ class TestExampleApplicationDiscovery:
 
         application = ExampleApplication()
         application.register_packages(["example.apps"])
-        app = application.configure()
+        app = application.build()
 
         boot_manager = application.boot_manager
         hub = boot_manager._ensure_hub()
@@ -168,6 +168,37 @@ class TestExampleApplicationDiscovery:
                 hub._app_configs.pop("example.apps.demo", None)
             else:
                 hub._app_configs["example.apps.demo"] = previous_config
+
+
+class TestApplicationFactoryHooks:
+    """Validate hook registration integrates with FastAPI events."""
+
+    @pytest.mark.asyncio
+    async def test_custom_startup_and_shutdown_hooks(self) -> None:
+        """Ensure custom lifecycle hooks registered on the example execute."""
+
+        application = ExampleApplication()
+        startup_calls: list[str] = []
+        shutdown_calls: list[str] = []
+
+        def record_startup() -> None:
+            startup_calls.append("startup")
+
+        async def record_shutdown() -> None:
+            shutdown_calls.append("shutdown")
+
+        application.register_startup_hook(record_startup)
+        application.register_shutdown_hook(record_shutdown)
+
+        app = application.build()
+
+        await app.router.startup()
+        try:
+            assert startup_calls == ["startup"]
+        finally:
+            await app.router.shutdown()
+
+        assert shutdown_calls == ["shutdown"]
 
 
 # The End

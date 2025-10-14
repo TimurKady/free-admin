@@ -11,74 +11,35 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from collections.abc import Iterable
-from typing import List
-
-from fastapi import FastAPI
-
+from freeadmin.application import ApplicationFactory
 from freeadmin.boot import BootManager
-from freeadmin.orm import ORMConfig, ORMLifecycle
 
 from .orm import ExampleORMConfig
 from .routers import ExampleAdminRouters
 from .settings import ExampleSettings
 
 
-class ExampleApplication:
+class ExampleApplication(ApplicationFactory):
     """Assemble a runnable FreeAdmin demonstration project."""
 
-    def __init__(
-        self,
-        *,
-        settings: ExampleSettings | None = None,
-        orm: ORMConfig | None = None,
-    ) -> None:
-        """Store configuration helpers and prepare the FastAPI app."""
+    settings_class = ExampleSettings
+    orm_config_class = ExampleORMConfig
+    router_manager_class = ExampleAdminRouters
+    default_packages = ("example.apps", "example.pages")
 
-        self._settings = settings or ExampleSettings()
-        self._orm = orm or ExampleORMConfig
-        self._orm_lifecycle: ORMLifecycle = self._orm.create_lifecycle()
-        self._boot = BootManager(adapter_name=self._orm_lifecycle.adapter_name)
-        self._app = FastAPI(title=self._settings.project_name)
-        self._packages: List[str] = []
-        self._routers = ExampleAdminRouters()
-        self._orm_events_bound = False
+    def __init__(self) -> None:
+        """Initialise the factory with example defaults."""
 
-    def register_packages(self, packages: Iterable[str]) -> None:
-        """Register Python packages that expose admin resources."""
-
-        for package in packages:
-            package_name = str(package)
-            if package_name not in self._packages:
-                self._packages.append(package_name)
-
-    def configure(self) -> FastAPI:
-        """Configure FreeAdmin integration and return the FastAPI app."""
-
-        discovery_packages = self._packages or [
-            "example.apps",
-            "example.pages",
-        ]
-        if not self._orm_events_bound:
-            self._orm_lifecycle.bind(self._app)
-            self._orm_events_bound = True
-        self._boot.init(
-            self._app,
-            adapter=self._orm_lifecycle.adapter_name,
-            packages=discovery_packages,
+        super().__init__(
+            settings=self.settings_class(),
+            orm_config=self.orm_config_class,
+            router_manager=self.router_manager_class(),
+            packages=self.default_packages,
         )
-        self._routers.mount(self._app)
-        return self._app
-
-    @property
-    def app(self) -> FastAPI:
-        """Return the FastAPI application managed by the example."""
-
-        return self._app
 
     @property
     def boot_manager(self) -> BootManager:
-        """Expose the underlying boot manager for customization."""
+        """Return the BootManager coordinating FreeAdmin bootstrapping."""
 
         return self._boot
 
