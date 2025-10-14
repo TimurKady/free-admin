@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import List, Tuple
 
 from tortoise import Tortoise
@@ -37,6 +38,48 @@ def test_boot_manager_registers_custom_models(monkeypatch) -> None:
 
     boot.reset()
     Tortoise.apps.pop("sample", None)
+
+
+def test_boot_manager_logs_missing_model_modules(monkeypatch, caplog) -> None:
+    """Ensure missing model modules do not crash registration and emit a warning."""
+
+    missing_module = "tests.sample_app.missing_models"
+
+    from tests.sample_app.app import SampleAppConfig
+    from freeadmin.boot import registry as model_registry
+
+    def _missing_models(self) -> list[str]:
+        return [missing_module]
+
+    monkeypatch.setattr(SampleAppConfig, "get_models_modules", _missing_models, raising=False)
+
+    original_import = model_registry.import_module
+
+    def _guarded_import(name: str, package: str | None = None):
+        if name == missing_module:
+            raise ModuleNotFoundError(
+                f"No module named '{missing_module}'",
+                name=missing_module,
+            )
+        return original_import(name, package)
+
+    monkeypatch.setattr(model_registry, "import_module", _guarded_import)
+
+    boot = BootManager(adapter_name="tortoise")
+
+    with caplog.at_level(logging.WARNING, logger=model_registry.LOGGER.name):
+        boot.load_app_config("tests.sample_app")
+        _ = boot.adapter
+
+    warnings = [
+        record
+        for record in caplog.records
+        if record.levelno == logging.WARNING
+        and "no modules available" in record.getMessage()
+    ]
+    assert warnings
+
+    boot.reset()
 
 
 # The End
