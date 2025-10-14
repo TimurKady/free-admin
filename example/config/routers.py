@@ -11,8 +11,6 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from collections.abc import Iterable
-
 from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse, RedirectResponse
 
@@ -29,27 +27,8 @@ class ExampleRouterAggregator(RouterAggregator):
         """Initialise the example router aggregator with default routes."""
 
         super().__init__(admin_site)
-        self._card_router = card_public_router
-        self._public_router = self._create_public_router()
-
-    @property
-    def card_router(self) -> APIRouter:
-        """Return the router exposing card endpoints to the public."""
-
-        return self._card_router
-
-    @property
-    def public_router(self) -> APIRouter:
-        """Return the router exposing public redirect endpoints."""
-
-        return self._public_router
-
-    def get_additional_routers(self) -> Iterable[tuple[APIRouter, str | None]]:
-        """Return card and public routers to mount alongside the admin site."""
-
-        yield from super().get_additional_routers()
-        yield self.card_router, None
-        yield self.public_router, None
+        self.add_additional_router(card_public_router, None)
+        self.add_additional_router(self._create_public_router(), None)
 
     def _create_public_router(self) -> APIRouter:
         router = APIRouter()

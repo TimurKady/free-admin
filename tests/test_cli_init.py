@@ -45,7 +45,7 @@ class TestProjectInitializerConfigTemplates:
         assert ROUTER_TEMPLATE_CLASS_NAME in routers_content
         assert "RouterAggregator" in routers_content
         assert "super().mount" in routers_content
-        assert "return ((reports_router, \"/reports\"),)" in routers_content
+        assert "self.add_additional_router(reports_router, \"/reports\")" in routers_content
         assert "ProjectSettings" in settings_content
         assert "project_title" in settings_content
 

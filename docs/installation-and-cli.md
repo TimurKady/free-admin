@@ -267,8 +267,6 @@ The default discovery packages (`apps` and `pages`) match the directories create
 
 ```python
 # config/routers.py
-from collections.abc import Iterable
-
 from fastapi import APIRouter
 
 from freeadmin.hub import admin_site
@@ -282,18 +280,16 @@ class ProjectRouterAggregator(RouterAggregator):
         """Initialise the aggregator with the admin site."""
 
         super().__init__(site=admin_site)
-
-    def get_additional_routers(self) -> Iterable[tuple[APIRouter, str | None]]:
-        """Return project-specific routers to mount with the admin UI."""
-
-        return ()
+        # Declare additional routers when your project exposes them:
+        # reports_router = APIRouter()
+        # self.add_additional_router(reports_router, "/reports")
 
 
 ROUTERS = ProjectRouterAggregator()
 
 ```
 
-Override `get_additional_routers()` to yield `(router, prefix)` tuples whenever you need to expose extra APIs. The `RouterAggregator` base class ensures the admin router, static assets, and favicon are mounted once per application instance and provides helpers such as `register_additional_routers()` if you need to trigger mounting manually.
+Call `add_additional_router()` (or pass `additional_routers` to `RouterAggregator.__init__()`) whenever you need to expose extra APIs. The `RouterAggregator` base class ensures the admin router, static assets, and favicon are mounted once per application instance and provides helpers such as `register_additional_routers()` if you need to trigger mounting manually.
 
 
 ## Step 9. Configure the database URL

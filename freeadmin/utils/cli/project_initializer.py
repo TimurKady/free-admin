@@ -240,8 +240,6 @@ Routing helpers for {project_name}.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
-
 from fastapi import APIRouter, FastAPI
 
 from freeadmin.core.site import AdminSite
@@ -257,10 +255,18 @@ class {router_class}(RouterAggregator):
         site: AdminSite,
         *,
         prefix: str | None = None,
+        additional_routers: tuple[tuple[APIRouter, str | None], ...] | None = None,
     ) -> None:
         """Initialise the aggregator with the admin site and prefix."""
 
-        super().__init__(site=site, prefix=prefix)
+        super().__init__(
+            site=site,
+            prefix=prefix,
+            additional_routers=additional_routers,
+        )
+        # Declare routers here when you do not want to pass them in as
+        # ``additional_routers``.
+        # self.add_additional_router(reports_router, "/reports")
 
     def mount(self, app: FastAPI, prefix: str | None = None) -> None:  # type: ignore[override]
         """Mount the admin UI and project routers onto ``app``."""
@@ -268,13 +274,6 @@ class {router_class}(RouterAggregator):
         super().mount(app, prefix=prefix)
         # Delegate admin mounting to ``RouterAggregator`` and extend this
         # method only when additional side effects are required.
-
-    def get_additional_routers(self) -> Iterable[tuple[APIRouter, str | None]]:  # type: ignore[override]
-        """Return project-specific routers to include with the admin UI."""
-
-        # Declare routers here, for example:
-        # return ((reports_router, "/reports"),)
-        return ()
 
 
 ROUTERS: {router_class} = {router_class}(site=admin_site)
