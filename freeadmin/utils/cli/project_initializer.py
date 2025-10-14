@@ -73,8 +73,9 @@ from typing import List
 from fastapi import FastAPI
 
 from freeadmin.boot import BootManager
+from freeadmin.orm import ORMConfig
 
-from .orm import ORMLifecycle, ORMSettings
+from .orm import ORM
 from .settings import ProjectSettings
 
 
@@ -85,14 +86,14 @@ class ApplicationFactory:
         self,
         *,
         settings: ProjectSettings | None = None,
-        orm_settings: ORMSettings | None = None,
+        orm: ORMConfig | None = None,
         packages: Iterable[str] | None = None,
     ) -> None:
         """Configure dependencies required to build the application."""
 
         self._settings = settings or ProjectSettings()
-        self._orm_settings = orm_settings or ORMSettings()
-        self._orm_lifecycle: ORMLifecycle = self._orm_settings.create_lifecycle()
+        self._orm = orm or ORM
+        self._orm_lifecycle = self._orm.create_lifecycle()
         self._boot = BootManager(adapter_name=self._orm_lifecycle.adapter_name)
         self._app = FastAPI(title=self._settings.project_title)
         self._packages: List[str] = list(packages or ["apps", "pages"])
@@ -133,68 +134,70 @@ Database configuration entry point for {project_name}.
 
 from __future__ import annotations
 
-from typing import Dict
+from copy import deepcopy
+from typing import Any, Dict
 
-from fastapi import FastAPI
+from freeadmin.adapters.tortoise.adapter import Adapter as TortoiseAdapter
+from freeadmin.orm import ORMConfig
 
+# Adjust the adapter name to match the backend registered with FreeAdmin.
+DB_ADAPTER = "tortoise"
+"""Name of the FreeAdmin adapter powering the ORM layer."""
 
-class ORMSettings:
-    """Provide placeholder ORM configuration values."""
+# List your project model modules so migrations discover application models.
+APPLICATION_MODEL_MODULES: tuple[str, ...] = (
+    "apps.example.models",
+)
+"""Application model modules included in the project."""
 
-    def __init__(self, *, adapter_name: str = "tortoise") -> None:
-        """Store the adapter identifier used by the ORM lifecycle."""
+# Keep the system modules so FreeAdmin can bootstrap built-in functionality.
+SYSTEM_MODEL_MODULES: tuple[str, ...] = (
+    "freeadmin.apps.system.models",
+)
+"""System-level model modules exposed for admin helpers."""
 
-        self._adapter_name = adapter_name
+# Include adapter-provided admin models to enable the FreeAdmin UI resources.
+ADMIN_MODEL_MODULES: tuple[str, ...] = tuple(TortoiseAdapter.model_modules)
+"""Admin model modules shipped with the selected adapter."""
 
-    @property
-    def adapter_name(self) -> str:
-        """Return the adapter identifier configured for the project."""
+# Update the connections and app configuration to reflect your data sources.
+ORM_CONFIG: Dict[str, Dict[str, Any]] = {{
+    "connections": {{
+        "default": "sqlite://:memory:",
+    }},
+    "apps": {{
+        "models": {{
+            "models": list(APPLICATION_MODEL_MODULES),
+            "default_connection": "default",
+        }},
+        "system": {{
+            "models": list(SYSTEM_MODEL_MODULES),
+            "default_connection": "default",
+        }},
+        "admin": {{
+            "models": list(ADMIN_MODEL_MODULES),
+            "default_connection": "default",
+        }},
+    }},
+}}
+"""Declarative configuration mapping describing the ORM setup."""
 
-        return self._adapter_name
-
-    def template(self) -> Dict[str, str]:
-        """Return a dictionary with example ORM configuration."""
-
-        return {{"default": "sqlite:///db.sqlite3"}}
-
-    def create_lifecycle(self) -> ORMLifecycle:
-        """Return an ORM lifecycle configured with these settings."""
-
-        return ORMLifecycle(settings=self)
-
-
-class ORMLifecycle:
-    """Manage ORM startup and shutdown hooks for FastAPI."""
-
-    def __init__(self, *, settings: ORMSettings) -> None:
-        """Persist settings required to bind lifecycle handlers."""
-
-        self._settings = settings
-
-    @property
-    def adapter_name(self) -> str:
-        """Expose the adapter identifier for BootManager wiring."""
-
-        return self._settings.adapter_name
-
-    async def startup(self) -> None:
-        """Placeholder coroutine executed on FastAPI startup."""
-
-        return None
-
-    async def shutdown(self) -> None:
-        """Placeholder coroutine executed on FastAPI shutdown."""
-
-        return None
-
-    def bind(self, app: FastAPI) -> None:
-        """Register lifecycle handlers on a FastAPI application."""
-
-        app.add_event_handler("startup", self.startup)
-        app.add_event_handler("shutdown", self.shutdown)
+# Build a reusable ORMConfig instance and import it from config.main when wiring FastAPI.
+ORM: ORMConfig = ORMConfig.build(
+    adapter_name=DB_ADAPTER,
+    config=deepcopy(ORM_CONFIG),
+)
+"""Ready-to-use ORMConfig instance exported for the application factory."""
 
 
-__all__ = ["ORMSettings", "ORMLifecycle"]
+__all__ = [
+    "ADMIN_MODEL_MODULES",
+    "APPLICATION_MODEL_MODULES",
+    "DB_ADAPTER",
+    "ORM",
+    "ORM_CONFIG",
+    "SYSTEM_MODEL_MODULES",
+]
 
 
 # The End

@@ -30,7 +30,7 @@ The `config` package defines how the admin integrates with your FastAPI applicat
 | File | Purpose |
 | ---- | ------- |
 | `main.py` | Creates the FastAPI app and should call `BootManager.init()` to mount FreeAdmin. |
-| `orm.py` | Holds the ORM settings object and lifecycle that binds startup/shutdown hooks. |
+| `orm.py` | Declares adapter constants and exports an `ORMConfig` instance with lifecycle helpers. |
 | `settings.py` | Declares the `ProjectSettings` model backed by `pydantic.BaseSettings`. |
 
 After customisation a typical `main.py` instantiates the generated `ApplicationFactory`, which in turn coordinates `BootManager` and the ORM lifecycle:
@@ -42,8 +42,9 @@ from typing import List
 from fastapi import FastAPI
 
 from freeadmin.boot import BootManager
+from freeadmin.orm import ORMConfig
 
-from config.orm import ORMLifecycle, ORMSettings
+from config.orm import ORM
 from config.settings import ProjectSettings
 
 
@@ -54,12 +55,12 @@ class ApplicationFactory:
         self,
         *,
         settings: ProjectSettings | None = None,
-        orm_settings: ORMSettings | None = None,
+        orm: ORMConfig | None = None,
         packages: Iterable[str] | None = None,
     ) -> None:
         self._settings = settings or ProjectSettings()
-        self._orm_settings = orm_settings or ORMSettings()
-        self._orm_lifecycle: ORMLifecycle = self._orm_settings.create_lifecycle()
+        self._orm = orm or ORM
+        self._orm_lifecycle = self._orm.create_lifecycle()
         self._boot = BootManager(adapter_name=self._orm_lifecycle.adapter_name)
         self._app = FastAPI(title=self._settings.project_title)
         self._packages: List[str] = list(packages or ["apps", "pages"])
@@ -82,7 +83,7 @@ class ApplicationFactory:
 app = ApplicationFactory().build()
 ```
 
-`BootManager.init()` wires the admin router, session middleware, and card publishers into the FastAPI application. The list of packages controls autodiscovery: every package listed is scanned for admin registrations. `config/orm.py` complements this by providing `ORMSettings` and `ORMLifecycle`; the latter exposes a `bind()` helper that attaches startup and shutdown handlers to the FastAPI instance.
+`BootManager.init()` wires the admin router, session middleware, and card publishers into the FastAPI application. The list of packages controls autodiscovery: every package listed is scanned for admin registrations. `config/orm.py` complements this by exposing a ready-to-use `ORMConfig` instance whose `.create_lifecycle()` method binds startup and shutdown handlers to the FastAPI instance.
 
 
 ## 3. Application packages (`apps/<name>/`)
@@ -170,7 +171,7 @@ Understanding this flow helps when you need to debug why an admin class is not a
 | Area | Location | Notes |
 | ---- | -------- | ----- |
 | FastAPI integration | `config/main.py` | Instantiates `BootManager` and mounts the admin router. |
-| ORM setup | `config/orm.py` | Defines ORM settings and lifecycle hooks for the active adapter. |
+| ORM setup | `config/orm.py` | Declares the adapter, module lists, and `ORMConfig` instance for the active adapter. |
 | Environment configuration | `config/settings.py` | Wraps environment variables with a typed settings model. |
 | Domain code | `apps/` | Holds models, admins, cards, and optional startup hooks. |
 | Presentation assets | `templates/`, `static/` | Extend or override frontend resources. |

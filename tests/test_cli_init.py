@@ -39,8 +39,9 @@ class TestProjectInitializerConfigTemplates:
         assert "self._boot.init" in main_content
         assert '"apps", "pages"' in main_content
         assert "self._orm_lifecycle.bind" in main_content
-        assert "ORMSettings" in orm_content
-        assert "ORMLifecycle" in orm_content
+        assert "from .orm import ORM" in main_content
+        assert "ORM_CONFIG" in orm_content
+        assert "ORM: ORMConfig = ORMConfig.build" in orm_content
         assert ROUTER_TEMPLATE_CLASS_NAME in routers_content
         assert "def get_admin_router" in routers_content
         assert "_ROUTER_AGGREGATOR" in routers_content
