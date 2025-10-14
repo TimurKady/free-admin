@@ -123,23 +123,27 @@ class SystemConfig:
     async def reload(self) -> None:
         """Reload settings from the database into the in-memory cache."""
 
+        type_map = {k.value: t for k, (_, t) in DEFAULT_SETTINGS.items()}
         try:
-            self._cache.clear()
-            type_map = {k.value: t for k, (_, t) in DEFAULT_SETTINGS.items()}
+            new_cache: dict[str, Any] = {}
             qs = self.adapter.values(self.adapter.all(SystemSetting), "key", "value")
             for record in await self.adapter.fetch_all(qs):
                 key = record["key"]
                 value_type = type_map.get(key, "string")
-                self._cache[key] = self._cast(record["value"], value_type)
+                new_cache[key] = self._cast(record["value"], value_type)
 
             # Ensure defaults for any keys still missing (in case DB lacked them)
             for key_enum, (value, value_type) in DEFAULT_SETTINGS.items():
                 key = key_enum.value
-                self._cache.setdefault(key, self._cast(value, value_type))
+                new_cache.setdefault(key, self._cast(value, value_type))
         except DATABASE_OPERATION_ERRORS as exc:
             logger.warning(
                 "Skipping system configuration reload due to database error: %s", exc
             )
+            return
+
+        self._cache.clear()
+        self._cache.update(new_cache)
 
     def get_cached(self, key: SettingsKey | str, default: Any | None = None) -> Any:
         """Return ``key`` value directly from the in-memory cache.
