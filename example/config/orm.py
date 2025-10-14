@@ -38,15 +38,15 @@ ORM_CONFIG: Dict[str, Dict[str, Any]] = {
     "connections": {
         "default": "sqlite://:memory:",
     },
-    "system": {
-        "models": list(SYSTEM_APP_MODULES),
-        "default_connection": "default",
-    },
-    "admin": {
-        "models": list(ADMIN_APP_MODULES),
-        "default_connection": "default",
-    },
     "apps": {
+        "system": {
+            "models": list(SYSTEM_APP_MODULES),
+            "default_connection": "default",
+        },
+        "admin": {
+            "models": list(ADMIN_APP_MODULES),
+            "default_connection": "default",
+        },
         "models": {
             "models": list(MODELS_APP_MODULES),
             "default_connection": "default",
