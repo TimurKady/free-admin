@@ -259,8 +259,6 @@ class ApplicationFactory:
 
 app = ApplicationFactory().build()
 
-
-# The End
 ```
 
 The default discovery packages (`apps` and `pages`) match the directories created by the CLI, so FreeAdmin autodiscovers model admins and content pages without further configuration. `BootManager.init()` delegates to the admin hub, which mounts the default router aggregator as part of application startup, so no additional router wiring is required in the scaffold. Pass a different `packages` iterable to `ApplicationFactory` when you need to customise discovery. Update `config/orm.py` to implement real startup and shutdown hooks for your adapter.
@@ -293,8 +291,6 @@ class ProjectRouterAggregator(RouterAggregator):
 
 ROUTERS = ProjectRouterAggregator()
 
-
-# The End
 ```
 
 Override `get_additional_routers()` to yield `(router, prefix)` tuples whenever you need to expose extra APIs. The `RouterAggregator` base class ensures the admin router, static assets, and favicon are mounted once per application instance and provides helpers such as `register_additional_routers()` if you need to trigger mounting manually.
