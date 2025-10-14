@@ -87,12 +87,13 @@ from pydantic import BaseSettings
 class ProjectSettings(BaseSettings):
     debug: bool = True
     database_url: str = "sqlite:///db.sqlite3"
+    project_title: str = "myproject administration"
 
 
 settings = ProjectSettings()
 ```
 
-If you prefer `.env` files, add `python-dotenv` to your project and call `load_dotenv()` before instantiating `ProjectSettings`.
+`project_title` controls the name rendered in the admin navigation and browser tab. If you prefer `.env` files, add `python-dotenv` to your project and call `load_dotenv()` before instantiating `ProjectSettings`.
 
 
 ## Step 5. Configure Tortoise ORM
