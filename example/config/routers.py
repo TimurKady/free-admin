@@ -28,9 +28,11 @@ class ExampleRouterAggregator(RouterAggregator):
 
         super().__init__(admin_site)
         self.add_additional_router(card_public_router, None)
-        self.add_additional_router(self._create_public_router(), None)
+        self.add_additional_router(self.create_public_router(), None)
 
-    def _create_public_router(self) -> APIRouter:
+    def create_public_router(self) -> APIRouter:
+        """Build the public router exposed by the example project."""
+
         router = APIRouter()
         login_path = system_config.get_cached(SettingsKey.LOGIN_PATH, "/login")
         logout_path = system_config.get_cached(SettingsKey.LOGOUT_PATH, "/logout")
