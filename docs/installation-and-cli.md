@@ -216,7 +216,6 @@ from freeadmin.boot import BootManager
 from freeadmin.orm import ORMConfig
 
 from .orm import ORM
-from .routers import ROUTERS
 from .settings import ProjectSettings
 
 
@@ -247,7 +246,6 @@ class ApplicationFactory:
             adapter=self._orm_lifecycle.adapter_name,
             packages=self._packages,
         )
-        ROUTERS.mount(self._app)
         return self._app
 
     def _bind_orm_events(self) -> None:
@@ -265,7 +263,7 @@ app = ApplicationFactory().build()
 # The End
 ```
 
-The default discovery packages (`apps` and `pages`) match the directories created by the CLI, so FreeAdmin autodiscovers model admins and content pages without further configuration. Pass a different `packages` iterable to `ApplicationFactory` when you need to customise discovery. Update `config/orm.py` to implement real startup and shutdown hooks for your adapter.
+The default discovery packages (`apps` and `pages`) match the directories created by the CLI, so FreeAdmin autodiscovers model admins and content pages without further configuration. `BootManager.init()` delegates to the admin hub, which mounts the default router aggregator as part of application startup, so no additional router wiring is required in the scaffold. Pass a different `packages` iterable to `ApplicationFactory` when you need to customise discovery. Update `config/orm.py` to implement real startup and shutdown hooks for your adapter.
 
 `config/routers.py` keeps router composition in one place. Import the scaffolded `ProjectRouterAggregator` when you need to customise mounting behaviour—for example, to declare additional routers exposed by your project:
 
