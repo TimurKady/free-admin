@@ -17,7 +17,7 @@ from typing import List
 from fastapi import FastAPI
 
 from freeadmin.boot import BootManager
-from freeadmin.orm import ORMLifecycle
+from freeadmin.orm import ORMConfig, ORMLifecycle
 
 from .orm import ExampleORMConfig
 from .routers import ExampleAdminRouters
@@ -31,12 +31,12 @@ class ExampleApplication:
         self,
         *,
         settings: ExampleSettings | None = None,
-        orm: ExampleORMConfig | None = None,
+        orm: ORMConfig | None = None,
     ) -> None:
         """Store configuration helpers and prepare the FastAPI app."""
 
         self._settings = settings or ExampleSettings()
-        self._orm = orm or ExampleORMConfig()
+        self._orm = orm or ExampleORMConfig
         self._orm_lifecycle: ORMLifecycle = self._orm.create_lifecycle()
         self._boot = BootManager(adapter_name=self._orm_lifecycle.adapter_name)
         self._app = FastAPI(title=self._settings.project_name)

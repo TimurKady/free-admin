@@ -11,55 +11,66 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from typing import Dict, Iterable, List, Mapping
+from copy import deepcopy
+from typing import Any, Dict
 
+from freeadmin.adapters.tortoise.adapter import Adapter as TortoiseAdapter
 from freeadmin.orm import ORMConfig, ORMLifecycle
 
 
-class ExampleORMConfig(ORMConfig):
-    """Provide adapter wiring for the FreeAdmin example project."""
+DB_ADAPTER = "tortoise"
+"""Name of the FreeAdmin adapter powering the example ORM layer."""
 
-    def __init__(
-        self,
-        *,
-        # Specify the adapter name
-        adapter_name: str = "tortoise",
-        dsn: str | None = None,
-        modules: Mapping[str, Iterable[str]] | None = None,
-    ) -> None:
-        """Store adapter metadata and declare project-specific modules."""
+MODELS_APP_MODULES: tuple[str, ...] = (
+    "example.apps.demo.models",
+)
+"""Application model modules included in the example project."""
 
-        project_modules = self._build_project_modules(modules)
-        super().__init__(
-            adapter_name=adapter_name,
-            dsn=dsn,
-            modules=project_modules,
-        )
+SYSTEM_APP_MODULES: tuple[str, ...] = (
+    "freeadmin.apps.system.models",
+)
+"""System-level model modules exposed to the example for admin helpers."""
 
-    def _build_project_modules(
-        self, modules: Mapping[str, Iterable[str]] | None
-    ) -> Dict[str, List[str]]:
-        default_modules: Dict[str, List[str]] = {
-            "models": [
-                # Place plug-in models here
-                "example.apps.demo.models"
-            ],
-        }
-        if modules is None:
-            return default_modules
-        project_modules: Dict[str, List[str]] = {
-            label: [str(value) for value in values]
-            for label, values in modules.items()
-        }
-        for label, values in default_modules.items():
-            bucket = project_modules.setdefault(label, [])
-            for module in values:
-                if module not in bucket:
-                    bucket.append(module)
-        return project_modules
+ADMIN_APP_MODULES: tuple[str, ...] = tuple(TortoiseAdapter.model_modules)
+"""Adapter-provided admin model modules bundled with FreeAdmin."""
+
+ORM_CONFIG: Dict[str, Dict[str, Any]] = {
+    "connections": {
+        "default": "sqlite://:memory:",
+    },
+    "apps": {
+        "models": {
+            "models": list(MODELS_APP_MODULES),
+            "default_connection": "default",
+        },
+        "system": {
+            "models": list(SYSTEM_APP_MODULES),
+            "default_connection": "default",
+        },
+        "admin": {
+            "models": list(ADMIN_APP_MODULES),
+            "default_connection": "default",
+        },
+    },
+}
+"""Declarative configuration mapping for the example ORM setup."""
+
+ExampleORMConfig: ORMConfig = ORMConfig.build(
+    adapter_name=DB_ADAPTER,
+    config=deepcopy(ORM_CONFIG),
+)
+"""Ready-to-use :class:`ORMConfig` instance for the example application."""
 
 
-__all__ = ["ExampleORMConfig", "ORMLifecycle"]
+__all__ = [
+    "DB_ADAPTER",
+    "ADMIN_APP_MODULES",
+    "ExampleORMConfig",
+    "MODELS_APP_MODULES",
+    "ORM_CONFIG",
+    "ORMLifecycle",
+    "SYSTEM_APP_MODULES",
+]
 
 # The End
 
