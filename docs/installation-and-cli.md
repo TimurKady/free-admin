@@ -72,7 +72,7 @@ myproject/
 └── README.md          # Short reminder about the scaffold
 ```
 
-The generated files are intentionally minimal so you can adapt them to your stack. `config/routers.py` defines `ProjectRouterAggregator` together with a `get_admin_router()` helper. The helper returns a cached `APIRouter` instance so the admin site is not mounted multiple times; call `ProjectRouterAggregator.mount()` if you prefer the class-based API.
+The generated files are intentionally minimal so you can adapt them to your stack. `config/routers.py` defines `ProjectRouterAggregator`, a thin subclass of `RouterAggregator` that centralises how the admin UI and related routers are mounted. The module also exports a ready-to-use `ROUTERS` instance so application code can rely on declarative mounting without re-implementing caching or asset registration. Override `ProjectRouterAggregator.get_additional_routers()` to describe extra routers that should accompany the admin site.
 
 
 ## Step 4. Configure project settings
@@ -216,6 +216,7 @@ from freeadmin.boot import BootManager
 from freeadmin.orm import ORMConfig
 
 from .orm import ORM
+from .routers import ROUTERS
 from .settings import ProjectSettings
 
 
@@ -246,6 +247,7 @@ class ApplicationFactory:
             adapter=self._orm_lifecycle.adapter_name,
             packages=self._packages,
         )
+        ROUTERS.mount(self._app)
         return self._app
 
     def _bind_orm_events(self) -> None:
@@ -256,8 +258,8 @@ class ApplicationFactory:
         self._orm_lifecycle.bind(self._app)
         self._orm_events_bound = True
 
-application = ApplicationFactory()
-app = application.build()
+
+app = ApplicationFactory().build()
 
 
 # The End
@@ -265,26 +267,39 @@ app = application.build()
 
 The default discovery packages (`apps` and `pages`) match the directories created by the CLI, so FreeAdmin autodiscovers model admins and content pages without further configuration. Pass a different `packages` iterable to `ApplicationFactory` when you need to customise discovery. Update `config/orm.py` to implement real startup and shutdown hooks for your adapter.
 
-To mount the admin interface without double registration, create a `ProjectRouterAggregator` and call `mount()` during application setup:
+`config/routers.py` keeps router composition in one place. Import the scaffolded `ProjectRouterAggregator` when you need to customise mounting behaviour—for example, to declare additional routers exposed by your project:
 
 ```python
-from fastapi import FastAPI
+# config/routers.py
+from collections.abc import Iterable
+
+from fastapi import APIRouter
+
 from freeadmin.hub import admin_site
+from freeadmin.router import RouterAggregator
 
-from config.routers import ProjectRouterAggregator
 
+class ProjectRouterAggregator(RouterAggregator):
+    """Aggregate routers exposed by myproject."""
 
-class ApplicationFactory:
     def __init__(self) -> None:
-        self._routers = ProjectRouterAggregator()
+        """Initialise the aggregator with the admin site."""
 
-    def build(self) -> FastAPI:
-        app = FastAPI()
-        self._routers.mount(app, admin_site)
-        return app
+        super().__init__(site=admin_site)
+
+    def get_additional_routers(self) -> Iterable[tuple[APIRouter, str | None]]:
+        """Return project-specific routers to mount with the admin UI."""
+
+        return ()
+
+
+ROUTERS = ProjectRouterAggregator()
+
+
+# The End
 ```
 
-`config/routers.py` continues to aggregate router registrations. Import `get_admin_router()` when you only need the router instance, or reuse `ProjectRouterAggregator.mount()` inside `config/main.py` if you want to include the admin and auxiliary routers together while avoiding duplicate mounts.
+Override `get_additional_routers()` to yield `(router, prefix)` tuples whenever you need to expose extra APIs. The `RouterAggregator` base class ensures the admin router, static assets, and favicon are mounted once per application instance and provides helpers such as `register_additional_routers()` if you need to trigger mounting manually.
 
 
 ## Step 9. Configure the database URL
