@@ -97,79 +97,51 @@ If you prefer `.env` files, add `python-dotenv` to your project and call `load_d
 
 ## Step 5. Configure Tortoise ORM
 
-Replace the placeholder in `config/orm.py` with a concrete configuration. The scaffold generates `ORMSettings` and `ORMLifecycle` classes so you can describe the adapter and then bind lifecycle hooks to FastAPI:
+Replace the placeholder in `config/orm.py` with a concrete configuration. The scaffold now exposes constants and an `ORMConfig` instance that you can tweak to match your adapter and model modules:
 
 ```python
 # config/orm.py
-from __future__ import annotations
+from copy import deepcopy
+from typing import Any, Dict
 
-from typing import Dict
+from freeadmin.orm import ORMConfig
 
-from fastapi import FastAPI
-from tortoise import Tortoise
+DB_ADAPTER = "tortoise"
+APPLICATION_MODEL_MODULES: tuple[str, ...] = (
+    "apps.blog.models",
+)
+SYSTEM_MODEL_MODULES: tuple[str, ...] = (
+    "freeadmin.apps.system.models",
+)
+ADMIN_MODEL_MODULES: tuple[str, ...] = ()
 
+ORM_CONFIG: Dict[str, Dict[str, Any]] = {
+    "connections": {
+        "default": "postgres://user:pass@localhost:5432/mydb",
+    },
+    "apps": {
+        "models": {
+            "models": list(APPLICATION_MODEL_MODULES),
+            "default_connection": "default",
+        },
+        "system": {
+            "models": list(SYSTEM_MODEL_MODULES),
+            "default_connection": "default",
+        },
+        "admin": {
+            "models": list(ADMIN_MODEL_MODULES),
+            "default_connection": "default",
+        },
+    },
+}
 
-class ORMSettings:
-    """Provide placeholder ORM configuration values."""
-
-    def __init__(self, *, adapter_name: str = "tortoise") -> None:
-        """Store the adapter identifier used by the ORM lifecycle."""
-
-        self._adapter_name = adapter_name
-
-    @property
-    def adapter_name(self) -> str:
-        """Return the adapter identifier configured for the project."""
-
-        return self._adapter_name
-
-    def template(self) -> Dict[str, str]:
-        """Return a dictionary with example ORM configuration."""
-
-        return {"default": "sqlite:///db.sqlite3"}
-
-    def create_lifecycle(self) -> ORMLifecycle:
-        """Return an ORM lifecycle configured with these settings."""
-
-        return ORMLifecycle(settings=self)
-
-
-class ORMLifecycle:
-    """Manage ORM startup and shutdown hooks for FastAPI."""
-
-    def __init__(self, *, settings: ORMSettings) -> None:
-        """Persist settings required to bind lifecycle handlers."""
-
-        self._settings = settings
-
-    @property
-    def adapter_name(self) -> str:
-        """Expose the adapter identifier for BootManager wiring."""
-
-        return self._settings.adapter_name
-
-    async def startup(self) -> None:
-        """Initialise Tortoise ORM connections when FastAPI boots."""
-
-        config = self._settings.template()
-        await Tortoise.init(
-            db_url=config["default"],
-            modules={"models": ["apps.blog.models"]},
-        )
-
-    async def shutdown(self) -> None:
-        """Close all Tortoise ORM connections during FastAPI shutdown."""
-
-        await Tortoise.close_connections()
-
-    def bind(self, app: FastAPI) -> None:
-        """Register lifecycle handlers on a FastAPI application."""
-
-        app.add_event_handler("startup", self.startup)
-        app.add_event_handler("shutdown", self.shutdown)
+ORM: ORMConfig = ORMConfig.build(
+    adapter_name=DB_ADAPTER,
+    config=deepcopy(ORM_CONFIG),
+)
 ```
 
-For PostgreSQL or another backend, change the DSN returned from `ORMSettings.template()` and update the module list used during startup.
+For PostgreSQL or another backend, change the DSN stored in `ORM_CONFIG["connections"]` and adjust the module lists so discovery imports your models.
 
 
 ## Step 6. Create an application package
