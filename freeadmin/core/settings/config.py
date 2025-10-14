@@ -77,7 +77,9 @@ class SystemConfig:
             await self._seed_defaults()
         except DATABASE_OPERATION_ERRORS as exc:
             logger.warning(
-                "Skipping system configuration seed due to database error: %s", exc
+                "Skipping system configuration seed due to database error: %s. "
+                "Run your migrations before starting FreeAdmin.",
+                exc,
             )
 
     async def _seed_defaults(self) -> None:
@@ -138,7 +140,9 @@ class SystemConfig:
                 new_cache.setdefault(key, self._cast(value, value_type))
         except DATABASE_OPERATION_ERRORS as exc:
             logger.warning(
-                "Skipping system configuration reload due to database error: %s", exc
+                "Skipping system configuration reload due to database error: %s. "
+                "Run your migrations before starting FreeAdmin.",
+                exc,
             )
             return
 

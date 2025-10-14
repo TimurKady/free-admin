@@ -75,6 +75,7 @@ async def test_ensure_seed_handles_operational_error(monkeypatch, caplog) -> Non
     await config.ensure_seed()
 
     assert "Skipping system configuration seed" in caplog.text
+    assert "Run your migrations before starting FreeAdmin." in caplog.text
 
 
 @pytest.mark.asyncio
@@ -91,6 +92,7 @@ async def test_reload_handles_operational_error(monkeypatch, caplog) -> None:
     await config.reload()
 
     assert "Skipping system configuration reload" in caplog.text
+    assert "Run your migrations before starting FreeAdmin." in caplog.text
 
 
 # The End
