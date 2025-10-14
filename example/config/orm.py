@@ -21,11 +21,6 @@ from freeadmin.orm import ORMConfig, ORMLifecycle
 DB_ADAPTER = "tortoise"
 """Name of the FreeAdmin adapter powering the example ORM layer."""
 
-MODELS_APP_MODULES: tuple[str, ...] = (
-    "example.apps.demo.models",
-)
-"""Application model modules included in the example project."""
-
 SYSTEM_APP_MODULES: tuple[str, ...] = (
     "freeadmin.apps.system.models",
 )
@@ -34,21 +29,26 @@ SYSTEM_APP_MODULES: tuple[str, ...] = (
 ADMIN_APP_MODULES: tuple[str, ...] = tuple(TortoiseAdapter.model_modules)
 """Adapter-provided admin model modules bundled with FreeAdmin."""
 
+MODELS_APP_MODULES: tuple[str, ...] = (
+    "example.apps.demo.models",
+)
+"""Application model modules included in the example project."""
+
 ORM_CONFIG: Dict[str, Dict[str, Any]] = {
     "connections": {
         "default": "sqlite://:memory:",
     },
+    "system": {
+        "models": list(SYSTEM_APP_MODULES),
+        "default_connection": "default",
+    },
+    "admin": {
+        "models": list(ADMIN_APP_MODULES),
+        "default_connection": "default",
+    },
     "apps": {
         "models": {
             "models": list(MODELS_APP_MODULES),
-            "default_connection": "default",
-        },
-        "system": {
-            "models": list(SYSTEM_APP_MODULES),
-            "default_connection": "default",
-        },
-        "admin": {
-            "models": list(ADMIN_APP_MODULES),
             "default_connection": "default",
         },
     },
