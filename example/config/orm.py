@@ -22,6 +22,7 @@ class ExampleORMConfig(ORMConfig):
     def __init__(
         self,
         *,
+        # Specify the adapter name
         adapter_name: str = "tortoise",
         dsn: str | None = None,
         modules: Mapping[str, Iterable[str]] | None = None,
@@ -39,7 +40,10 @@ class ExampleORMConfig(ORMConfig):
         self, modules: Mapping[str, Iterable[str]] | None
     ) -> Dict[str, List[str]]:
         default_modules: Dict[str, List[str]] = {
-            "models": ["example.apps.demo.models"],
+            "models": [
+                # Place plug-in models here
+                "example.apps.demo.models"
+            ],
         }
         if modules is None:
             return default_modules
