@@ -11,13 +11,12 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Dict, Iterable, List, Mapping
 
-from fastapi import FastAPI
-from tortoise import Tortoise
+from freeadmin.orm import ORMConfig, ORMLifecycle
 
 
-class ExampleORMConfig:
+class ExampleORMConfig(ORMConfig):
     """Provide adapter wiring for the FreeAdmin example project."""
 
     def __init__(
@@ -25,85 +24,40 @@ class ExampleORMConfig:
         *,
         adapter_name: str = "tortoise",
         dsn: str | None = None,
-        modules: Dict[str, List[str]] | None = None,
+        modules: Mapping[str, Iterable[str]] | None = None,
     ) -> None:
-        """Store adapter label, connection string, and module mapping."""
+        """Store adapter metadata and declare project-specific modules."""
 
-        self._adapter_name = adapter_name
-        self._dsn = dsn or "sqlite://:memory:"
-        self._modules = modules or {
-            "models": [
-                "example.apps.demo.models",
-                "freeadmin.adapters.tortoise.content_type",
-                "freeadmin.adapters.tortoise.groups",
-                "freeadmin.adapters.tortoise.users",
-            ],
-        }
-
-    @property
-    def adapter_name(self) -> str:
-        """Return the name of the ORM adapter in use."""
-
-        return self._adapter_name
-
-    @property
-    def connection_dsn(self) -> str:
-        """Return the DSN used for the default database connection."""
-
-        return self._dsn
-
-    @property
-    def modules(self) -> Dict[str, List[str]]:
-        """Return the module mapping passed to :func:`Tortoise.init`."""
-
-        return self._modules
-
-    def describe(self) -> dict[str, str]:
-        """Return a human-readable summary of the ORM configuration."""
-
-        return {"adapter": self._adapter_name, "dsn": self._dsn}
-
-    def create_lifecycle(self) -> ExampleORMLifecycle:
-        """Instantiate an ORM lifecycle manager for FastAPI integration."""
-
-        return ExampleORMLifecycle(config=self)
-
-
-class ExampleORMLifecycle:
-    """Manage Tortoise ORM startup and shutdown hooks for FastAPI."""
-
-    def __init__(self, *, config: ExampleORMConfig) -> None:
-        """Persist the configuration used to initialise the ORM."""
-
-        self._config = config
-
-    @property
-    def modules(self) -> Dict[str, List[str]]:
-        """Expose the modules configured for Tortoise initialisation."""
-
-        return self._config.modules
-
-    async def startup(self) -> None:
-        """Initialise Tortoise ORM connections when FastAPI boots."""
-
-        await Tortoise.init(
-            db_url=self._config.connection_dsn,
-            modules=self.modules,
+        project_modules = self._build_project_modules(modules)
+        super().__init__(
+            adapter_name=adapter_name,
+            dsn=dsn,
+            modules=project_modules,
         )
 
-    async def shutdown(self) -> None:
-        """Close all Tortoise ORM connections during FastAPI shutdown."""
+    def _build_project_modules(
+        self, modules: Mapping[str, Iterable[str]] | None
+    ) -> Dict[str, List[str]]:
+        default_modules: Dict[str, List[str]] = {
+            "models": ["example.apps.demo.models"],
+        }
+        if not modules:
+            return default_modules
+        project_modules: Dict[str, List[str]] = {
+            label: [str(value) for value in values]
+            for label, values in modules.items()
+        }
+        for label, values in default_modules.items():
+            bucket = project_modules.setdefault(label, [])
+            for module in values:
+                if module not in bucket:
+                    bucket.append(module)
+        return project_modules
 
-        await Tortoise.close_connections()
 
-    def bind(self, app: FastAPI) -> None:
-        """Register lifecycle hooks on a FastAPI application instance."""
+ExampleORMLifecycle = ORMLifecycle
 
-        app.add_event_handler("startup", self.startup)
-        app.add_event_handler("shutdown", self.shutdown)
-
-
-__all__ = ["ExampleORMConfig", "ExampleORMLifecycle"]
+__all__ = ["ExampleORMConfig", "ExampleORMLifecycle", "ORMLifecycle"]
 
 # The End
 
