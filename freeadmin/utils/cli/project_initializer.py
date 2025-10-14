@@ -240,77 +240,47 @@ Routing helpers for {project_name}.
 
 from __future__ import annotations
 
-from typing import Optional, Type
+from collections.abc import Iterable
 
 from fastapi import APIRouter, FastAPI
 
 from freeadmin.core.site import AdminSite
-from freeadmin.router import AdminRouter
+from freeadmin.hub import admin_site
+from freeadmin.router import RouterAggregator
 
 
-class {router_class}:
-    """Manage mounting the FreeAdmin router for {project_name}."""
+class {router_class}(RouterAggregator):
+    """Aggregate routers exposed by {project_name}."""
 
     def __init__(
         self,
+        site: AdminSite,
         *,
-        admin_router_cls: Type[AdminRouter] = AdminRouter,
+        prefix: str | None = None,
     ) -> None:
-        """Store the admin router class used for mounting."""
+        """Initialise the aggregator with the admin site and prefix."""
 
-        self._admin_router_cls = admin_router_cls
-        self._admin_router: Optional[AdminRouter] = None
-        self._router: Optional[APIRouter] = None
-        self._site: Optional[AdminSite] = None
+        super().__init__(site=site, prefix=prefix)
 
-    def mount(self, app: FastAPI, site: AdminSite) -> APIRouter:
-        """Attach the admin router for ``site`` onto ``app`` once."""
+    def mount(self, app: FastAPI, prefix: str | None = None) -> None:  # type: ignore[override]
+        """Mount the admin UI and project routers onto ``app``."""
 
-        router = self.get_admin_router(site)
-        if getattr(app.state, "admin_site", None) is site:
-            return router
+        super().mount(app, prefix=prefix)
+        # Delegate admin mounting to ``RouterAggregator`` and extend this
+        # method only when additional side effects are required.
 
-        admin_router = self._ensure_admin_router(site)
-        app.state.admin_site = site
-        app.include_router(router, prefix=admin_router.prefix)
-        provider = admin_router._provider
-        provider.mount_static(app, admin_router.prefix)
-        provider.mount_favicon(app)
-        provider.mount_media(app)
-        return router
+    def get_additional_routers(self) -> Iterable[tuple[APIRouter, str | None]]:  # type: ignore[override]
+        """Return project-specific routers to include with the admin UI."""
 
-    def get_admin_router(self, site: AdminSite) -> APIRouter:
-        """Return a cached admin router for the given ``site``."""
-
-        admin_router = self._ensure_admin_router(site)
-        if self._router is not None:
-            return self._router
-
-        if site.templates is None:
-            site.templates = admin_router._provider.get_templates()
-        self._router = site.build_router(admin_router._provider)
-        return self._router
-
-    def _ensure_admin_router(self, site: AdminSite) -> AdminRouter:
-        """Instantiate or reuse the admin router for ``site``."""
-
-        if self._admin_router is None or self._site is not site:
-            self._site = site
-            self._router = None
-            self._admin_router = self._admin_router_cls(site)
-        return self._admin_router
+        # Declare routers here, for example:
+        # return ((reports_router, "/reports"),)
+        return ()
 
 
-_ROUTER_AGGREGATOR = {router_class}()
+ROUTERS: {router_class} = {router_class}(site=admin_site)
 
 
-def get_admin_router(site: AdminSite) -> APIRouter:
-    """Return the admin router for ``site`` using the shared aggregator."""
-
-    return _ROUTER_AGGREGATOR.get_admin_router(site)
-
-
-__all__ = ["{router_class}", "get_admin_router"]
+__all__ = ["{router_class}", "ROUTERS"]
 
 
 # The End

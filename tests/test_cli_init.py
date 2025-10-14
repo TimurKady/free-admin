@@ -43,8 +43,9 @@ class TestProjectInitializerConfigTemplates:
         assert "ORM_CONFIG" in orm_content
         assert "ORM: ORMConfig = ORMConfig.build" in orm_content
         assert ROUTER_TEMPLATE_CLASS_NAME in routers_content
-        assert "def get_admin_router" in routers_content
-        assert "_ROUTER_AGGREGATOR" in routers_content
+        assert "RouterAggregator" in routers_content
+        assert "super().mount" in routers_content
+        assert "return ((reports_router, \"/reports\"),)" in routers_content
         assert "ProjectSettings" in settings_content
         assert "project_title" in settings_content
 
