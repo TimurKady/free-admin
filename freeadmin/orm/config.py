@@ -18,6 +18,7 @@ from typing import Any, Dict, Iterable, List, Mapping, MutableMapping
 
 from fastapi import FastAPI
 from tortoise import Tortoise
+from tortoise import exceptions as tortoise_exceptions
 
 from ..adapters import registry
 from ..utils.migration_errors import MigrationErrorClassifier
