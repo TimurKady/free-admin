@@ -43,8 +43,8 @@ from typing import List
 
 from fastapi import FastAPI
 
-from freeadmin.boot import BootManager
-from freeadmin.orm import ORMConfig
+from freeadmin.core.boot import BootManager
+from freeadmin.core.data.orm import ORMConfig
 
 from config.orm import ORM
 from config.settings import ProjectSettings
@@ -108,7 +108,7 @@ from typing import Any
 
 from fastapi import Request
 
-from freeadmin.core.services.auth import AdminUserDTO
+from freeadmin.core.interface.services.auth import AdminUserDTO
 from freeadmin.hub import admin_site
 
 
@@ -123,10 +123,10 @@ async def sales_report(request: Request, user: AdminUserDTO) -> dict[str, Any]:
     }
 ```
 
-`AppConfig` (from `freeadmin.core.app`) lets you run code during discovery or startup. Example:
+`AppConfig` (from `freeadmin.core.interface.app`) lets you run code during discovery or startup. Example:
 
 ```python
-from freeadmin.core.app import AppConfig
+from freeadmin.core.interface.app import AppConfig
 from freeadmin.hub import admin_site
 
 from .admin import PostAdmin

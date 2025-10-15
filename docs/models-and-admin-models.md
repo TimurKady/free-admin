@@ -14,7 +14,7 @@ FreeAdmin keeps a clean separation between two layers:
 
 Because the admin layer is thin, you can bring your own asynchronous ORM. The
 examples below use Tortoise ORM, but the APIs highlighted here mirror the
-adapter contracts implemented in `freeadmin.core.base.BaseModelAdmin`.
+adapter contracts implemented in `freeadmin.core.interface.base.BaseModelAdmin`.
 
 
 ## Defining an ORM model
@@ -58,7 +58,7 @@ to your database.
 
 ```python
 # apps/catalog/admin.py
-from freeadmin.core.models import ModelAdmin
+from freeadmin.core.interface.models import ModelAdmin
 from freeadmin.hub import admin_site
 
 from .models import Product
@@ -142,12 +142,12 @@ finer details before overriding them.
 ## Inline editors with `InlineModelAdmin`
 
 Inline descriptors let users edit related rows without leaving the parent form.
-Create a subclass of `freeadmin.core.inline.InlineModelAdmin`, set its `model`
+Create a subclass of `freeadmin.core.interface.inline.InlineModelAdmin`, set its `model`
 and tell FreeAdmin which foreign key links it to the parent via
 `parent_fk_name`.
 
 ```python
-from freeadmin.core.inline import InlineModelAdmin
+from freeadmin.core.interface.inline import InlineModelAdmin
 
 from .models import Product, ProductImage
 
@@ -174,13 +174,13 @@ and `BaseModelAdmin.update`, so inline POST/DELETE requests remain minimal.
 
 ## Bulk actions
 
-Actions are class-based and inherit from `freeadmin.core.actions.BaseAction`.
+Actions are class-based and inherit from `freeadmin.core.interface.actions.BaseAction`.
 They receive a queryset (or iterable compatible with your adapter), a params
 dictionary, and the current user. Returning an `ActionResult` communicates the
 outcome back to the UI.
 
 ```python
-from freeadmin.core.actions import ActionResult, ActionSpec, BaseAction
+from freeadmin.core.interface.actions import ActionResult, ActionSpec, BaseAction
 
 
 class MarkUnavailableAction(BaseAction):
@@ -307,8 +307,8 @@ class Product(Model):
 **admin.py**
 
 ```python
-from freeadmin.core.inline import InlineModelAdmin
-from freeadmin.core.models import ModelAdmin
+from freeadmin.core.interface.inline import InlineModelAdmin
+from freeadmin.core.interface.models import ModelAdmin
 from freeadmin.hub import admin_site
 
 from .models import Category, Product
@@ -344,7 +344,7 @@ admin_site.register(app="catalog", model=Product, admin_cls=ProductAdmin)
 **app.py**
 
 ```python
-from freeadmin.core.app import AppConfig
+from freeadmin.core.interface.app import AppConfig
 
 
 class CatalogConfig(AppConfig):

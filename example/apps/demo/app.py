@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from freeadmin.core.app import AppConfig
+from freeadmin.core.interface.app import AppConfig
 from freeadmin.hub import admin_site
 
 from .service import TemperaturePublisher

@@ -12,8 +12,8 @@ This guide explains how the admin panel's settings mode differs from standard OR
 Use `AdminSite.register` with `settings=True` to mount a model under `/settings`:
 
 ```python
-from freeadmin.core.models import ModelAdmin
-from freeadmin.core.site import AdminSite
+from freeadmin.core.interface.models import ModelAdmin
+from freeadmin.core.interface.site import AdminSite
 
 class SiteConfigAdmin(ModelAdmin):
     model = SiteConfig

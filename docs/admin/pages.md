@@ -17,8 +17,8 @@ skips section landing routes automatically, so the `include_in_sidebar` flag is
 optional when you reuse these defaults:
 
 ```python
-from freeadmin.core.site import AdminSite
-from freeadmin.core.settings import SettingsKey, system_config
+from freeadmin.core.interface.site import AdminSite
+from freeadmin.core.interface.settings import SettingsKey, system_config
 
 class BuiltinPagesRegistrar:
     def register(self, site: AdminSite) -> None:
@@ -139,7 +139,7 @@ pages:
 
 ```python
 # apps/articles/views/manage.py
-from freeadmin.core.site import AdminSite
+from freeadmin.core.interface.site import AdminSite
 
 
 class ArticleAdminViews:
@@ -194,7 +194,7 @@ built-in breadcrumbs will not reflect the current page. Update the prefix when
 you expose standalone views under a different URL root:
 
 ```python
-from freeadmin.core.settings import SettingsKey, system_config
+from freeadmin.core.interface.settings import SettingsKey, system_config
 
 await system_config.set(SettingsKey.VIEWS_PREFIX, "/console")
 ```
@@ -207,7 +207,7 @@ prefix.
 All page labels and icons are stored in `SystemSetting` and accessed through `SettingsKey` constants. Update them to change how built-in pages appear:
 
 ```python
-from freeadmin.core.settings import SettingsKey, system_config
+from freeadmin.core.interface.settings import SettingsKey, system_config
 
 await system_config.set(SettingsKey.VIEWS_PAGE_TITLE, "Custom Views")
 await system_config.set(SettingsKey.VIEWS_PAGE_ICON, "bi-star")

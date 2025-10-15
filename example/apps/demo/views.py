@@ -7,8 +7,8 @@ from typing import Any
 
 from fastapi import Request
 
-from freeadmin.boot import admin as boot_admin
-from freeadmin.core.services.auth import AdminUserDTO
+from freeadmin.core.boot import admin as boot_admin
+from freeadmin.core.interface.services.auth import AdminUserDTO
 from freeadmin.hub import admin_site
 
 

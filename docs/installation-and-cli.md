@@ -108,7 +108,7 @@ from typing import Any, Dict
 from freeadmin.contrib.adapters.tortoise.adapter import (
     Adapter as TortoiseAdapter,
 )
-from freeadmin.orm import ORMConfig
+from freeadmin.core.data.orm import ORMConfig
 
 DB_ADAPTER = "tortoise"
 APPLICATION_MODEL_MODULES: tuple[str, ...] = (
@@ -184,7 +184,7 @@ class Post(Model):
 
 ```python
 # apps/blog/admin.py
-from freeadmin.core.models import ModelAdmin
+from freeadmin.core.interface.models import ModelAdmin
 from freeadmin.hub import admin_site
 
 from .models import Post
@@ -200,7 +200,7 @@ class PostAdmin(ModelAdmin):
 admin_site.register(app="blog", model=Post, admin_cls=PostAdmin)
 ```
 
-If you need to run startup logic (for example to register cards or background publishers) create `apps/blog/app.py` and expose a `default` instance of `freeadmin.core.app.AppConfig`.
+If you need to run startup logic (for example to register cards or background publishers) create `apps/blog/app.py` and expose a `default` instance of `freeadmin.core.interface.app.AppConfig`.
 
 
 ## Step 8. Review the generated bootstrap
@@ -214,8 +214,8 @@ from typing import List
 
 from fastapi import FastAPI
 
-from freeadmin.boot import BootManager
-from freeadmin.orm import ORMConfig
+from freeadmin.core.boot import BootManager
+from freeadmin.core.data.orm import ORMConfig
 
 from .orm import ORM
 from .settings import ProjectSettings
@@ -272,7 +272,7 @@ The default discovery packages (`apps` and `pages`) match the directories create
 from fastapi import APIRouter
 
 from freeadmin.hub import admin_site
-from freeadmin.router import RouterAggregator
+from freeadmin.core.network.router import RouterAggregator
 
 
 class ProjectRouterAggregator(RouterAggregator):
@@ -351,7 +351,7 @@ Visit `http://127.0.0.1:8000/admin` (or the prefix you configured) and sign in w
 * **CLI cannot find `apps/`:** run the command from the project root where the scaffold created the folder.
 * **Models not discovered:** ensure the module path (e.g. `apps.blog.models`) is listed in `modules["models"]` when initialising Tortoise.
 * **`create-superuser` fails because tables are missing:** run your migrations or execute `Tortoise.generate_schemas()` after initialising the ORM so the auth tables exist.
-* **Missing static assets:** verify that `freeadmin.boot.BootManager.init()` has been called and that your ASGI server can serve the mounted static route.
+* **Missing static assets:** verify that `freeadmin.core.boot.BootManager.init()` has been called and that your ASGI server can serve the mounted static route.
 * **Session errors:** set `FA_SESSION_SECRET` to a stable value in production so session cookies remain valid across restarts.
 
 With these steps you now have a working FreeAdmin installation backed by FastAPI and Tortoise ORM. Continue exploring the other documentation chapters for more detail on cards, permissions, and custom views.

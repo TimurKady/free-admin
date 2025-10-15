@@ -8,69 +8,49 @@
 
 | Путь | Назначение | Прямые зависимости первого порядка |
 | --- | --- | --- |
-| `freeadmin/application/factory.py` | Фабрика FastAPI-приложений, связывает настройки, ORM и роутеры | `freeadmin.boot.BootManager`, `freeadmin.orm.ORMConfig/ORMLifecycle`, `freeadmin.router.AdminRouter`, `freeadmin.hub.admin_site` |
-| `freeadmin/boot/manager.py` | Управляет адаптерами, регистрацией моделей и запуском хаба | Реестр адаптеров (`freeadmin.contrib.adapters`), системные настройки (`freeadmin.conf`, `freeadmin.core.settings`), посредник `AdminGuardMiddleware`, хаб `freeadmin.hub` |
-| `freeadmin/conf.py` | Хранилище конфигурации и наблюдатель за изменениями окружения | `os`, `pathlib`, синхронизация через `threading.RLock` |
-| `freeadmin/hub.py` | Центральный хаб админки: управляет сайтом, автодискавери и роутерами | Настройки (`freeadmin.conf`), `freeadmin.core.site.AdminSite`, `freeadmin.core.discovery.DiscoveryService`, `freeadmin.router.AdminRouter`, `freeadmin.boot.admin` |
-| `freeadmin/core/site.py` | Реализация админ-сайта: регистрация моделей/страниц, меню, экспорт | Сервисы ядра (`freeadmin.core.*`), адаптеры, CRUD, API карточек, поставщик шаблонов, проверки миграций |
-| `freeadmin/router/base.py` | Базовые вспомогательные классы для монтирования админ-маршрутов | `fastapi.FastAPI`, `freeadmin.core.templates.TemplateService`, `freeadmin.core.site.AdminSite` |
-| `freeadmin/router/aggregator.py` | Координатор создания и подключения админ- и публичных роутеров | `freeadmin.router.base.RouterFoundation`, `fastapi.APIRouter`, `freeadmin.core.site.AdminSite`, `freeadmin.core.templates.TemplateService` |
-| `freeadmin/provider.py` | Управление шаблонами, статикой и медиа | `fastapi`, `starlette.staticfiles.StaticFiles`, `freeadmin.conf.FreeAdminSettings`, `freeadmin.core.settings.system_config` |
-| `freeadmin/middleware.py` | Middleware охраны админки (суперпользователь, сессия) | `starlette` middleware, `freeadmin.conf`, `freeadmin.core.settings`, `freeadmin.boot.admin` |
-| `freeadmin/crud.py` | Построитель CRUD-роутов и файлового обмена | `fastapi`, `freeadmin.core` сервисы, `freeadmin.conf`, `freeadmin.core.settings`, `freeadmin.core.services` |
-| `freeadmin/api/base.py` | Обёртка системного API админки | `fastapi.APIRouter`, `freeadmin.contrib.adapters.BaseAdapter`, системные API `freeadmin.apps.system.api.views` |
-| `freeadmin/orm/config.py` | Конфигурация ORM и жизненный цикл Tortoise | `tortoise` ORM, реестр адаптеров, классификатор ошибок миграций (`freeadmin.utils.migration_errors`) |
+| `freeadmin/core/application/factory.py` | Фабрика FastAPI-приложений, связывает настройки, ORM и роутеры | `freeadmin.core.boot.BootManager`, `freeadmin.core.data.orm.ORMConfig/ORMLifecycle`, `freeadmin.core.network.router.AdminRouter`, `freeadmin.core.runtime.hub.admin_site` |
+| `freeadmin/core/boot/manager.py` | Управляет адаптерами, регистрацией моделей и запуском хаба | Реестр адаптеров (`freeadmin.contrib.adapters`), системные настройки (`freeadmin.core.configuration.conf`), посредник `freeadmin.core.runtime.middleware.AdminGuardMiddleware`, хаб `freeadmin.core.runtime.hub` |
+| `freeadmin/core/configuration/conf.py` | Хранилище конфигурации и наблюдатель за изменениями окружения | `os`, `pathlib`, синхронизация через `threading.RLock` |
+| `freeadmin/core/runtime/hub.py` | Центральный хаб админки: управляет сайтом, автодискавери и роутерами | Настройки (`freeadmin.core.configuration.conf`), `freeadmin.core.interface.site.AdminSite`, `freeadmin.core.interface.discovery.DiscoveryService`, `freeadmin.core.network.router.AdminRouter`, `freeadmin.core.boot.admin` |
+| `freeadmin/core/interface/site.py` | Реализация админ-сайта: регистрация моделей/страниц, меню, экспорт | Сервисы интерфейса (`freeadmin.core.interface.*`), адаптеры, CRUD, API карточек, поставщик шаблонов, проверки миграций |
+| `freeadmin/core/network/router/base.py` | Базовые вспомогательные классы для монтирования админ-маршрутов | `fastapi.FastAPI`, `freeadmin.core.interface.templates.TemplateService`, `freeadmin.core.interface.site.AdminSite` |
+| `freeadmin/core/network/router/aggregator.py` | Координатор создания и подключения админ- и публичных роутеров | `freeadmin.core.network.router.base.RouterFoundation`, `fastapi.APIRouter`, `freeadmin.core.interface.site.AdminSite`, `freeadmin.core.interface.templates.TemplateService` |
+| `freeadmin/core/runtime/provider.py` | Управление шаблонами, статикой и медиа | `fastapi`, `starlette.staticfiles.StaticFiles`, `freeadmin.core.configuration.conf.FreeAdminSettings`, `freeadmin.core.interface.settings.system_config` |
+| `freeadmin/core/runtime/middleware.py` | Middleware охраны админки (суперпользователь, сессия) | `starlette` middleware, `freeadmin.core.configuration.conf`, `freeadmin.core.interface.settings`, `freeadmin.core.boot.admin` |
+| `freeadmin/contrib/crud/operations.py` | Построитель CRUD-роутов и файлового обмена | `fastapi`, сервисы `freeadmin.core.interface`, `freeadmin.core.configuration.conf`, `freeadmin.core.interface.settings`, `freeadmin.core.interface.services` |
+| `freeadmin/api/base.py` | Обёртка системного API админки | `fastapi.APIRouter`, `freeadmin.contrib.adapters.BaseAdapter`, системные API `freeadmin.apps.system.api.views`, сервисы `freeadmin.core.interface` |
+| `freeadmin/core/data/orm/config.py` | Конфигурация ORM и жизненный цикл Tortoise | `tortoise` ORM, реестр адаптеров, классификатор ошибок миграций (`freeadmin.utils.migration_errors`) |
 
 ## 2. Уровни важности
 
-- **Ядро**: `freeadmin/core/`, `freeadmin/application/`, `freeadmin/boot/`, `freeadmin/hub.py`, `freeadmin/conf.py`, `freeadmin/orm/`, `freeadmin/adapters/`, `freeadmin/models/`. Эти элементы отвечают за конфигурацию, регистрацию ресурсов, связь с ORM и глобальные сервисы.
-- **Оболочки**: `freeadmin/api/`, `freeadmin/router/`, `freeadmin/crud.py`, `freeadmin/middleware.py`, `freeadmin/pages/`, `freeadmin/widgets/`, `freeadmin/templates/`, `freeadmin/static/`, `freeadmin/runner.py`, `freeadmin/cli.py`. Модули обеспечивают HTTP-интерфейсы, UI и вспомогательные сценарии.
+- **Ядро**: `freeadmin/core/` (подпакеты `application`, `boot`, `configuration`, `data`, `interface`, `network`, `runtime`), а также `freeadmin/contrib/adapters/` и вспомогательные модели. Эти элементы отвечают за конфигурацию, регистрацию ресурсов, связь с ORM и глобальные сервисы.
+- **Оболочки**: `freeadmin/api/`, совместимые фасады `freeadmin/router/`, `freeadmin/crud.py`, `freeadmin/middleware.py`, `freeadmin/pages/`, `freeadmin/widgets/`, `freeadmin/templates/`, `freeadmin/static/`, `freeadmin/runner.py`, `freeadmin/cli.py`. Модули обеспечивают HTTP-интерфейсы, UI и вспомогательные сценарии.
 - **Утилиты**: `freeadmin/utils/`, `freeadmin/schema/`, `freeadmin/tests/`, `freeadmin/provider.py`, `freeadmin/meta.py`. Служебные компоненты и расширяемые помощники.
 
-## 3. Предлагаемая структура (≤ 4 уровня вложенности)
+## 3. Структура ядра после реорганизации
 
 ### 3.1 Логика группировки
 
-1. **`core/`** — объединяет доменные сервисы админки, настройки и запуск. Содержит подпакеты `domain/` (текущее содержимое `core/`), `runtime/` (инициализация и хаб), `config/` (настройки и конфигурация), `orm/` (обёртки над ORM) и `adapters/` (интеграции с внешними источниками данных).
-2. **`shell/`** — внешний слой, взаимодействующий с FastAPI и фронтендом. Подпакеты `http/` (API, CRUD, маршрутизация, middleware), `presentation/` (страницы, шаблоны, виджеты, статика) и `operations/` (CLI, раннеры).
-3. **`support/`** — общие утилиты и схемы. Подпакеты `tooling/` (утилиты, схемы, тесты) и `integration/` (провайдеры ресурсов, дополнительные вспомогательные слои).
+* **`core/application/`** — фабрики и протоколы, которые собирают FastAPI‑приложения с подключённой админкой.
+* **`core/boot/`** — менеджер запуска, координирующий адаптеры, системные приложения и подключение middleware.
+* **`core/configuration/`** — настройки и менеджер конфигурации, наблюдающий за изменениями окружения.
+* **`core/data/`** — интеграция с ORM и вспомогательные модели данных.
+* **`core/interface/`** — админские дескрипторы, сервисы, шаблонные помощники и REST-интерфейсы верхнего уровня.
+* **`core/network/`** — роутеры и агрегаторы, отвечающие за монтирование HTTP-маршрутов админки.
+* **`core/runtime/`** — хаб, middleware, поставщик шаблонов и другой код, работающий во время исполнения.
 
-### 3.2 Итоговое дерево (предложение)
+Внешние расширения и интеграции лежат в `freeadmin/contrib/`, включая адаптеры и CRUD-утилиты. Совместимые фасады верхнего уровня (`freeadmin/application`, `freeadmin/boot` и т. д.) сохранены для плавного обновления, но перенаправляют импорты в перечисленные подпакеты.
 
-```
-freeadmin/
-    core/
-        domain/
-        runtime/
-        config/
-        orm/
-        adapters/
-    shell/
-        http/
-        presentation/
-        operations/
-    support/
-        tooling/
-        integration/
-```
+### 3.2 Совместимые фасады и основная реализация
 
-### 3.3 Таблица соответствия «исходный путь → целевой путь»
-
-| Исходный путь | Категория | Предлагаемый целевой путь | Комментарий |
-| --- | --- | --- | --- |
-| `freeadmin/application/factory.py` | Ядро | `freeadmin/core/runtime/application_factory.py` | Фабрика FastAPI становится частью запуска.
-| `freeadmin/boot/` | Ядро | `freeadmin/core/runtime/bootstrap/` | Управление адаптерами и моделью запуска переносится в runtime.
-| `freeadmin/hub.py` | Ядро | `freeadmin/core/runtime/hub.py` | Централизованный хаб соседствует с фабрикой и BootManager.
-| `freeadmin/conf.py` | Ядро | `freeadmin/core/config/settings.py` | Конфигурация переезжает в отдельный пакет настроек.
-| `freeadmin/core/` | Ядро | `freeadmin/core/domain/` | Текущее содержимое ядра оформляется как доменный подпакет.
-| `freeadmin/orm/` | Ядро | `freeadmin/core/orm/` | Конфигурация ORM входит в ядро.
-| `freeadmin/adapters/` | Ядро | `freeadmin/core/adapters/` | Регистрация и реализация адаптеров остаётся рядом с ORM.
-| `freeadmin/api/` | Оболочки | `freeadmin/shell/http/api/` | API и совместимость с видом системных эндпоинтов.
-| `freeadmin/router/` | Оболочки | `freeadmin/shell/http/router/` | Аггрегаторы и вспомогательные роутеры образуют HTTP-подслой.
-| `freeadmin/crud.py` | Оболочки | `freeadmin/shell/http/crud.py` | CRUD остаётся в HTTP-подслое.
-| `freeadmin/middleware.py` | Оболочки | `freeadmin/shell/http/middleware.py` | Middleware переносится рядом с роутерами.
-| `freeadmin/pages/`, `freeadmin/widgets/`, `freeadmin/templates/`, `freeadmin/static/` | Оболочки | `freeadmin/shell/presentation/{pages,widgets,templates,static}/` | UI-артефакты формируют презентационный слой.
-| `freeadmin/cli.py`, `freeadmin/runner.py` | Оболочки | `freeadmin/shell/operations/{cli.py,runner.py}` | Скрипты запуска и CLI собраны в одном подпакете.
-| `freeadmin/provider.py` | Утилиты | `freeadmin/support/integration/provider.py` | Поставщик шаблонов выступает вспомогательной интеграцией.
-| `freeadmin/utils/`, `freeadmin/schema/`, `freeadmin/tests/`, `freeadmin/meta.py` | Утилиты | `freeadmin/support/tooling/{utils,schema,tests,meta.py}` | Общие помощники и схемы находятся в слое поддержки.
-
+| Фасад совместимости | Основной модуль | Назначение |
+| --- | --- | --- |
+| `freeadmin/application` | `freeadmin.core.application` | Фабрики FastAPI-приложений. |
+| `freeadmin/boot` | `freeadmin.core.boot` | Менеджер запуска и адаптеры. |
+| `freeadmin/hub` | `freeadmin.core.runtime.hub` | Центральный хаб и автодискавери. |
+| `freeadmin/conf` | `freeadmin.core.configuration.conf` | Настройки и менеджер конфигурации. |
+| `freeadmin/orm` | `freeadmin.core.data.orm` | Конфигурация ORM и жизненный цикл. |
+| `freeadmin/router` | `freeadmin.core.network.router` | Агрегаторы и вспомогательные роутеры. |
+| `freeadmin/provider` | `freeadmin.core.runtime.provider` | Поставщик шаблонов и статики. |
+| `freeadmin/middleware` | `freeadmin.core.runtime.middleware` | AdminGuard и связанные middleware. |
+| `freeadmin/crud` | `freeadmin.contrib.crud.operations` | Построитель CRUD-маршрутов. |

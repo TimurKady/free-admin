@@ -7,7 +7,7 @@ import asyncio
 import random
 from typing import Dict
 
-from freeadmin.core.sse.publisher import PublisherService
+from freeadmin.core.interface.sse.publisher import PublisherService
 
 
 class TemperaturePublisher(PublisherService):

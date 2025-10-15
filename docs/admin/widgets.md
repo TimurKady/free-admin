@@ -128,7 +128,7 @@ See [contrib/admin/widgets/registry.py](../../contrib/admin/widgets/registry.py)
 ```
 
 ```python
-from freeadmin.core.models import ModelAdmin
+from freeadmin.core.interface.models import ModelAdmin
 from freeadmin.widgets import ChoicesWidget
 
 
@@ -144,7 +144,7 @@ class PostAdmin(ModelAdmin):
 - **Main options:** `options` forwarded to [JsBarcode](https://github.com/lindell/JsBarcode#options) for customizing dimensions, font, and other styling. The barcode input is hidden by default; set `show_input` to `True` to display it.
 
 ```python
-from freeadmin.core.models import ModelAdmin
+from freeadmin.core.interface.models import ModelAdmin
 from freeadmin.widgets import BarCodeWidget
 
 
@@ -162,7 +162,7 @@ class TicketAdmin(ModelAdmin):
 - **Main options:** `format` automatically set to `"date"`, `"time"`, or `"datetime-local"` based on the field kind.
 
 ```python
-from freeadmin.core.models import ModelAdmin
+from freeadmin.core.interface.models import ModelAdmin
 from freeadmin.widgets import DateTimeWidget
 
 
@@ -251,7 +251,7 @@ events when its asset is included, so no extra template code is required.
 ```
 
 ```python
-from freeadmin.core.models import ModelAdmin
+from freeadmin.core.interface.models import ModelAdmin
 from freeadmin.widgets import Select2Widget
 
 
@@ -269,7 +269,7 @@ class PostAdmin(ModelAdmin):
 - **Main options:** `type: "string"`; `format: "text"`.
 
 ```python
-from freeadmin.core.models import ModelAdmin
+from freeadmin.core.interface.models import ModelAdmin
 from freeadmin.widgets import TextWidget
 
 
@@ -292,7 +292,7 @@ class UserAdmin(ModelAdmin):
   widget's asset bundler ensures the Ace library is loaded automatically.
 
 ```python
-from freeadmin.core.models import ModelAdmin
+from freeadmin.core.interface.models import ModelAdmin
 from freeadmin.widgets import TextAreaWidget
 
 
@@ -314,7 +314,7 @@ The widget accepts extra configuration for the embedded editor. The example belo
 demonstrates how to enable Ace highlighting and tweak editor options:
 
 ```python
-from freeadmin.core.models import ModelAdmin
+from freeadmin.core.interface.models import ModelAdmin
 from freeadmin.widgets import TextAreaWidget
 
 

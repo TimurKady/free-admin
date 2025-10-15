@@ -67,8 +67,8 @@ administrative layout while remaining visually independent:
 ```python
 from fastapi import FastAPI
 
-from freeadmin.core.site import admin_site
-from freeadmin.router import ExtendedRouterAggregator
+from freeadmin.core.interface.site import admin_site
+from freeadmin.core.network.router import ExtendedRouterAggregator
 
 app = FastAPI()
 aggregator = ExtendedRouterAggregator(site=admin_site)
@@ -95,8 +95,8 @@ be registered via :meth:`ExtendedRouterAggregator.add_additional_router` when ne
 ```python
 from fastapi import FastAPI
 
-from freeadmin.core.site import admin_site
-from freeadmin.router import ExtendedRouterAggregator
+from freeadmin.core.interface.site import admin_site
+from freeadmin.core.network.router import ExtendedRouterAggregator
 
 app = FastAPI()
 

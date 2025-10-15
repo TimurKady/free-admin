@@ -5,7 +5,7 @@ The admin panel reads configuration values via the `SystemConfig` helper. Each o
 ## Working with `SystemConfig`
 
 ```python
-from freeadmin.core.settings.config import system_config, SettingsKey
+from freeadmin.core.interface.settings.config import system_config, SettingsKey
 
 # insert any missing defaults
 await system_config.ensure_seed()

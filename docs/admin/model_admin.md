@@ -23,7 +23,7 @@ Access to endpoints is handled via dependency injection (RBAC). ModelAdmin does 
 - `autocomplete_fields` — fields using autocomplete widgets. See [`BaseModelAdmin.get_autocomplete_fields`](../../contrib/admin/core/base.py#L199-L201) and [`get_autocomplete_queryset`](../../contrib/admin/core/base.py#L461-L482).
 
 ```python
-from freeadmin.core.models import ModelAdmin
+from freeadmin.core.interface.models import ModelAdmin
 from freeadmin.hub import admin_site
 from apps.authors.models import Author
 
@@ -71,7 +71,7 @@ admin_site.register(app="authors", model=Author, admin_cls=AuthorAdmin)
 Widgets can be provided as registry keys, widget classes, or pre‑instantiated objects. When an instance is supplied, `BaseModelAdmin` attaches the form context and reuses the same object, preserving any configuration.
 
 ```python
-from freeadmin.core.models import ModelAdmin
+from freeadmin.core.interface.models import ModelAdmin
 from freeadmin.widgets import TextWidget, TextAreaWidget
 
 
