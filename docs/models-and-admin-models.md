@@ -52,14 +52,14 @@ class Product(Model):
 ## Registering models with the admin site
 
 Once the model exists you hook it into the global admin site. The admin hub is
-exposed through `freeadmin.core.hub.admin_site`. Registration wires together the
+exposed through `freeadmin.core.runtime.hub.admin_site`. Registration wires together the
 model class, its admin descriptor, menu metadata, and the adapter used to talk
 to your database.
 
 ```python
 # apps/catalog/admin.py
 from freeadmin.core.interface.models import ModelAdmin
-from freeadmin.core.hub import admin_site
+from freeadmin.core.runtime.hub import admin_site
 
 from .models import Product
 
@@ -309,7 +309,7 @@ class Product(Model):
 ```python
 from freeadmin.core.interface.inline import InlineModelAdmin
 from freeadmin.core.interface.models import ModelAdmin
-from freeadmin.core.hub import admin_site
+from freeadmin.core.runtime.hub import admin_site
 
 from .models import Category, Product
 

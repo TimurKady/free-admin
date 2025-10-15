@@ -16,9 +16,9 @@ from fastapi import Request
 from tortoise import Tortoise, fields, models
 from uuid import uuid4
 
-from freeadmin.core.models import ModelAdmin
-from freeadmin.core.services.auth import AdminUserDTO
-from freeadmin.core.services.admin import AdminService
+from freeadmin.core.interface.models import ModelAdmin
+from freeadmin.core.interface.services.auth import AdminUserDTO
+from freeadmin.core.interface.services.admin import AdminService
 from freeadmin.core.boot import admin as boot_admin
 
 

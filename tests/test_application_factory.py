@@ -3,7 +3,7 @@ from types import SimpleNamespace
 from fastapi import FastAPI
 
 from freeadmin.core.application import ApplicationFactory
-from freeadmin.core.hub import admin_site
+from freeadmin.core.runtime.hub import admin_site
 
 
 class DummyLifecycle:

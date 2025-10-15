@@ -185,7 +185,7 @@ class Post(Model):
 ```python
 # apps/blog/admin.py
 from freeadmin.core.interface.models import ModelAdmin
-from freeadmin.core.hub import admin_site
+from freeadmin.core.runtime.hub import admin_site
 
 from .models import Post
 
@@ -271,7 +271,7 @@ The default discovery packages (`apps` and `pages`) match the directories create
 # config/routers.py
 from fastapi import APIRouter
 
-from freeadmin.core.hub import admin_site
+from freeadmin.core.runtime.hub import admin_site
 from freeadmin.core.network.router import RouterAggregator
 
 

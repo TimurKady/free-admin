@@ -10,7 +10,7 @@ from typing import Any
 import pytest
 from tortoise.exceptions import OperationalError
 
-from freeadmin.core.settings import config as config_module
+from freeadmin.core.interface.settings import config as config_module
 
 
 class _AdapterTransaction:

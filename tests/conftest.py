@@ -17,7 +17,7 @@ from typing import Any
 import pytest
 
 from freeadmin.core.boot import admin as boot_admin
-from freeadmin.core.settings import system_config
+from freeadmin.core.interface.settings import system_config
 
 
 class AdminState:

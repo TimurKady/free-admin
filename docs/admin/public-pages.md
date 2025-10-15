@@ -24,7 +24,7 @@ Register a public page in `example/pages/welcome_page.py`:
 ```python
 from fastapi import Request
 
-from freeadmin.core.hub import admin_site
+from freeadmin.core.runtime.hub import admin_site
 
 
 @admin_site.register_public_view(

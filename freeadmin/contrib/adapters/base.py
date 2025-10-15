@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
 
-from ...core.filters import FilterSpec
+from ...core.interface.filters import FilterSpec
 
 
 @runtime_checkable

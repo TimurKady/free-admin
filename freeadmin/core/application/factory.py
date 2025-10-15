@@ -132,8 +132,8 @@ class ApplicationFactory:
         """Delegate route mounting to the configured router manager if present."""
 
         if self._router_manager is None:
-            from ..hub import admin_site
-            from ..router import AdminRouter
+            from ..runtime.hub import admin_site
+            from ..network.router import AdminRouter
 
             self._router_manager = AdminRouter(admin_site)
         mount = getattr(self._router_manager, "mount", None)
@@ -152,7 +152,7 @@ class ApplicationFactory:
         ):
             mount(app)
             return
-        from ..hub import admin_site
+        from ..runtime.hub import admin_site
 
         mount(app, admin_site)
 

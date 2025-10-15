@@ -5,7 +5,7 @@ Place your admin classes for your ORM models here
 from __future__ import annotations
 
 from freeadmin.core.interface.models import ModelAdmin
-from freeadmin.core.hub import admin_site
+from freeadmin.core.runtime.hub import admin_site
 
 from .models import DemoNote
 

@@ -6,7 +6,7 @@ import contextlib
 
 import pytest
 
-from freeadmin.core.cache import SQLiteEventCache
+from freeadmin.core.interface.cache import SQLiteEventCache
 
 
 @pytest.mark.asyncio

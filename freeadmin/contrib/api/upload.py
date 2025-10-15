@@ -15,11 +15,11 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Request
 
-from ...core.services.auth import AdminUserDTO
-from ...core.auth import admin_auth_service
-from ...core.permissions import permission_checker
-from ...core.services.permissions import PermAction
-from ...core.settings import SettingsKey, system_config
+from ...core.interface.services.auth import AdminUserDTO
+from ...core.interface.auth import admin_auth_service
+from ...core.interface.permissions import permission_checker
+from ...core.interface.services.permissions import PermAction
+from ...core.interface.settings import SettingsKey, system_config
 from ..crud import SafePathSegment
 from freeadmin.core.configuration.conf import FreeAdminSettings, current_settings
 

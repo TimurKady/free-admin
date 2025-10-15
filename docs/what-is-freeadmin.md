@@ -38,7 +38,7 @@ from fastapi import FastAPI
 
 from freeadmin.core.boot import BootManager
 from freeadmin.core.interface.models import ModelAdmin
-from freeadmin.core.hub import admin_site
+from freeadmin.core.runtime.hub import admin_site
 
 from apps.blog.models import Post
 

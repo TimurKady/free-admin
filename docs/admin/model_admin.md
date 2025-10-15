@@ -24,7 +24,7 @@ Access to endpoints is handled via dependency injection (RBAC). ModelAdmin does 
 
 ```python
 from freeadmin.core.interface.models import ModelAdmin
-from freeadmin.core.hub import admin_site
+from freeadmin.core.runtime.hub import admin_site
 from apps.authors.models import Author
 
 

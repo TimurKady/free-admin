@@ -15,7 +15,7 @@ import logging
 from importlib import import_module
 from typing import Iterable, TYPE_CHECKING
 
-from ..app import AppConfig
+from ..interface.app import AppConfig
 
 
 LOGGER = logging.getLogger(__name__)

@@ -20,7 +20,7 @@ from types import SimpleNamespace
 
 import pytest
 
-ImportService = import_module("freeadmin.core.services.import").ImportService
+ImportService = import_module("freeadmin.core.interface.services.import").ImportService
 
 
 class DummyAdapter:

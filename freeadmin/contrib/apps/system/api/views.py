@@ -23,7 +23,7 @@ from freeadmin.core.configuration.conf import (
     current_settings,
     register_settings_observer,
 )
-from freeadmin.core.exceptions import (
+from freeadmin.core.interface.exceptions import (
     ActionNotFound,
     AdminModelNotFound,
     HTTPError,
