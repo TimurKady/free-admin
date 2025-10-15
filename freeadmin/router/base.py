@@ -10,54 +10,56 @@ Email: timurkady@yandex.com
 """
 
 from __future__ import annotations
-from pathlib import Path
-
 from typing import TYPE_CHECKING
 
 from fastapi import FastAPI
 
 from ..conf import FreeAdminSettings, current_settings
 from ..core.site import AdminSite
-from ..provider import TemplateProvider
+from ..core.templates import TemplateService
 
 if TYPE_CHECKING:  # pragma: no cover - convenience for type checkers
     from .aggregator import RouterAggregator
-
-ASSETS_DIR = Path(__file__).resolve().parent.parent / "static"
-TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
+    from ..provider import TemplateProvider
 
 
 class RouterFoundation:
     """Provide shared helpers for router managers."""
 
-    def __init__(self, *, settings: FreeAdminSettings | None = None) -> None:
-        """Initialise configuration and the template provider."""
+    def __init__(
+        self,
+        *,
+        settings: FreeAdminSettings | None = None,
+        template_service: TemplateService | None = None,
+    ) -> None:
+        """Initialise configuration and template integration helpers."""
 
         self._settings = settings or current_settings()
-        self._provider = TemplateProvider(
-            templates_dir=str(TEMPLATES_DIR),
-            static_dir=str(ASSETS_DIR),
-            settings=self._settings,
+        self._template_service = template_service or TemplateService(
+            settings=self._settings
         )
 
     @property
-    def provider(self) -> TemplateProvider:
-        """Return the template provider used for admin integration."""
+    def template_service(self) -> TemplateService:
+        """Return the template service used for admin integration."""
 
-        return self._provider
+        return self._template_service
+
+    @property
+    def provider(self) -> "TemplateProvider":
+        """Return the template provider configured for admin integration."""
+
+        return self._template_service.get_provider()
 
     def ensure_site_templates(self, site: AdminSite) -> None:
         """Attach template environment to ``site`` when missing."""
 
-        if site.templates is None:
-            site.templates = self._provider.get_templates()
+        self._template_service.ensure_site_templates(site)
 
     def mount_static_resources(self, app: FastAPI, prefix: str) -> None:
         """Expose admin static files, favicon, and media on ``app``."""
 
-        self._provider.mount_static(app, prefix)
-        self._provider.mount_favicon(app)
-        self._provider.mount_media(app)
+        self._template_service.mount_static_resources(app, prefix)
 
 
 class AdminRouter:
@@ -69,6 +71,7 @@ class AdminRouter:
         prefix: str | None = None,
         *,
         settings: FreeAdminSettings | None = None,
+        template_service: TemplateService | None = None,
     ) -> None:
         """Create an aggregator-backed admin router."""
 
@@ -78,6 +81,7 @@ class AdminRouter:
             site=site,
             prefix=prefix,
             settings=settings,
+            template_service=template_service,
         )
 
     def mount(self, app: FastAPI) -> None:

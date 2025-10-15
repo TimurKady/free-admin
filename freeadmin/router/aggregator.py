@@ -19,6 +19,7 @@ from fastapi import APIRouter, FastAPI
 from ..conf import FreeAdminSettings
 from ..core.settings import SettingsKey, system_config
 from ..core.site import AdminSite
+from ..core.templates import TemplateService
 from .base import RouterFoundation
 
 
@@ -32,10 +33,11 @@ class RouterAggregator(RouterFoundation):
         *,
         settings: FreeAdminSettings | None = None,
         additional_routers: Iterable[tuple[APIRouter, str | None]] | None = None,
+        template_service: TemplateService | None = None,
     ) -> None:
         """Initialise the aggregator with the admin site and base settings."""
 
-        super().__init__(settings=settings)
+        super().__init__(settings=settings, template_service=template_service)
         self.site = site
         default_prefix = system_config.get_cached(
             SettingsKey.ADMIN_PREFIX, self._settings.admin_path
@@ -56,7 +58,7 @@ class RouterAggregator(RouterFoundation):
     def create_admin_router(self) -> APIRouter:
         """Instantiate the FastAPI router for the admin site."""
 
-        return self.site.build_router(self._provider)
+        return self.site.build_router(self.provider)
 
     def get_admin_router(self) -> APIRouter:
         """Return the cached admin router, creating it when necessary."""
@@ -119,6 +121,7 @@ class ExtendedRouterAggregator(RouterAggregator):
         settings: FreeAdminSettings | None = None,
         additional_routers: Iterable[tuple[APIRouter, str | None]] | None = None,
         public_first: bool = True,
+        template_service: TemplateService | None = None,
     ) -> None:
         """Initialise the aggregator and configure registration order."""
 
@@ -127,6 +130,7 @@ class ExtendedRouterAggregator(RouterAggregator):
             prefix=prefix,
             settings=settings,
             additional_routers=additional_routers,
+            template_service=template_service,
         )
         self._public_first = public_first
         self._public_routers: list[APIRouter] = []
