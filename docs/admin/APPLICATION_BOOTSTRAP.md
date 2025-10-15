@@ -5,10 +5,14 @@ This guide walks you through the process of enabling a new FreeAdmin application
 ## 1. Register the application in settings
 
 1. Open `config/settings.py`.
-2. Locate the `Settings` dataclass and append the dotted path of your application package (without the trailing `.app`) to `Settings.INSTALLED_APPS`.
-3. Save the file so the importable settings reflect the new entries.
+2. Ensure the module imports `BaseSettings` from `pydantic_settings` so it remains compatible with Pydantic v2.
+3. Locate the `Settings` dataclass and append the dotted path of your application package (without the trailing `.app`) to `Settings.INSTALLED_APPS`.
+4. Save the file so the importable settings reflect the new entries.
 
 ```python
+from pydantic_settings import BaseSettings
+
+
 class Settings(BaseSettings):
     INSTALLED_APPS: ClassVar[list[str]] = [
         "core.agents",
