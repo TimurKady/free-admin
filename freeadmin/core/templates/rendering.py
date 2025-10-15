@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-templates.rendering
+core.templates.rendering
 
 Helper utilities for rendering FreeAdmin templates outside the admin UI.
 
@@ -11,46 +11,30 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any, Mapping
 
 from fastapi import Request
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 
-from ..conf import FreeAdminSettings, current_settings
-from ..provider import TemplateProvider
-
-ASSETS_DIR = Path(__file__).resolve().parent.parent / "static"
-TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
+from .service import DEFAULT_TEMPLATE_SERVICE, TemplateService
 
 
 class TemplateRenderer:
     """Provide cached access to FreeAdmin templates for public pages."""
 
-    _templates: Jinja2Templates | None = None
-    _provider: TemplateProvider | None = None
+    _service: TemplateService = DEFAULT_TEMPLATE_SERVICE
 
     @classmethod
-    def get_provider(cls) -> TemplateProvider:
-        """Return the shared template provider instance."""
+    def configure(cls, service: TemplateService) -> None:
+        """Replace the template service used by the renderer."""
 
-        if cls._provider is None:
-            settings: FreeAdminSettings | None = current_settings()
-            cls._provider = TemplateProvider(
-                templates_dir=str(TEMPLATES_DIR),
-                static_dir=str(ASSETS_DIR),
-                settings=settings,
-            )
-        return cls._provider
+        cls._service = service
 
     @classmethod
-    def get_templates(cls) -> Jinja2Templates:
-        """Return a cached ``Jinja2Templates`` instance."""
+    def get_service(cls) -> TemplateService:
+        """Return the template service backing the renderer."""
 
-        if cls._templates is None:
-            cls._templates = cls.get_provider().get_templates()
-        return cls._templates
+        return cls._service
 
     @classmethod
     def render(
@@ -67,7 +51,8 @@ class TemplateRenderer:
             final_context.setdefault("request", request)
         if "request" not in final_context:
             raise ValueError("Template context must include a 'request' key.")
-        return cls.get_templates().TemplateResponse(template_name, final_context)
+        templates = cls.get_service().get_templates()
+        return templates.TemplateResponse(template_name, final_context)
 
 
 def render_template(

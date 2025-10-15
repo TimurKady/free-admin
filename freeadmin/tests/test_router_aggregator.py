@@ -38,9 +38,13 @@ def test_mount_is_idempotent() -> None:
 
     site = _build_site(admin_router)
     aggregator = RouterAggregator(site=site, prefix="/admin")
-    aggregator._provider.mount_static = MagicMock()  # type: ignore[attr-defined]
-    aggregator._provider.mount_favicon = MagicMock()  # type: ignore[attr-defined]
-    aggregator._provider.mount_media = MagicMock()  # type: ignore[attr-defined]
+    service = aggregator.template_service
+    original_get_templates = service.get_templates
+    service.get_templates = MagicMock(wraps=original_get_templates)  # type: ignore[assignment]
+    provider = service.get_provider()
+    provider.mount_static = MagicMock()  # type: ignore[attr-defined]
+    provider.mount_favicon = MagicMock()  # type: ignore[attr-defined]
+    provider.mount_media = MagicMock()  # type: ignore[attr-defined]
 
     aggregator.mount(app)
     initial_route_count = len(app.router.routes)
@@ -50,10 +54,12 @@ def test_mount_is_idempotent() -> None:
     assert site.build_router.call_count == 1
     assert aggregator.get_admin_router() is admin_router
     assert initial_route_count == subsequent_route_count
-    aggregator._provider.mount_static.assert_called_once_with(app, "/admin")  # type: ignore[attr-defined]
-    aggregator._provider.mount_favicon.assert_called_once_with(app)  # type: ignore[attr-defined]
-    aggregator._provider.mount_media.assert_called_once_with(app)  # type: ignore[attr-defined]
+    assert service.get_templates.call_count == 1  # type: ignore[attr-defined]
+    provider.mount_static.assert_called_once_with(app, "/admin")  # type: ignore[attr-defined]
+    provider.mount_favicon.assert_called_once_with(app)  # type: ignore[attr-defined]
+    provider.mount_media.assert_called_once_with(app)  # type: ignore[attr-defined]
     assert app.state.admin_site is site
+    service.get_templates = original_get_templates  # type: ignore[assignment]
 
 
 def test_admin_router_reuses_aggregator_cache() -> None:
@@ -69,18 +75,19 @@ def test_admin_router_reuses_aggregator_cache() -> None:
     site = _build_site(admin_router)
     wrapper = AdminRouter(site=site, prefix="/admin")
     aggregator = wrapper.aggregator
-    aggregator._provider.mount_static = MagicMock()  # type: ignore[attr-defined]
-    aggregator._provider.mount_favicon = MagicMock()  # type: ignore[attr-defined]
-    aggregator._provider.mount_media = MagicMock()  # type: ignore[attr-defined]
+    provider = aggregator.template_service.get_provider()
+    provider.mount_static = MagicMock()  # type: ignore[attr-defined]
+    provider.mount_favicon = MagicMock()  # type: ignore[attr-defined]
+    provider.mount_media = MagicMock()  # type: ignore[attr-defined]
 
     wrapper.mount(app)
     wrapper.mount(app)
 
     assert site.build_router.call_count == 1
     assert aggregator.get_admin_router() is admin_router
-    aggregator._provider.mount_static.assert_called_once_with(app, "/admin")  # type: ignore[attr-defined]
-    aggregator._provider.mount_favicon.assert_called_once_with(app)  # type: ignore[attr-defined]
-    aggregator._provider.mount_media.assert_called_once_with(app)  # type: ignore[attr-defined]
+    provider.mount_static.assert_called_once_with(app, "/admin")  # type: ignore[attr-defined]
+    provider.mount_favicon.assert_called_once_with(app)  # type: ignore[attr-defined]
+    provider.mount_media.assert_called_once_with(app)  # type: ignore[attr-defined]
     assert app.state.admin_site is site
 
 
@@ -112,9 +119,10 @@ def test_subclass_can_register_extra_routers() -> None:
             self.add_additional_router(extra_router, "")
 
     aggregator = CustomRouterAggregator(site=site)
-    aggregator._provider.mount_static = MagicMock()  # type: ignore[attr-defined]
-    aggregator._provider.mount_favicon = MagicMock()  # type: ignore[attr-defined]
-    aggregator._provider.mount_media = MagicMock()  # type: ignore[attr-defined]
+    provider = aggregator.template_service.get_provider()
+    provider.mount_static = MagicMock()  # type: ignore[attr-defined]
+    provider.mount_favicon = MagicMock()  # type: ignore[attr-defined]
+    provider.mount_media = MagicMock()  # type: ignore[attr-defined]
     aggregator.mount(app)
 
     client = TestClient(app)
@@ -148,9 +156,10 @@ def test_constructor_additional_router_registration() -> None:
         prefix="/admin",
         additional_routers=((reports_router, "/extras"),),
     )
-    aggregator._provider.mount_static = MagicMock()  # type: ignore[attr-defined]
-    aggregator._provider.mount_favicon = MagicMock()  # type: ignore[attr-defined]
-    aggregator._provider.mount_media = MagicMock()  # type: ignore[attr-defined]
+    provider = aggregator.template_service.get_provider()
+    provider.mount_static = MagicMock()  # type: ignore[attr-defined]
+    provider.mount_favicon = MagicMock()  # type: ignore[attr-defined]
+    provider.mount_media = MagicMock()  # type: ignore[attr-defined]
     aggregator.mount(app)
 
     client = TestClient(app)
@@ -178,9 +187,10 @@ def test_extended_aggregator_combines_public_and_admin() -> None:
     site = _build_site(admin_router)
     aggregator = ExtendedRouterAggregator(site=site, prefix="/admin", public_first=True)
     aggregator.add_additional_router(public_router)
-    aggregator._provider.mount_static = MagicMock()  # type: ignore[attr-defined]
-    aggregator._provider.mount_favicon = MagicMock()  # type: ignore[attr-defined]
-    aggregator._provider.mount_media = MagicMock()  # type: ignore[attr-defined]
+    provider = aggregator.template_service.get_provider()
+    provider.mount_static = MagicMock()  # type: ignore[attr-defined]
+    provider.mount_favicon = MagicMock()  # type: ignore[attr-defined]
+    provider.mount_media = MagicMock()  # type: ignore[attr-defined]
 
     ordering = aggregator.get_routers()
     assert ordering[0][0] is public_router
@@ -192,9 +202,9 @@ def test_extended_aggregator_combines_public_and_admin() -> None:
     client = TestClient(app)
     assert client.get("/welcome").json() == {"message": "hello"}
     assert client.get("/admin/dashboard").json() == {"status": "admin"}
-    aggregator._provider.mount_static.assert_called_once_with(app, "/admin")  # type: ignore[attr-defined]
-    aggregator._provider.mount_favicon.assert_called_once_with(app)  # type: ignore[attr-defined]
-    aggregator._provider.mount_media.assert_called_once_with(app)  # type: ignore[attr-defined]
+    provider.mount_static.assert_called_once_with(app, "/admin")  # type: ignore[attr-defined]
+    provider.mount_favicon.assert_called_once_with(app)  # type: ignore[attr-defined]
+    provider.mount_media.assert_called_once_with(app)  # type: ignore[attr-defined]
 
 
 def test_extended_aggregator_respects_order_flag() -> None:

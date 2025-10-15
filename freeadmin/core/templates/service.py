@@ -1,0 +1,94 @@
+# -*- coding: utf-8 -*-
+"""
+core.templates.service
+
+Shared template service coordinating providers, caching, and mounting.
+
+Version:0.1.0
+Author: Timur Kady
+Email: timurkady@yandex.com
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import TYPE_CHECKING
+from weakref import WeakSet
+
+from fastapi import FastAPI
+from fastapi.templating import Jinja2Templates
+
+from ...conf import FreeAdminSettings, current_settings
+from ...provider import TemplateProvider
+
+if TYPE_CHECKING:  # pragma: no cover - import for type checking only
+    from ..site import AdminSite
+
+
+ASSETS_DIR = Path(__file__).resolve().parent.parent.parent / "static"
+TEMPLATES_DIR = Path(__file__).resolve().parent.parent.parent / "templates"
+
+
+class TemplateService:
+    """Manage template providers, caching, and static mounts for FreeAdmin."""
+
+    def __init__(
+        self,
+        *,
+        templates_dir: str | Path | None = None,
+        static_dir: str | Path | None = None,
+        settings: FreeAdminSettings | None = None,
+        provider_cls: type[TemplateProvider] = TemplateProvider,
+    ) -> None:
+        """Configure the service with template locations and settings."""
+
+        self._templates_dir = str(templates_dir or TEMPLATES_DIR)
+        self._static_dir = str(static_dir or ASSETS_DIR)
+        self._settings = settings or current_settings()
+        self._provider_cls = provider_cls
+        self._provider: TemplateProvider | None = None
+        self._templates: Jinja2Templates | None = None
+        self._mounted_apps: WeakSet[FastAPI] = WeakSet()
+
+    def get_provider(self) -> TemplateProvider:
+        """Return the cached template provider, creating it when needed."""
+
+        if self._provider is None:
+            self._provider = self._provider_cls(
+                templates_dir=self._templates_dir,
+                static_dir=self._static_dir,
+                settings=self._settings,
+            )
+        return self._provider
+
+    def get_templates(self) -> Jinja2Templates:
+        """Return the cached ``Jinja2Templates`` environment."""
+
+        if self._templates is None:
+            self._templates = self.get_provider().get_templates()
+        return self._templates
+
+    def ensure_site_templates(self, site: "AdminSite") -> None:
+        """Ensure the provided admin ``site`` exposes the shared templates."""
+
+        if site.templates is None:
+            site.templates = self.get_templates()
+
+    def mount_static_resources(self, app: FastAPI, prefix: str) -> None:
+        """Mount static, favicon, and media resources once per application."""
+
+        if app in self._mounted_apps:
+            return
+
+        provider = self.get_provider()
+        provider.mount_static(app, prefix)
+        provider.mount_favicon(app)
+        provider.mount_media(app)
+        self._mounted_apps.add(app)
+
+
+DEFAULT_TEMPLATE_SERVICE = TemplateService()
+
+
+# The End
+
