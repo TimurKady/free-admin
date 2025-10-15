@@ -14,7 +14,9 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Dict
 
-from freeadmin.adapters.tortoise.adapter import Adapter as TortoiseAdapter
+from freeadmin.contrib.adapters.tortoise.adapter import (
+    Adapter as TortoiseAdapter,
+)
 from freeadmin.orm import ORMConfig, ORMLifecycle
 
 

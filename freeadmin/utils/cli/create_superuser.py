@@ -22,7 +22,7 @@ from typing import Optional, Any, Awaitable, Callable
 from ...boot import admin as boot_admin
 from ...adapters import BaseAdapter
 from ...core.services.auth import AuthService
-from ...core.settings.config import system_config
+from ...core.interface.settings.config import system_config
 from ...conf import FreeAdminSettings, current_settings
 
 

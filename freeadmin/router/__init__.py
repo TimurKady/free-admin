@@ -2,17 +2,20 @@
 """
 router
 
-Public exports for router utilities.
+Backward-compatible re-export of router helpers.
 
 Version:0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """
 
-from .base import AdminRouter
-from .aggregator import ExtendedRouterAggregator, RouterAggregator
+from ..core.network.router import (
+    AdminRouter,
+    ExtendedRouterAggregator,
+    RouterAggregator,
+)
 
+__all__ = ["AdminRouter", "ExtendedRouterAggregator", "RouterAggregator"]
 
 
 # The End
-

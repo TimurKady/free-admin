@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from freeadmin.adapters.tortoise.users import PermAction
+from freeadmin.contrib.adapters.tortoise.users import PermAction
 from freeadmin.core.services.admin import AdminService
 from freeadmin.core.services.permissions import PermissionsService
 

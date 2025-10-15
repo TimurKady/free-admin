@@ -2,14 +2,14 @@
 """
 application
 
-Application assembly helpers for FreeAdmin projects.
+Backward-compatible re-export of application factory utilities.
 
 Version:0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """
 
-from .factory import ApplicationFactory
+from ..core.application import ApplicationFactory
 
 __all__ = ["ApplicationFactory"]
 

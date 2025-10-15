@@ -105,7 +105,9 @@ Replace the placeholder in `config/orm.py` with a concrete configuration. The sc
 from copy import deepcopy
 from typing import Any, Dict
 
-from freeadmin.adapters.tortoise.adapter import Adapter as TortoiseAdapter
+from freeadmin.contrib.adapters.tortoise.adapter import (
+    Adapter as TortoiseAdapter,
+)
 from freeadmin.orm import ORMConfig
 
 DB_ADAPTER = "tortoise"

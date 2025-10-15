@@ -9,7 +9,7 @@
 | Путь | Назначение | Прямые зависимости первого порядка |
 | --- | --- | --- |
 | `freeadmin/application/factory.py` | Фабрика FastAPI-приложений, связывает настройки, ORM и роутеры | `freeadmin.boot.BootManager`, `freeadmin.orm.ORMConfig/ORMLifecycle`, `freeadmin.router.AdminRouter`, `freeadmin.hub.admin_site` |
-| `freeadmin/boot/manager.py` | Управляет адаптерами, регистрацией моделей и запуском хаба | Реестр адаптеров (`freeadmin.adapters`), системные настройки (`freeadmin.conf`, `freeadmin.core.settings`), посредник `AdminGuardMiddleware`, хаб `freeadmin.hub` |
+| `freeadmin/boot/manager.py` | Управляет адаптерами, регистрацией моделей и запуском хаба | Реестр адаптеров (`freeadmin.contrib.adapters`), системные настройки (`freeadmin.conf`, `freeadmin.core.settings`), посредник `AdminGuardMiddleware`, хаб `freeadmin.hub` |
 | `freeadmin/conf.py` | Хранилище конфигурации и наблюдатель за изменениями окружения | `os`, `pathlib`, синхронизация через `threading.RLock` |
 | `freeadmin/hub.py` | Центральный хаб админки: управляет сайтом, автодискавери и роутерами | Настройки (`freeadmin.conf`), `freeadmin.core.site.AdminSite`, `freeadmin.core.discovery.DiscoveryService`, `freeadmin.router.AdminRouter`, `freeadmin.boot.admin` |
 | `freeadmin/core/site.py` | Реализация админ-сайта: регистрация моделей/страниц, меню, экспорт | Сервисы ядра (`freeadmin.core.*`), адаптеры, CRUD, API карточек, поставщик шаблонов, проверки миграций |
@@ -18,7 +18,7 @@
 | `freeadmin/provider.py` | Управление шаблонами, статикой и медиа | `fastapi`, `starlette.staticfiles.StaticFiles`, `freeadmin.conf.FreeAdminSettings`, `freeadmin.core.settings.system_config` |
 | `freeadmin/middleware.py` | Middleware охраны админки (суперпользователь, сессия) | `starlette` middleware, `freeadmin.conf`, `freeadmin.core.settings`, `freeadmin.boot.admin` |
 | `freeadmin/crud.py` | Построитель CRUD-роутов и файлового обмена | `fastapi`, `freeadmin.core` сервисы, `freeadmin.conf`, `freeadmin.core.settings`, `freeadmin.core.services` |
-| `freeadmin/api/base.py` | Обёртка системного API админки | `fastapi.APIRouter`, `freeadmin.adapters.BaseAdapter`, системные API `freeadmin.apps.system.api.views` |
+| `freeadmin/api/base.py` | Обёртка системного API админки | `fastapi.APIRouter`, `freeadmin.contrib.adapters.BaseAdapter`, системные API `freeadmin.apps.system.api.views` |
 | `freeadmin/orm/config.py` | Конфигурация ORM и жизненный цикл Tortoise | `tortoise` ORM, реестр адаптеров, классификатор ошибок миграций (`freeadmin.utils.migration_errors`) |
 
 ## 2. Уровни важности

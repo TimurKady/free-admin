@@ -9,8 +9,8 @@ Author: Timur Kady
 Email: timurkady@yandex.com
 """
 
-from .app import AppConfig
-from .filters import FilterSpec
+from .interface.app import AppConfig
+from .interface.filters import FilterSpec
 
 __all__ = ["AppConfig", "FilterSpec"]
 

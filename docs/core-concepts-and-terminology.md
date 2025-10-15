@@ -52,7 +52,7 @@ Once declared, include the inline class in the parent `ModelAdmin.inlines` tuple
 
 ## Adapter
 
-An **adapter** bridges the admin runtime and the persistence layer. All adapters derive from `freeadmin.adapters.base.BaseAdapter`. The built-in adapter targets **Tortoise ORM** and ships with models for authentication (`AdminUser`) and content types (`AdminContentType`).
+An **adapter** bridges the admin runtime and the persistence layer. All adapters derive from `freeadmin.contrib.adapters.base.BaseAdapter`. The built-in adapter targets **Tortoise ORM** and ships with models for authentication (`AdminUser`) and content types (`AdminContentType`).
 
 Key responsibilities:
 
@@ -60,7 +60,7 @@ Key responsibilities:
 * Create, update, and delete model instances in an async-friendly fashion.
 * Expose metadata through `get_model_descriptor()` so the admin site can build forms and tables.
 
-You can implement a custom adapter by subclassing `BaseAdapter` and registering it via `freeadmin.adapters.registry.register("name", adapter_instance)`.
+You can implement a custom adapter by subclassing `BaseAdapter` and registering it via `freeadmin.contrib.adapters.registry.register("name", adapter_instance)`.
 
 
 ## BootManager and FastAPI integration

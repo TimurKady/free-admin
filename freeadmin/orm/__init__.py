@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
 """
-__init__
+orm
 
-ORM integration helpers.
+Backward-compatible re-export of ORM integration helpers.
 
 Version:0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """
 
-from .config import ORMConfig, ORMLifecycle
+from ..core.data.orm import ORMConfig, ORMLifecycle
 
 __all__ = ["ORMConfig", "ORMLifecycle"]
 
-# The End
 
+# The End
