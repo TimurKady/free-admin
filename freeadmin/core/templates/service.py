@@ -18,7 +18,11 @@ from weakref import WeakSet
 from fastapi import FastAPI
 from fastapi.templating import Jinja2Templates
 
-from ...conf import FreeAdminSettings, current_settings
+from ...conf import (
+    FreeAdminSettings,
+    current_settings,
+    register_settings_observer,
+)
 from ...provider import TemplateProvider
 
 if TYPE_CHECKING:  # pragma: no cover - import for type checking only
@@ -49,6 +53,8 @@ class TemplateService:
         self._provider: TemplateProvider | None = None
         self._templates: Jinja2Templates | None = None
         self._mounted_apps: WeakSet[FastAPI] = WeakSet()
+        if settings is None:
+            register_settings_observer(self._apply_settings)
 
     def get_provider(self) -> TemplateProvider:
         """Return the cached template provider, creating it when needed."""
@@ -67,6 +73,15 @@ class TemplateService:
         if self._templates is None:
             self._templates = self.get_provider().get_templates()
         return self._templates
+
+    def _apply_settings(self, settings: FreeAdminSettings) -> None:
+        """Update cached configuration when global settings change."""
+
+        self._settings = settings
+        if self._provider is not None:
+            self._provider._settings = settings
+        if self._templates is not None:
+            self._templates.env.globals["settings"] = settings
 
     def ensure_site_templates(self, site: "AdminSite") -> None:
         """Ensure the provided admin ``site`` exposes the shared templates."""
