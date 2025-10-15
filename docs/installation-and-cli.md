@@ -115,7 +115,7 @@ APPLICATION_MODEL_MODULES: tuple[str, ...] = (
     "apps.blog.models",
 )
 SYSTEM_MODEL_MODULES: tuple[str, ...] = (
-    "freeadmin.apps.system.models",
+    "freeadmin.contrib.apps.system.models",
 )
 # Include adapter-provided admin models to enable the FreeAdmin UI resources.
 ADMIN_MODEL_MODULES: tuple[str, ...] = tuple(TortoiseAdapter.model_modules)
@@ -185,7 +185,7 @@ class Post(Model):
 ```python
 # apps/blog/admin.py
 from freeadmin.core.interface.models import ModelAdmin
-from freeadmin.hub import admin_site
+from freeadmin.core.hub import admin_site
 
 from .models import Post
 
@@ -271,7 +271,7 @@ The default discovery packages (`apps` and `pages`) match the directories create
 # config/routers.py
 from fastapi import APIRouter
 
-from freeadmin.hub import admin_site
+from freeadmin.core.hub import admin_site
 from freeadmin.core.network.router import RouterAggregator
 
 

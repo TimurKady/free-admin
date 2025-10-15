@@ -2,8 +2,8 @@ from types import SimpleNamespace
 
 from fastapi import FastAPI
 
-from freeadmin.application import ApplicationFactory
-from freeadmin.hub import admin_site
+from freeadmin.core.application import ApplicationFactory
+from freeadmin.core.hub import admin_site
 
 
 class DummyLifecycle:

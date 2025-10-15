@@ -15,7 +15,7 @@ from fastapi import APIRouter
 from fastapi.templating import Jinja2Templates
 
 from .services.auth import AdminAuthService, AuthService
-from ...boot import admin as boot_admin
+from freeadmin.core.boot import admin as boot_admin
 
 auth_service = AuthService(boot_admin.adapter)
 admin_auth_service = AdminAuthService(auth_service, boot_admin.adapter)

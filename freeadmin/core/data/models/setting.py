@@ -10,7 +10,7 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from ...boot import admin as boot_admin
+from freeadmin.core.boot import admin as boot_admin
 
 try:
     SystemSetting = boot_admin.adapter.system_setting_model

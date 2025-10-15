@@ -20,7 +20,7 @@ from tortoise import exceptions as tortoise_exceptions
 
 from .defaults import DEFAULT_SETTINGS
 from .keys import SettingsKey
-from ...boot import admin as boot_admin
+from freeadmin.core.boot import admin as boot_admin
 SystemSetting = boot_admin.adapter.system_setting_model
 
 if importlib.util.find_spec("asyncpg") is not None:
@@ -62,7 +62,7 @@ class SystemConfig:
     def adapter(self) -> Any:
         """Return the active data adapter responsible for persistence."""
 
-        from ...boot import admin as boot_admin
+        from freeadmin.core.boot import admin as boot_admin
 
         return boot_admin.adapter
 

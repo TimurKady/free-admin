@@ -51,7 +51,7 @@ class AdminGuardMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
-        from ..boot import admin as boot_admin
+        from freeadmin.core.boot import admin as boot_admin
 
         path = request.url.path
         if not path.startswith(self.prefix):

@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 
 from fastapi import FastAPI
 
-from ...conf import FreeAdminSettings, current_settings
+from freeadmin.core.configuration.conf import FreeAdminSettings, current_settings
 from ...interface.site import AdminSite
 from ...interface.templates import TemplateService
 

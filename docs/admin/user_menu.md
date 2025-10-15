@@ -17,7 +17,7 @@ Call the registrar before or after booting the admin application to integrate ad
 ```python
 from fastapi import FastAPI
 from freeadmin.core.boot import admin
-from freeadmin.hub import hub
+from freeadmin.core.hub import hub
 from my_project.admin.user_menu import ExtraUserMenuRegistrar
 
 app = FastAPI()

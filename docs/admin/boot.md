@@ -57,7 +57,7 @@ Example FastAPI integration:
 
 ```python
 from fastapi import FastAPI
-from freeadmin.middleware import AdminGuardMiddleware
+from freeadmin.core.runtime.middleware import AdminGuardMiddleware
 
 app = FastAPI()
 app.add_middleware(AdminGuardMiddleware)

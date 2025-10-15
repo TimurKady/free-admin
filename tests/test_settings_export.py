@@ -19,13 +19,13 @@ from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from tortoise import Tortoise
 
-from freeadmin.hub import admin_site
-from freeadmin.router import AdminRouter
+from freeadmin.core.hub import admin_site
+from freeadmin.core.network.router import AdminRouter
 from freeadmin.core.permissions import permission_checker
 from freeadmin.core.services.permissions import PermAction
 from freeadmin.core.auth import admin_auth_service
 from tests.system_models import system_models
-import freeadmin.apps.system.admin  # ensure registration
+import freeadmin.contrib.apps.system.admin  # ensure registration
 
 
 class TestSettingsExport:
@@ -42,7 +42,7 @@ class TestSettingsExport:
             Tortoise.init(
                 db_url="sqlite://:memory:",
                 modules={
-                    "models": ["freeadmin.apps.system.models"],
+                    "models": ["freeadmin.contrib.apps.system.models"],
                     "admin": list(system_models.module_names()),
                 },
             )

@@ -24,7 +24,7 @@ DB_ADAPTER = "tortoise"
 """Name of the FreeAdmin adapter powering the example ORM layer."""
 
 SYSTEM_APP_MODULES: tuple[str, ...] = (
-    "freeadmin.apps.system.models",
+    "freeadmin.contrib.apps.system.models",
 )
 """System-level model modules exposed to the example for admin helpers."""
 

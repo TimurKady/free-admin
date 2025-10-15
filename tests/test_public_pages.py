@@ -5,9 +5,9 @@ Test coverage for registering and exposing public FreeAdmin pages."""
 
 from __future__ import annotations
 
-from freeadmin.boot import admin as boot_admin
+from freeadmin.core.boot import admin as boot_admin
 from freeadmin.core.site import AdminSite
-from freeadmin.router.aggregator import ExtendedRouterAggregator
+from freeadmin.core.network.router.aggregator import ExtendedRouterAggregator
 from tests.conftest import admin_state
 
 

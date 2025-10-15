@@ -8,7 +8,7 @@ from typing import List, Tuple
 
 from tortoise import Tortoise
 
-from freeadmin.boot import BootManager
+from freeadmin.core.boot import BootManager
 
 
 def test_boot_manager_registers_custom_models(monkeypatch) -> None:
@@ -46,7 +46,7 @@ def test_boot_manager_logs_missing_model_modules(monkeypatch, caplog) -> None:
     missing_module = "tests.sample_app.missing_models"
 
     from tests.sample_app.app import SampleAppConfig
-    from freeadmin.boot import registry as model_registry
+    from freeadmin.core.boot import registry as model_registry
 
     def _missing_models(self) -> list[str]:
         return [missing_module]

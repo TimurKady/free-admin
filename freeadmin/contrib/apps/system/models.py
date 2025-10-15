@@ -11,7 +11,7 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from ....core.boot import admin as boot_admin
+from freeadmin.core.boot import admin as boot_admin
 
 AdminUser = boot_admin.adapter.user_model
 AdminUserPermission = boot_admin.adapter.user_permission_model

@@ -14,7 +14,7 @@ from dataclasses import asdict, is_dataclass
 from types import SimpleNamespace
 
 from ...contrib.adapters import BaseAdapter
-from ..boot import admin as boot_admin
+from freeadmin.core.boot import admin as boot_admin
 from ..interface.services.auth import AdminUserDTO
 from ..interface.services import ScopeQueryService
 from ..interface.exceptions import ActionNotFound

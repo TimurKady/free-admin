@@ -16,7 +16,7 @@ from weakref import WeakSet
 
 from fastapi import APIRouter, FastAPI
 
-from ...conf import FreeAdminSettings
+from freeadmin.core.configuration.conf import FreeAdminSettings
 from ...interface.settings import SettingsKey, system_config
 from ...interface.site import AdminSite
 from ...interface.templates import TemplateService

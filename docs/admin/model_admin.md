@@ -24,7 +24,7 @@ Access to endpoints is handled via dependency injection (RBAC). ModelAdmin does 
 
 ```python
 from freeadmin.core.interface.models import ModelAdmin
-from freeadmin.hub import admin_site
+from freeadmin.core.hub import admin_site
 from apps.authors.models import Author
 
 
@@ -72,7 +72,7 @@ Widgets can be provided as registry keys, widget classes, or pre‑instantiated 
 
 ```python
 from freeadmin.core.interface.models import ModelAdmin
-from freeadmin.widgets import TextWidget, TextAreaWidget
+from freeadmin.contrib.widgets import TextWidget, TextAreaWidget
 
 
 class PostAdmin(ModelAdmin):

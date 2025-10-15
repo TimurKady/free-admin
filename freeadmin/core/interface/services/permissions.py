@@ -297,7 +297,7 @@ class PermissionsService:
         return _dep
 
 
-from ...boot import admin as boot_admin
+from freeadmin.core.boot import admin as boot_admin
 
 permissions_service = PermissionsService(boot_admin.adapter)
 PermAction = permissions_service.PermAction

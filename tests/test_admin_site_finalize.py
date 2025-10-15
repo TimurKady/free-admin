@@ -8,7 +8,7 @@ import logging
 import pytest
 from tortoise import Tortoise
 
-from freeadmin.boot import admin as boot_admin
+from freeadmin.core.boot import admin as boot_admin
 from freeadmin.core import site as site_module
 from freeadmin.core.site import AdminSite
 from tests.system_models import system_models

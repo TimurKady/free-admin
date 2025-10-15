@@ -67,7 +67,7 @@ from tortoise import fields
 from tortoise.models import Model
 
 from freeadmin.core.interface.models import ModelAdmin
-from freeadmin.hub import admin_site
+from freeadmin.core.hub import admin_site
 
 
 class Post(Model):

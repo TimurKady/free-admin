@@ -154,7 +154,7 @@ APPLICATION_MODEL_MODULES: tuple[str, ...] = (
 
 # Keep the system modules so FreeAdmin can bootstrap built-in functionality.
 SYSTEM_MODEL_MODULES: tuple[str, ...] = (
-    "freeadmin.apps.system.models",
+    "freeadmin.contrib.apps.system.models",
 )
 """System-level model modules exposed for admin helpers."""
 

@@ -3,7 +3,7 @@
 
 import pytest
 
-from freeadmin.conf import FreeAdminSettings
+from freeadmin.core.configuration.conf import FreeAdminSettings
 from freeadmin.core.cards import CardManager
 from freeadmin.core.registry import PageRegistry
 

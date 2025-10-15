@@ -16,7 +16,7 @@ from typing import Any
 
 import pytest
 
-from freeadmin.boot import admin as boot_admin
+from freeadmin.core.boot import admin as boot_admin
 from freeadmin.core.settings import system_config
 
 

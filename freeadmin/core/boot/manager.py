@@ -18,7 +18,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from typing import Iterable, TYPE_CHECKING
 
 from ...contrib.adapters import BaseAdapter, registry
-from ...conf import (
+from freeadmin.core.configuration.conf import (
     FreeAdminSettings,
     current_settings,
     register_settings_observer,
