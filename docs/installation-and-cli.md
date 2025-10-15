@@ -77,11 +77,11 @@ The generated files are intentionally minimal so you can adapt them to your stac
 
 ## Step 4. Configure project settings
 
-Edit `config/settings.py` to describe your environment. The scaffold uses `pydantic.BaseSettings`, so environment variables automatically override defaults:
+Edit `config/settings.py` to describe your environment. The scaffold uses `pydantic_settings.BaseSettings`, so environment variables automatically override defaults:
 
 ```python
 # config/settings.py
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 
 
 class ProjectSettings(BaseSettings):
