@@ -529,7 +529,7 @@ class PageDescriptorManager:
         normalized_orm = self._normalize_prefix(orm_prefix)
         normalized_settings = self._normalize_prefix(settings_prefix)
 
-        section_mode = "views"
+        section_mode = "orm"
         if normalized_path == normalized_settings or normalized_path.startswith(
             f"{normalized_settings}/"
         ):
