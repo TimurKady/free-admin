@@ -44,14 +44,13 @@ class TemplateContextBuilder:
         """Return a populated context dictionary for admin templates."""
         admin_site = self._admin_site
         settings_obj = getattr(admin_site, "_settings", current_settings())
-        if is_settings is None or app_label is None or model_name is None:
-            parsed_is_settings, parsed_app, parsed_model = admin_site.parse_section_path(request)
-            if is_settings is None:
-                is_settings = parsed_is_settings
-            if app_label is None:
-                app_label = parsed_app
-            if model_name is None:
-                model_name = parsed_model
+        resolution = admin_site.pages.resolve_request(request)
+        if is_settings is None:
+            is_settings = resolution.is_settings
+        if app_label is None:
+            app_label = resolution.app_label
+        if model_name is None:
+            model_name = resolution.model_slug
 
         orm_prefix = system_config.get_cached(SettingsKey.ORM_PREFIX, "/orm")
         settings_prefix = system_config.get_cached(SettingsKey.SETTINGS_PREFIX, "/settings")
@@ -66,30 +65,11 @@ class TemplateContextBuilder:
             if not trimmed_path.startswith("/"):
                 trimmed_path = f"/{trimmed_path}"
 
-        normalized_path = trimmed_path.rstrip("/") or "/"
+        normalized_path = resolution.normalized_path
         normalized_views = views_prefix.rstrip("/") or "/"
         normalized_orm = orm_prefix.rstrip("/") or "/"
         normalized_settings = settings_prefix.rstrip("/") or "/"
-        is_views_section = normalized_path == normalized_views or normalized_path.startswith(
-            f"{normalized_views}/"
-        )
-
-        route = admin_site._view_routes.get(normalized_path)
-        if route is not None:
-            if route.settings:
-                is_settings = True
-            else:
-                is_views_section = not (
-                    route.path == normalized_orm
-                    or route.path.startswith(f"{normalized_orm}/")
-                    or route.path == normalized_settings
-                    or route.path.startswith(f"{normalized_settings}/")
-                )
-
-            if app_label is None:
-                app_label = route.app_label
-            if model_name is None:
-                model_name = route.model_slug
+        is_views_section = resolution.section_mode == "views"
 
         apps = SidebarBuilder.build(
             admin_site=admin_site,
@@ -98,7 +78,9 @@ class TemplateContextBuilder:
             app_label=app_label,
             model_name=model_name,
         )
-        section_mode = "views" if is_views_section else ("settings" if is_settings else "orm")
+        section_mode = resolution.section_mode if resolution.section_mode else (
+            "settings" if is_settings else "orm"
+        )
         ctx: Dict[str, Any] = {
             "request": request,
             "user": user,

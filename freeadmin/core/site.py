@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, List, TYPE_CHECKING
 
@@ -30,7 +29,7 @@ from .auth import admin_auth_service
 from .permissions import permission_checker
 from .services.permissions import PermAction, PermissionsService, permissions_service
 from .base import BaseModelAdmin
-from .pages import FreeViewPage, SettingsPage
+from .pages import FreeViewPage, SettingsPage, PageDescriptorManager
 from .settings import SettingsKey, system_config
 from .registry import CardEntry, PageRegistry
 from .sidebar import SidebarBuilder
@@ -57,17 +56,6 @@ ImportService = import_module("freeadmin.core.services.import").ImportService
 Model = Any
 
 logger = logging.getLogger(__name__)
-
-@dataclass(frozen=True)
-class _ViewRoute:
-    """Describe a registered standalone view route."""
-
-    path: str
-    app_label: str | None
-    model_slug: str | None
-    settings: bool
-    dotted: str | None = None
-
 
 class AdminSite(IconPathMixin):
     """Admin registry: models, pages and menus."""
@@ -100,8 +88,7 @@ class AdminSite(IconPathMixin):
         # in-process map: dotted content type -> ct_id
         self.ct_map: Dict[str, int] = {}
         self._import_service = ImportService()
-        self._views: Dict[str, List[Dict[str, Any]]] = {}
-        self._view_routes: Dict[str, _ViewRoute] = {}
+        self.pages = PageDescriptorManager(self)
         cache_factory = card_cache_class or SQLiteCardCache
         cache_path = getattr(self._settings, "event_cache_path", ":memory:")
         self.card_cache = card_cache or cache_factory(path=cache_path)
@@ -425,54 +412,8 @@ class AdminSite(IconPathMixin):
         path does not include app/model parts they are returned as ``None``.
         """
 
-        path = request.url.path
-        prefix = system_config.get_cached(
-            SettingsKey.ADMIN_PREFIX, self._settings.admin_path
-        ).rstrip("/")
-        if prefix and path.startswith(prefix):
-            path = path[len(prefix) :]
-
-        is_settings = False
-        app_label: str | None = None
-        model_slug: str | None = None
-        base: str | None = None
-
-        settings_prefix = system_config.get_cached(SettingsKey.SETTINGS_PREFIX, "/settings")
-        orm_prefix = system_config.get_cached(SettingsKey.ORM_PREFIX, "/orm")
-        views_prefix = system_config.get_cached(SettingsKey.VIEWS_PREFIX, "/views")
-        static_segment = system_config.get_cached(
-            SettingsKey.STATIC_URL_SEGMENT, "/static"
-        )
-
-        if path.startswith(settings_prefix + "/") or path == settings_prefix:
-            is_settings = True
-            base = settings_prefix
-        elif path.startswith(orm_prefix + "/") or path == orm_prefix:
-            base = orm_prefix
-        elif path.startswith(views_prefix + "/") or path == views_prefix:
-            base = views_prefix
-
-        if base is not None:
-            tail = path[len(base) :]
-            if tail.startswith("/"):
-                tail = tail[1:]
-            parts = tail.split("/", 2)
-            if len(parts) >= 1 and parts[0]:
-                app_label = parts[0]
-            if len(parts) >= 2 and parts[1]:
-                model_slug = parts[1]
-
-        normalized_key = path.rstrip("/") or "/"
-        route = self._view_routes.get(normalized_key)
-        if route is not None:
-            if route.settings:
-                is_settings = True
-            if app_label is None:
-                app_label = route.app_label
-            if model_slug is None:
-                model_slug = route.model_slug
-
-        return is_settings, app_label, model_slug
+        resolution = self.pages.resolve_request(request)
+        return resolution.is_settings, resolution.app_label, resolution.model_slug
 
     @staticmethod
     def _format_app_label(app_label: str) -> str:
@@ -516,11 +457,7 @@ class AdminSite(IconPathMixin):
     def get_sidebar_views(self, *, settings: bool) -> List[tuple[str, List[Dict[str, Any]]]]:
         """Return registered view entries grouped for sidebar rendering."""
 
-        return SidebarBuilder.collect(
-            admin_site=self,
-            kind=SidebarBuilder.KIND_VIEWS,
-            settings=settings,
-        )
+        return self.pages.iter_sidebar_views(settings=settings)
 
     def _collect_card_assets(
         self,
@@ -695,143 +632,35 @@ class AdminSite(IconPathMixin):
                 sidebar navigation grouping for its owning label.
         """
 
-        normalized_path = path if path.startswith("/") else f"/{path}"
-        slug_source = normalized_path.strip("/")
-        owning_label = label or (slug_source.split("/", 1)[0] if slug_source else None)
-        if owning_label is None:
-            owning_label = self._model_to_slug(name)
-
-        settings_prefix = system_config.get_cached(SettingsKey.SETTINGS_PREFIX, "/settings")
-        views_prefix = system_config.get_cached(SettingsKey.VIEWS_PREFIX, "/views")
-        orm_prefix = system_config.get_cached(SettingsKey.ORM_PREFIX, "/orm")
-
-        derived_settings = settings
-        if derived_settings is None:
-            derived_settings = normalized_path.startswith(settings_prefix)
-
-        normalized_path_key = normalized_path.rstrip("/") or "/"
-
-        def _normalize_prefix(prefix: str) -> str:
-            cleaned = prefix if prefix.startswith("/") else f"/{prefix}"
-            return cleaned.rstrip("/") or "/"
-
-        section_prefixes = (
-            _normalize_prefix(views_prefix),
-            _normalize_prefix(orm_prefix),
-            _normalize_prefix(settings_prefix),
+        return self.pages.register_view(
+            path=path,
+            name=name,
+            icon=icon,
+            label=label,
+            settings=settings,
+            include_in_sidebar=include_in_sidebar,
         )
-
-        has_required_tail = True
-        tail_segments: List[str] = []
-        for section_prefix in section_prefixes:
-            if normalized_path_key == section_prefix:
-                has_required_tail = False
-                break
-            if normalized_path_key.startswith(f"{section_prefix}/"):
-                tail = normalized_path_key[len(section_prefix) + 1 :]
-                tail_segments = [segment for segment in tail.split("/") if segment]
-                has_required_tail = len(tail_segments) >= 2
-                break
-
-        if not tail_segments and has_required_tail:
-            tail_segments = [segment for segment in slug_source.split("/") if segment]
-
-        app_segment: str | None = None
-        normalized_segments = [self._model_to_slug(segment) for segment in tail_segments]
-        if normalized_segments:
-            app_segment = normalized_segments[0]
-        if has_required_tail and app_segment is None and owning_label is not None:
-            app_segment = self._model_to_slug(owning_label)
-
-        app_for_virtual = owning_label or app_segment or name
-        slug_seed = slug_source or name
-        virtual = self.registry.register_view_virtual(
-            path=normalized_path,
-            app_label=str(app_for_virtual),
-            slug_source=str(slug_seed),
-        )
-        if app_segment is None:
-            app_segment = virtual.app_slug
-        owning_label = owning_label or virtual.app_label
-
-        route = _ViewRoute(
-            path=normalized_path_key,
-            app_label=app_segment,
-            model_slug=virtual.slug if virtual.slug else None,
-            settings=bool(derived_settings),
-            dotted=virtual.dotted,
-        )
-        self._view_routes[normalized_path_key] = route
-
-        model_name = slug_source.replace("/", "_") if slug_source else self._model_to_slug(name)
-        sidebar_entry = {
-            "model_name": model_name,
-            "display_name": name,
-            "path": normalized_path,
-            "icon": icon,
-            "settings": derived_settings,
-        }
-        if include_in_sidebar and has_required_tail:
-            self._views.setdefault(owning_label, []).append(sidebar_entry)
-
-        def decorator(func: Callable[..., Any]):
-            page = FreeViewPage(
-                title=name,
-                path=normalized_path,
-                icon=icon,
-                handler=func,
-                app_label=virtual.app_label,
-                app_slug=virtual.app_slug,
-                slug=virtual.slug,
-                dotted=virtual.dotted,
-            )
-            self.registry.register_page(page)
-            self.menu_builder.register_item(title=name, path=normalized_path, icon=icon)
-            self.menu_builder.invalidate_main_menu()
-            return func
-
-        return decorator
 
     def register_settings(self, *, path: str, name: str, icon: str | None = None):
         """Register a settings page handled by ``func``."""
-        page_type_settings = system_config.get_cached(SettingsKey.PAGE_TYPE_SETTINGS, "settings")
+        return self.pages.register_settings(path=path, name=name, icon=icon)
 
-        normalized_path = path if path.startswith("/") else f"/{path}"
-        virtual = self.registry.register_view_virtual(
-            path=normalized_path,
-            app_label="settings",
-            slug_source=name,
-        )
-        normalized_key = normalized_path.rstrip("/") or "/"
-        self._view_routes[normalized_key] = _ViewRoute(
-            path=normalized_key,
-            app_label=virtual.app_slug,
-            model_slug=virtual.slug,
-            settings=True,
-            dotted=virtual.dotted,
-        )
+    def register_public_view(
+        self,
+        *,
+        path: str,
+        name: str,
+        template: str,
+        icon: str | None = None,
+    ):
+        """Register a public-facing page handled by ``func``."""
 
-        def decorator(func: Callable[..., Any]):
-            page = SettingsPage(
-                title=name,
-                path=path,
-                icon=icon,
-                handler=func,
-                app_label=virtual.app_label,
-                app_slug=virtual.app_slug,
-                slug=virtual.slug,
-                dotted=virtual.dotted,
-            )
-            self.registry.register_page(page)
-            self.menu_builder.register_item(
-                title=name,
-                path=path,
-                icon=icon,
-                page_type=page_type_settings,
-            )
-            self.menu_builder.invalidate_main_menu()
-            return func
-        return decorator
+        return self.pages.register_public_view(
+            path=path,
+            name=name,
+            template=template,
+            icon=icon,
+        )
 
     def register_user_menu(
         self, *, title: str, path: str, icon: str | None = None
@@ -1008,61 +837,14 @@ class AdminSite(IconPathMixin):
             )
             return templates.TemplateResponse("pages/dashboard.html", ctx)
 
-        for page in [p for p in self.registry.page_list if isinstance(p, FreeViewPage)]:
-            user_dep = (
-                admin_auth_service.get_current_admin_user
-                if page.page_type == page_type_settings
-                else admin_auth_service.require_permissions((), admin_site=self)
-            )
-            registry_virtual = self.registry.get_view_virtual_by_path(page.path)
-            dotted_key = page.dotted or (registry_virtual.dotted if registry_virtual else None)
-            perm_dep = self.permission_checker.require_view(
-                PermAction.view,
-                dotted=dotted_key,
-                view_key=page.path if dotted_key is None else None,
-                admin_site=self,
-            )
-
-            async def view_handler(
-                request: Request,
-                page: FreeViewPage = Depends(lambda page=page: page),
-                user: AdminUserDTO = Depends(user_dep),
-                _ = Depends(perm_dep),
-            ) -> HTMLResponse:
-                ctx: Dict[str, Any] = {}
-                if page.handler:
-                    res = page.handler(request=request, user=user)
-                    if hasattr(res, "__await__"):
-                        res = await res  # type: ignore
-                    ctx = res or {}
-                is_settings = (
-                    page.page_type == page_type_settings
-                    or page.path == settings_prefix
-                )
-                if page.path == orm_prefix:
-                    template_name = "pages/orm.html"
-                elif page.path == settings_prefix:
-                    template_name = "pages/settings.html"
-                elif page.path == views_prefix:
-                    template_name = "pages/views.html"
-                else:
-                    template_name = "layout/section.html"
-                base_ctx = self.build_template_ctx(
-                    request,
-                    user,
-                    page_title=page.title,
-                    is_settings=is_settings,
-                    extra=ctx,
-                )
-                if page.path != views_prefix:
-                    base_ctx["menu"] = self.menu_builder.build_main_menu(
-                        locale=self.get_locale(request)
-                    )
-                return templates.TemplateResponse(template_name, base_ctx)
-
-            router.add_api_route(
-                page.path, view_handler, methods=["GET"], name=page.title
-            )
+        self.pages.attach_admin_routes(
+            router,
+            templates=templates,
+            page_type_settings=page_type_settings,
+            views_prefix=views_prefix,
+            settings_prefix=settings_prefix,
+            orm_prefix=orm_prefix,
+        )
 
     def _attach_api_routes(self, router: APIRouter) -> None:
         from ..apps.system.api.urls import API_PREFIX, router as api_router  # local import to avoid circular dependencies

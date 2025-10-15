@@ -9,7 +9,7 @@ Author: Timur Kady
 Email: timurkady@yandex.com
 """
 
-from .rendering import TemplateRenderer, render_template
+from .rendering import PageTemplateResponder, TemplateRenderer, render_template
 from .service import DEFAULT_TEMPLATE_SERVICE, TemplateService
 
 

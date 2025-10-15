@@ -55,6 +55,28 @@ class TemplateRenderer:
         return templates.TemplateResponse(template_name, final_context)
 
 
+class PageTemplateResponder:
+    """Render FreeAdmin page templates with standardised context defaults."""
+
+    @classmethod
+    def render(
+        cls,
+        template_name: str,
+        *,
+        request: Request,
+        context: Mapping[str, Any] | None = None,
+        title: str | None = None,
+    ) -> HTMLResponse:
+        """Render ``template_name`` using ``context`` and injected defaults."""
+
+        payload = dict(context or {})
+        payload.setdefault("request", request)
+        payload.setdefault("user", getattr(request.state, "user", None))
+        if title is not None:
+            payload.setdefault("title", title)
+        return TemplateRenderer.render(template_name, payload, request=request)
+
+
 def render_template(
     template_name: str,
     context: Mapping[str, Any],
