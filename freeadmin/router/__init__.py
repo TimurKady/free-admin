@@ -10,7 +10,7 @@ Email: timurkady@yandex.com
 """
 
 from .base import AdminRouter
-from .aggregator import RouterAggregator
+from .aggregator import ExtendedRouterAggregator, RouterAggregator
 
 
 
