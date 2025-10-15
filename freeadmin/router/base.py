@@ -12,15 +12,52 @@ Email: timurkady@yandex.com
 from __future__ import annotations
 from pathlib import Path
 
+from typing import TYPE_CHECKING
+
 from fastapi import FastAPI
 
 from ..conf import FreeAdminSettings, current_settings
-from ..core.settings import SettingsKey, system_config
 from ..core.site import AdminSite
 from ..provider import TemplateProvider
 
+if TYPE_CHECKING:  # pragma: no cover - convenience for type checkers
+    from .aggregator import RouterAggregator
+
 ASSETS_DIR = Path(__file__).resolve().parent.parent / "static"
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
+
+
+class RouterFoundation:
+    """Provide shared helpers for router managers."""
+
+    def __init__(self, *, settings: FreeAdminSettings | None = None) -> None:
+        """Initialise configuration and the template provider."""
+
+        self._settings = settings or current_settings()
+        self._provider = TemplateProvider(
+            templates_dir=str(TEMPLATES_DIR),
+            static_dir=str(ASSETS_DIR),
+            settings=self._settings,
+        )
+
+    @property
+    def provider(self) -> TemplateProvider:
+        """Return the template provider used for admin integration."""
+
+        return self._provider
+
+    def ensure_site_templates(self, site: AdminSite) -> None:
+        """Attach template environment to ``site`` when missing."""
+
+        if site.templates is None:
+            site.templates = self._provider.get_templates()
+
+    def mount_static_resources(self, app: FastAPI, prefix: str) -> None:
+        """Expose admin static files, favicon, and media on ``app``."""
+
+        self._provider.mount_static(app, prefix)
+        self._provider.mount_favicon(app)
+        self._provider.mount_media(app)
 
 
 class AdminRouter:
@@ -33,32 +70,26 @@ class AdminRouter:
         *,
         settings: FreeAdminSettings | None = None,
     ) -> None:
-        # "prefix" may be supplied with a trailing slash; remove it for
-        # consistency so paths can be concatenated safely.
-        self.site = site
-        self._settings = settings or current_settings()
-        default_prefix = system_config.get_cached(
-            SettingsKey.ADMIN_PREFIX, self._settings.admin_path
-        )
-        prefix_value = prefix or default_prefix
-        self.prefix = prefix_value.rstrip("/")
-        self._provider = TemplateProvider(
-            templates_dir=str(TEMPLATES_DIR),
-            static_dir=str(ASSETS_DIR),
-            settings=self._settings,
+        """Create an aggregator-backed admin router."""
+
+        from .aggregator import RouterAggregator
+
+        self._aggregator = RouterAggregator(
+            site=site,
+            prefix=prefix,
+            settings=settings,
         )
 
     def mount(self, app: FastAPI) -> None:
         """Mount the admin interface onto the given application."""
-        if self.site.templates is None:
-            self.site.templates = self._provider.get_templates()
 
-        app.state.admin_site = self.site
-        router = self.site.build_router(self._provider)
-        app.include_router(router, prefix=self.prefix)
-        self._provider.mount_static(app, self.prefix)
-        self._provider.mount_favicon(app)
-        self._provider.mount_media(app)
+        self._aggregator.mount(app)
+
+    @property
+    def aggregator(self) -> "RouterAggregator":
+        """Return the router aggregator powering this wrapper."""
+
+        return self._aggregator
 
 # The End
 

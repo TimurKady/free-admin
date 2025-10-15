@@ -49,6 +49,7 @@ class AdminHub:
         self.discovery = DiscoveryService()
         self._app_configs: Dict[str, AppConfig] = {}
         self._started_configs: Set[str] = set()
+        self._router: AdminRouter | None = None
         register_settings_observer(self._handle_settings_update)
 
     def autodiscover(self, packages: Iterable[str]) -> List[AppConfig]:
@@ -58,15 +59,22 @@ class AdminHub:
         if not roots:
             return []
         configs = self.discovery.discover_all(roots)
+        new_config_registered = False
         for config in configs:
-            self._app_configs.setdefault(config.import_path, config)
+            if config.import_path in self._app_configs:
+                continue
+            self._app_configs[config.import_path] = config
+            new_config_registered = True
+        if new_config_registered:
+            self._invalidate_router_cache()
         return configs
 
     def init_app(self, app: FastAPI, *, packages: Optional[List[str]] = None) -> None:
         """Convenience shortcut: autodiscover followed by mounting the admin."""
         if packages:
             self.autodiscover(packages)
-        AdminRouter(self.admin_site).mount(app)
+        router = self._get_router()
+        router.mount(app)
 
     async def start_app_configs(self) -> None:
         """Invoke startup hooks for discovered application configurations."""
@@ -87,11 +95,31 @@ class AdminHub:
         """Propagate new configuration to managed services."""
         self._settings = settings
         self.admin_site._settings = settings
+        self._invalidate_router_cache()
         if hasattr(self.admin_site.cards, "apply_settings"):
             self.admin_site.cards.apply_settings(settings)
         else:  # pragma: no cover - compatibility branch
             self.admin_site.cards._settings = settings
             self.admin_site.cards.configure_event_cache(path=settings.event_cache_path)
+
+    def _get_router(self) -> AdminRouter:
+        """Return the cached admin router wrapper for mounting."""
+
+        if self._router is None:
+            self._router = AdminRouter(self.admin_site, settings=self._settings)
+        return self._router
+
+    def _invalidate_router_cache(self) -> None:
+        """Drop cached router so future mounts rebuild discovery state."""
+
+        router = self._router
+        if router is None:
+            return
+        aggregator = getattr(router, "aggregator", None)
+        invalidate = getattr(aggregator, "invalidate_admin_router", None)
+        if callable(invalidate):
+            invalidate()
+        self._router = None
 
 
 hub = AdminHub()

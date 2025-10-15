@@ -52,8 +52,8 @@ dependency during development.
 ## Favicon
 
 Save the `favicon.ico` file in `contrib/admin/static/`. `TemplateProvider.mount_favicon`
-mounts this file at `/favicon.ico` during `AdminRouter` initialization so that
-it is automatically available to browsers.
+mounts this file at `/favicon.ico` when the router aggregator attaches the
+admin interface, ensuring it is automatically available to browsers.
 
 <!-- # The End -->
 

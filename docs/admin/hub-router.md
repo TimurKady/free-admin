@@ -28,7 +28,7 @@ The call above imports all admin modules from the listed packages and mounts the
 
 ## Mounting and assets
 
-`AdminRouter.mount` performs the integration with FastAPI. It attaches the admin router, stores the site on `app.state`, and delegates template and static handling to `TemplateProvider`.
+`AdminRouter.mount` delegates to the underlying `RouterAggregator`. The aggregator attaches the admin router, stores the site on `app.state`, and delegates template and static handling to `TemplateProvider` while caching those mounts so repeated calls stay idempotent.
 
 `TemplateProvider` builds the `Jinja2Templates` environment and mounts static files under the admin's prefix so that templates and assets are available without additional configuration.
 

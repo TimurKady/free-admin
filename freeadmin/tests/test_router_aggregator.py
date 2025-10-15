@@ -16,7 +16,7 @@ from unittest.mock import MagicMock
 from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 
-from freeadmin.router import ExtendedRouterAggregator, RouterAggregator
+from freeadmin.router import AdminRouter, ExtendedRouterAggregator, RouterAggregator
 
 
 def _build_site(router: APIRouter) -> MagicMock:
@@ -50,6 +50,34 @@ def test_mount_is_idempotent() -> None:
     assert site.build_router.call_count == 1
     assert aggregator.get_admin_router() is admin_router
     assert initial_route_count == subsequent_route_count
+    aggregator._provider.mount_static.assert_called_once_with(app, "/admin")  # type: ignore[attr-defined]
+    aggregator._provider.mount_favicon.assert_called_once_with(app)  # type: ignore[attr-defined]
+    aggregator._provider.mount_media.assert_called_once_with(app)  # type: ignore[attr-defined]
+    assert app.state.admin_site is site
+
+
+def test_admin_router_reuses_aggregator_cache() -> None:
+    """Wrapper should expose aggregator caching to callers."""
+
+    app = FastAPI()
+    admin_router = APIRouter()
+
+    @admin_router.get("/health")
+    def health() -> dict[str, str]:
+        return {"status": "healthy"}
+
+    site = _build_site(admin_router)
+    wrapper = AdminRouter(site=site, prefix="/admin")
+    aggregator = wrapper.aggregator
+    aggregator._provider.mount_static = MagicMock()  # type: ignore[attr-defined]
+    aggregator._provider.mount_favicon = MagicMock()  # type: ignore[attr-defined]
+    aggregator._provider.mount_media = MagicMock()  # type: ignore[attr-defined]
+
+    wrapper.mount(app)
+    wrapper.mount(app)
+
+    assert site.build_router.call_count == 1
+    assert aggregator.get_admin_router() is admin_router
     aggregator._provider.mount_static.assert_called_once_with(app, "/admin")  # type: ignore[attr-defined]
     aggregator._provider.mount_favicon.assert_called_once_with(app)  # type: ignore[attr-defined]
     aggregator._provider.mount_media.assert_called_once_with(app)  # type: ignore[attr-defined]
@@ -191,6 +219,42 @@ def test_extended_aggregator_respects_order_flag() -> None:
     routers = aggregator.get_routers()
     assert routers[0][1] == "/admin"
     assert routers[-1][0] is public_router
+
+
+def test_invalidate_admin_router_rebuilds_cached_router() -> None:
+    """Dropping the cache should force site router reconstruction."""
+
+    initial_router = APIRouter()
+    site = _build_site(initial_router)
+    aggregator = RouterAggregator(site=site, prefix="/admin")
+
+    assert aggregator.get_admin_router() is initial_router
+
+    replacement = APIRouter()
+    site.build_router.return_value = replacement
+
+    aggregator.invalidate_admin_router()
+
+    assert aggregator.get_admin_router() is replacement
+    assert site.build_router.call_count == 2
+
+
+def test_extended_aggregator_invalidation_resets_aggregate_router() -> None:
+    """Extended aggregator cache should be rebuilt after invalidation."""
+
+    initial_admin = APIRouter()
+    site = _build_site(initial_admin)
+    aggregator = ExtendedRouterAggregator(site=site, prefix="/admin")
+
+    first_combined = aggregator.router
+
+    replacement_admin = APIRouter()
+    site.build_router.return_value = replacement_admin
+
+    aggregator.invalidate_admin_router()
+
+    assert aggregator.router is not first_combined
+    assert site.build_router.call_count == 2
 
 
 # The End
