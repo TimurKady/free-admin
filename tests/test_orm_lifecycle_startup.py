@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 
 import pytest
 from tortoise.exceptions import OperationalError
@@ -36,6 +37,28 @@ async def test_startup_logs_hint_when_migrations_missing(monkeypatch, caplog) ->
     assert "Failed to initialise ORM" in caplog.text
     assert "Run your migrations before starting FreeAdmin." in caplog.text
     assert str(error) in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_startup_logs_warning_for_modules_without_models(monkeypatch, caplog) -> None:
+    """The lifecycle should surface warnings when configured modules lack models."""
+
+    config = ORMConfig(dsn="sqlite://:memory:", modules={"models": []})
+    lifecycle = ORMLifecycle(config=config)
+
+    async def init_with_warning(*args, **kwargs):
+        warnings.warn('Module "demo.app.models" has no models', RuntimeWarning)
+
+    monkeypatch.setattr(orm_config_module.Tortoise, "init", init_with_warning)
+
+    caplog.set_level(
+        logging.WARNING,
+        logger=orm_config_module.ORMLifecycle._logger.name,
+    )
+
+    await lifecycle.startup()
+
+    assert "Module demo.app.models does not declare ORM models" in caplog.text
 
 
 # The End

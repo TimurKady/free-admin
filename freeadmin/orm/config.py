@@ -12,9 +12,12 @@ Email: timurkady@yandex.com
 from __future__ import annotations
 
 import importlib.util
-from copy import deepcopy
 import logging
-from typing import Any, Dict, Iterable, List, Mapping, MutableMapping
+import re
+import warnings
+from copy import deepcopy
+from typing import Any, Callable, Dict, Iterable, List, Mapping, MutableMapping
+from warnings import WarningMessage
 
 from fastapi import FastAPI
 from tortoise import Tortoise
@@ -77,13 +80,17 @@ class ORMLifecycle:
     async def _initialise_orm(self) -> None:
         """Attempt ORM initialisation honouring legacy call patterns."""
 
-        try:
-            await Tortoise.init(config=self._config.config)
-        except TypeError:  # pragma: no cover - compatibility shim
-            await Tortoise.init(
-                db_url=self._config.connection_dsn,
-                modules=self.modules,
-            )
+        default_showwarning = warnings.showwarning
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always", RuntimeWarning)
+            try:
+                await Tortoise.init(config=self._config.config)
+            except TypeError:  # pragma: no cover - compatibility shim
+                await Tortoise.init(
+                    db_url=self._config.connection_dsn,
+                    modules=self.modules,
+                )
+        self._handle_startup_warnings(captured, default_showwarning)
 
     def _handle_startup_failure(self, error: BaseException) -> None:
         """Log a helpful error message when ORM initialisation fails."""
@@ -92,6 +99,45 @@ class ORMLifecycle:
             "Failed to initialise ORM: %s. Run your migrations before starting FreeAdmin.",
             error,
         )
+
+    def _handle_startup_warnings(
+        self,
+        captured: Iterable[WarningMessage],
+        showwarning: Callable[[Any, type, str, int, Any | None, Any | None], None],
+    ) -> None:
+        """Report ORM startup warnings emitted by the underlying ORM engine."""
+
+        missing_models: set[str] = set()
+        for warning in captured:
+            message = str(warning.message)
+            module_name = self._extract_missing_model_module(message)
+            if module_name is None:
+                showwarning(
+                    warning.message,
+                    warning.category,
+                    warning.filename,
+                    warning.lineno,
+                    warning.file,
+                    warning.line,
+                )
+                continue
+            if module_name in missing_models:
+                continue
+            missing_models.add(module_name)
+            self._logger.warning(
+                "Module %s does not declare ORM models. Update the configuration or add model definitions.",
+                module_name,
+            )
+
+    def _extract_missing_model_module(self, message: str) -> str | None:
+        """Return the module name mentioned in a "has no models" warning message."""
+
+        if "has no models" not in message.lower():
+            return None
+        match = re.search(r"Module\s+\"(?P<module>[^\"']+)\"\s+has\s+no\s+models", message)
+        if match is None:
+            return None
+        return match.group("module")
 
     async def shutdown(self) -> None:
         """Tear down all ORM connections during FastAPI shutdown."""
