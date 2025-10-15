@@ -11,7 +11,7 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from freeadmin.core.network.router.aggregator import (
+from ..core.network.router.aggregator import (
     ExtendedRouterAggregator,
     RouterAggregator,
 )

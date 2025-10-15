@@ -11,7 +11,7 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from freeadmin.core.runtime.middleware import AdminGuardMiddleware
+from .runtime.middleware import AdminGuardMiddleware
 
 __all__ = ["AdminGuardMiddleware"]
 

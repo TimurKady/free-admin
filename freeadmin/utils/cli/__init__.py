@@ -14,7 +14,7 @@ from __future__ import annotations
 from .application_scaffolder import ApplicationScaffolder
 from .commands import AddCommand, InitCommand, SuperuserCommand
 from .create_superuser import SuperuserCreator
-from .entrypoint import FreeAdminCLI, cli
+from .entry import FreeAdminCLI, cli
 from .project_initializer import ProjectInitializer
 from .reporting import CreationReport
 

@@ -11,7 +11,7 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from freeadmin.contrib.api.cards import public_router
+from ..contrib.api.cards import public_router
 
 __all__ = ["public_router"]
 

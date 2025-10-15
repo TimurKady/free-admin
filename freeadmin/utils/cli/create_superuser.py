@@ -116,7 +116,7 @@ class SuperuserCreator:
             await user.set_password(raw_password)  # model handles hashing
         else:
             # In case someone removed set_password, do a last-resort direct set
-            from freeadmin.utils.passwords import password_hasher
+            from ..passwords import password_hasher
 
             user.password = await password_hasher.make_password(raw_password)
 

@@ -11,7 +11,7 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from freeadmin.core.interface.sse.publisher import PublisherService
+from ..interface.sse.publisher import PublisherService
 
 __all__ = ["PublisherService"]
 

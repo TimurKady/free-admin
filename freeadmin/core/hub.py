@@ -11,7 +11,7 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from freeadmin.core.runtime.hub import AdminHub, admin_site, hub
+from .runtime.hub import AdminHub, admin_site, hub
 
 __all__ = ["AdminHub", "admin_site", "hub"]
 

@@ -11,7 +11,12 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from freeadmin.core.boot.registry import LOGGER, ModelModuleRegistry, ModelRegistrar, import_module
+from ..core.boot.registry import (
+    LOGGER,
+    ModelModuleRegistry,
+    ModelRegistrar,
+    import_module,
+)
 
 __all__ = ["LOGGER", "ModelModuleRegistry", "ModelRegistrar", "import_module"]
 

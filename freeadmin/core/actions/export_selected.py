@@ -11,7 +11,7 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from freeadmin.core.interface.actions.export_selected import ExportSelectedAction
+from ..interface.actions.export_selected import ExportSelectedAction
 
 __all__ = ["ExportSelectedAction"]
 
