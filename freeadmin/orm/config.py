@@ -13,10 +13,12 @@ from __future__ import annotations
 
 import importlib.util
 from copy import deepcopy
+import logging
 from typing import Any, Dict, Iterable, List, Mapping, MutableMapping
 
 from fastapi import FastAPI
 from tortoise import Tortoise
+from tortoise import exceptions as tortoise_exceptions
 
 from ..adapters import registry
 
@@ -28,6 +30,15 @@ class ORMLifecycle:
     orchestrates :func:`tortoise.Tortoise.init`/``close_connections`` calls
     using the stored declarative settings.
     """
+
+    _logger = logging.getLogger(__name__)
+    _startup_error_types: tuple[type[BaseException], ...] = (
+        tortoise_exceptions.OperationalError,
+    )
+    if hasattr(tortoise_exceptions, "DBOperationalError"):
+        _startup_error_types = _startup_error_types + (
+            tortoise_exceptions.DBOperationalError,
+        )
 
     def __init__(self, *, config: ORMConfig) -> None:
         """Persist the configuration used to initialise the ORM."""
@@ -61,12 +72,28 @@ class ORMLifecycle:
         """
 
         try:
+            await self._initialise_orm()
+        except self._startup_error_types as exc:
+            self._handle_startup_failure(exc)
+
+    async def _initialise_orm(self) -> None:
+        """Attempt ORM initialisation honouring legacy call patterns."""
+
+        try:
             await Tortoise.init(config=self._config.config)
         except TypeError:  # pragma: no cover - compatibility shim
             await Tortoise.init(
                 db_url=self._config.connection_dsn,
                 modules=self.modules,
             )
+
+    def _handle_startup_failure(self, error: BaseException) -> None:
+        """Log a helpful error message when ORM initialisation fails."""
+
+        self._logger.error(
+            "Failed to initialise ORM: %s. Run your migrations before starting FreeAdmin.",
+            error,
+        )
 
     async def shutdown(self) -> None:
         """Tear down all ORM connections during FastAPI shutdown."""
