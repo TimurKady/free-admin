@@ -15,7 +15,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from weakref import WeakSet
 
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, Request
 
 from ..conf import FreeAdminSettings, current_settings
 from ..core.settings import SettingsKey, system_config
