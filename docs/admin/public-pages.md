@@ -19,24 +19,46 @@ public ones.
 
 ## Example: registering the welcome page
 
-Create a public page router in `example/pages/welcome_page.py`:
+Create a public page class in `example/pages/welcome_page.py`:
 
 ```python
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-from example.templates import ExampleTemplateRenderer
-
-router = APIRouter()
+from example.rendering import ExampleTemplateRenderer
 
 
-@router.get("/", response_class=HTMLResponse)
-async def index(request: Request) -> HTMLResponse:
-    context = {"title": "Welcome", "user": None}
-    return ExampleTemplateRenderer.render(
-        "welcome.html", context, request=request
-    )
+class ExamplePublicWelcomePage:
+    """Expose a public welcome page mounted at the site root."""
+
+    path = "/"
+
+    def __init__(self) -> None:
+        """Initialise and register the public welcome page router."""
+
+        self._router = APIRouter()
+        self._register_routes()
+
+    def get_router(self) -> APIRouter:
+        """Return the router that serves the public welcome page."""
+
+        return self._router
+
+    def _register_routes(self) -> None:
+        @self._router.get(self.path, response_class=HTMLResponse)
+        async def index(request: Request) -> HTMLResponse:
+            context = {"title": "Welcome", "user": None}
+            return ExampleTemplateRenderer.render(
+                "welcome.html", context, request=request
+            )
+
+
+example_public_welcome_page = ExamplePublicWelcomePage()
+public_welcome_router = example_public_welcome_page.get_router()
 ```
+
+The instance also exposes `get_handler()` when you need to inspect or reuse the
+registered callable directly (for example, in bespoke test suites).
 
 Place a template at `example/templates/welcome.html`. It can extend the
 administrative layout while remaining visually independent:
@@ -66,13 +88,13 @@ administrative layout while remaining visually independent:
 from fastapi import FastAPI
 
 from freeadmin.core.site import admin_site
-from example.pages.welcome_page import router as welcome_router
+from example.pages.welcome_page import public_welcome_router
 from freeadmin.router import ExtendedRouterAggregator
 
 app = FastAPI()
 aggregator = ExtendedRouterAggregator(site=admin_site)
 aggregator.add_admin_router(aggregator.get_admin_router())
-aggregator.add_additional_router(welcome_router)
+aggregator.add_additional_router(public_welcome_router)
 aggregator.mount(app)
 ```
 
@@ -94,14 +116,14 @@ exposes each public router without adding a prefix.
 from fastapi import FastAPI
 
 from freeadmin.core.site import admin_site
-from example.pages.welcome_page import router as welcome_router
+from example.pages.welcome_page import public_welcome_router
 from freeadmin.router import ExtendedRouterAggregator
 
 app = FastAPI()
 
 aggregator = ExtendedRouterAggregator(site=admin_site, public_first=True)
 aggregator.add_admin_router(aggregator.get_admin_router())
-aggregator.add_additional_router(welcome_router)
+aggregator.add_additional_router(public_welcome_router)
 app.include_router(aggregator.router)
 ```
 
