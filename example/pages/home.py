@@ -21,9 +21,13 @@ class ExampleWelcomePage:
         """Store helpers required for page registration."""
 
         self._site = admin_site
+        self._handler: (object | None) = None
 
     def register(self) -> None:
         """Attach the welcome page handler to the admin site."""
+
+        if self._handler is not None:
+            return
 
         @self._site.register_view(
             path=self.path,
@@ -42,6 +46,11 @@ class ExampleWelcomePage:
             )
 
         self._handler = welcome_page
+
+    def get_handler(self) -> object | None:
+        """Return the registered handler for the admin welcome page."""
+
+        return self._handler
 
 
 example_welcome_page = ExampleWelcomePage()
