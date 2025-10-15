@@ -16,7 +16,11 @@ from unittest.mock import MagicMock
 from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 
-from freeadmin.router import AdminRouter, ExtendedRouterAggregator, RouterAggregator
+from freeadmin.core.network.router import (
+    AdminRouter,
+    ExtendedRouterAggregator,
+    RouterAggregator,
+)
 
 
 def _build_site(router: APIRouter) -> MagicMock:

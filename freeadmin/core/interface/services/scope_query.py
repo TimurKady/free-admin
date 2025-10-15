@@ -24,7 +24,7 @@ class ScopeQueryService:
 
     def __init__(self, adapter: BaseAdapter | None = None) -> None:
         """Initialize the service with an optional adapter."""
-        from ...boot import admin as boot_admin
+        from freeadmin.core.boot import admin as boot_admin
 
         self.adapter = adapter or boot_admin.adapter
 

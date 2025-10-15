@@ -6,7 +6,7 @@ from __future__ import annotations
 from fastapi import Request
 
 from freeadmin.core.interface.services.auth import AdminUserDTO
-from freeadmin.hub import admin_site
+from freeadmin.core.hub import admin_site
 
 
 class ExampleWelcomePage:

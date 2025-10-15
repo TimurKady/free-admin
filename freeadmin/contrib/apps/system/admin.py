@@ -11,11 +11,11 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from ....core.interface.models import ModelAdmin
-from ....core.runtime.hub import admin_site
-from ....widgets import Select2Widget
+from freeadmin.core.interface.models import ModelAdmin
+from freeadmin.core.runtime.hub import admin_site
+from freeadmin.contrib.widgets import Select2Widget
 
-from ....core.boot import admin as boot_admin
+from freeadmin.core.boot import admin as boot_admin
 
 AdminGroup = boot_admin.adapter.group_model
 AdminGroupPermission = boot_admin.adapter.group_permission_model

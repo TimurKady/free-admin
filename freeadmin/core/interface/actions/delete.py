@@ -15,7 +15,7 @@ from typing import Any, Dict, List
 
 from . import ActionResult, ActionSpec, BaseAction
 from ..services.permissions import PermAction
-from ...boot import admin as boot_admin
+from freeadmin.core.boot import admin as boot_admin
 
 
 class DeleteAction(BaseAction):

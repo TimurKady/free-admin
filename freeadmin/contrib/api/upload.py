@@ -21,7 +21,7 @@ from ...core.permissions import permission_checker
 from ...core.services.permissions import PermAction
 from ...core.settings import SettingsKey, system_config
 from ..crud import SafePathSegment
-from ...conf import FreeAdminSettings, current_settings
+from freeadmin.core.configuration.conf import FreeAdminSettings, current_settings
 
 
 class UploadAPI:

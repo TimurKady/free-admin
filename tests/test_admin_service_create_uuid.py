@@ -19,7 +19,7 @@ from uuid import uuid4
 from freeadmin.core.models import ModelAdmin
 from freeadmin.core.services.auth import AdminUserDTO
 from freeadmin.core.services.admin import AdminService
-from freeadmin.boot import admin as boot_admin
+from freeadmin.core.boot import admin as boot_admin
 
 
 class Widget(models.Model):

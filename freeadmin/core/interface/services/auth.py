@@ -24,7 +24,11 @@ from itsdangerous import BadSignature, URLSafeTimedSerializer
 from ....contrib.adapters import BaseAdapter
 from ....utils.passwords import password_hasher
 from ....utils.icon import IconPathMixin
-from ....conf import FreeAdminSettings, current_settings, register_settings_observer
+from freeadmin.core.configuration.conf import (
+    FreeAdminSettings,
+    current_settings,
+    register_settings_observer,
+)
 from ..settings import SettingsKey, system_config
 
 if TYPE_CHECKING:  # pragma: no cover

@@ -19,11 +19,11 @@ from getpass import getpass
 from typing import Optional, Any, Awaitable, Callable
 
 # Your project imports – keep as in your repo
-from ...boot import admin as boot_admin
-from ...adapters import BaseAdapter
+from freeadmin.core.boot import admin as boot_admin
+from freeadmin.contrib.adapters import BaseAdapter
 from ...core.services.auth import AuthService
 from ...core.interface.settings.config import system_config
-from ...conf import FreeAdminSettings, current_settings
+from freeadmin.core.configuration.conf import FreeAdminSettings, current_settings
 
 
 class SuperuserCreator:

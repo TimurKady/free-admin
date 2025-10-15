@@ -13,7 +13,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import Iterable
 
-from freeadmin.apps.system import (
+from freeadmin.contrib.apps.system import (
     AdminContentType,
     AdminGroup,
     AdminGroupPermission,

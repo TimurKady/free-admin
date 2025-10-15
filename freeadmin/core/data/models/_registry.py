@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import List, Optional, Sequence, Type
 
-from ...boot import admin as boot_admin
+from freeadmin.core.boot import admin as boot_admin
 from .autodiscoverer import ModelAutoDiscoverer
 
 

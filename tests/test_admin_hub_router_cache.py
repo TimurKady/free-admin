@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from freeadmin.hub import AdminHub
+from freeadmin.core.hub import AdminHub
 
 
 def _build_hub(router: MagicMock | None = None) -> AdminHub:

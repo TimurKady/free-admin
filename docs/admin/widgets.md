@@ -5,7 +5,7 @@
 The `contrib/admin/widgets/context.py` module provides an immutable `WidgetContext` passed to every widget. The context stores metadata about the model, current request, and model instance:
 
 ```python
-from freeadmin.widgets.context import WidgetContext
+from freeadmin.contrib.widgets.context import WidgetContext
 
 ctx = WidgetContext(
     admin=admin,
@@ -38,7 +38,7 @@ Within a widget it's more convenient to access the instance via :meth:`BaseWidge
 A new widget subclasses :class:`BaseWidget` and is registered with the `@registry.register` decorator:
 
 ```python
-from freeadmin.widgets import BaseWidget, registry
+from freeadmin.contrib.widgets import BaseWidget, registry
 
 @registry.register("rating", priority=20)
 class RatingWidget(BaseWidget):
@@ -129,7 +129,7 @@ See [contrib/admin/widgets/registry.py](../../contrib/admin/widgets/registry.py)
 
 ```python
 from freeadmin.core.interface.models import ModelAdmin
-from freeadmin.widgets import ChoicesWidget
+from freeadmin.contrib.widgets import ChoicesWidget
 
 
 class PostAdmin(ModelAdmin):
@@ -145,7 +145,7 @@ class PostAdmin(ModelAdmin):
 
 ```python
 from freeadmin.core.interface.models import ModelAdmin
-from freeadmin.widgets import BarCodeWidget
+from freeadmin.contrib.widgets import BarCodeWidget
 
 
 class TicketAdmin(ModelAdmin):
@@ -163,7 +163,7 @@ class TicketAdmin(ModelAdmin):
 
 ```python
 from freeadmin.core.interface.models import ModelAdmin
-from freeadmin.widgets import DateTimeWidget
+from freeadmin.contrib.widgets import DateTimeWidget
 
 
 class EventAdmin(ModelAdmin):
@@ -252,7 +252,7 @@ events when its asset is included, so no extra template code is required.
 
 ```python
 from freeadmin.core.interface.models import ModelAdmin
-from freeadmin.widgets import Select2Widget
+from freeadmin.contrib.widgets import Select2Widget
 
 
 class PostAdmin(ModelAdmin):
@@ -270,7 +270,7 @@ class PostAdmin(ModelAdmin):
 
 ```python
 from freeadmin.core.interface.models import ModelAdmin
-from freeadmin.widgets import TextWidget
+from freeadmin.contrib.widgets import TextWidget
 
 
 class UserAdmin(ModelAdmin):
@@ -293,7 +293,7 @@ class UserAdmin(ModelAdmin):
 
 ```python
 from freeadmin.core.interface.models import ModelAdmin
-from freeadmin.widgets import TextAreaWidget
+from freeadmin.contrib.widgets import TextAreaWidget
 
 
 class ArticleAdmin(ModelAdmin):
@@ -315,7 +315,7 @@ demonstrates how to enable Ace highlighting and tweak editor options:
 
 ```python
 from freeadmin.core.interface.models import ModelAdmin
-from freeadmin.widgets import TextAreaWidget
+from freeadmin.contrib.widgets import TextAreaWidget
 
 
 class PostAdmin(ModelAdmin):

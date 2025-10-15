@@ -23,7 +23,7 @@ The admin bundles `/static/widgets/choices.js`, which mirrors the Select2 helper
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 from freeadmin.core.interface.models import ModelAdmin
-from freeadmin.widgets import ChoicesWidget
+from freeadmin.contrib.widgets import ChoicesWidget
 from freeadmin.core.boot import admin
 
 

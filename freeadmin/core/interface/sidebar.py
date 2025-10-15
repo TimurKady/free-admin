@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Tuple, TYPE_CHECKING
 
 from fastapi import Request
 
-from ...conf import current_settings
+from freeadmin.core.configuration.conf import current_settings
 from .settings import SettingsKey, system_config
 
 if TYPE_CHECKING:  # pragma: no cover

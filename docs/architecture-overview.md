@@ -67,7 +67,7 @@ The core layer orchestrates discovery, routing, and permissions.
 Key components include:
 
 * `BootManager` (`freeadmin.core.boot`): initialises adapters, middleware, and FastAPI startup/shutdown hooks.
-* `AdminHub` and `AdminSite` (`freeadmin.hub`, `freeadmin.core.interface.site`): keep registries for models, cards, views, menus, and settings pages.
+* `AdminHub` and `AdminSite` (`freeadmin.core.hub`, `freeadmin.core.interface.site`): keep registries for models, cards, views, menus, and settings pages.
 * `DiscoveryService` (`freeadmin.core.interface.discovery`): scans declared packages for `app.py`, `admin.py`, and related modules that perform registrations.
 * `PermissionsService` and `PermissionChecker` (`freeadmin.core.interface.services.permissions` and `freeadmin.core.interface.permissions.checker`): enforce per-model and per-action access control.
 
@@ -87,7 +87,7 @@ Example:
 
 ```python
 from freeadmin.core.interface.models import ModelAdmin
-from freeadmin.hub import admin_site
+from freeadmin.core.hub import admin_site
 from .models import Product
 
 

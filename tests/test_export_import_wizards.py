@@ -71,8 +71,8 @@ from tests.system_models import system_models
 
 from freeadmin.core.models import ModelAdmin
 from freeadmin.core.site import AdminSite
-from freeadmin.router import AdminRouter
-from freeadmin.boot import admin as boot_admin
+from freeadmin.core.network.router import AdminRouter
+from freeadmin.core.boot import admin as boot_admin
 from freeadmin.core.auth import admin_auth_service
 from freeadmin.core.permissions import permission_checker
 from freeadmin.core.services.permissions import PermAction

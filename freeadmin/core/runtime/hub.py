@@ -25,7 +25,7 @@ from ..interface.app import AppConfig
 from ..interface.site import AdminSite
 from ..interface.discovery import DiscoveryService
 from ..network.router import AdminRouter
-from ..boot import admin as boot_admin
+from freeadmin.core.boot import admin as boot_admin
 
 
 class AdminHub:

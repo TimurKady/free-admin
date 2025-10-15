@@ -17,7 +17,7 @@ from typing import Any, Protocol, runtime_checkable
 
 from fastapi import FastAPI
 
-from ..boot import BootManager
+from freeadmin.core.boot import BootManager
 from ..orm import ORMConfig, ORMLifecycle
 
 LifecycleHook = Callable[[], Awaitable[None] | None]

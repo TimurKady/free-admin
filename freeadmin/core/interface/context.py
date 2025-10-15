@@ -15,7 +15,7 @@ from typing import Any, Dict, Optional, TYPE_CHECKING
 
 from fastapi import Request
 
-from ...conf import current_settings
+from freeadmin.core.configuration.conf import current_settings
 from .settings import SettingsKey, system_config
 from .sidebar import SidebarBuilder
 

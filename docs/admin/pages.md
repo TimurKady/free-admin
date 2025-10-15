@@ -6,8 +6,8 @@ It demonstrates how to wire handlers through `AdminSite.register_view` and `Admi
 ## Registering default sections
 
 ```python
-from freeadmin.apps.system.views import BuiltinPagesRegistrar
-from freeadmin.hub import hub
+from freeadmin.contrib.apps.system.views import BuiltinPagesRegistrar
+from freeadmin.core.hub import hub
 
 BuiltinPagesRegistrar().register(hub.admin_site)
 ```
@@ -60,7 +60,7 @@ existing model admins.
 
 ```python
 from fastapi import Request
-from freeadmin.hub import admin_site, render
+from freeadmin.core.hub import admin_site, render
 
 
 @admin_site.register_view(

@@ -27,7 +27,7 @@ from openpyxl import Workbook
 
 from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
-from ....conf import FreeAdminSettings, current_settings
+from freeadmin.core.configuration.conf import FreeAdminSettings, current_settings
 from ....contrib.adapters import BaseAdapter
 from ..cache.sqlite_kv import SQLiteKeyValueCache
 

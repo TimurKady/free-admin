@@ -109,7 +109,7 @@ from typing import Any
 from fastapi import Request
 
 from freeadmin.core.interface.services.auth import AdminUserDTO
-from freeadmin.hub import admin_site
+from freeadmin.core.hub import admin_site
 
 
 @admin_site.register_view(path="/reports/sales", name="Sales report", label="Reports", icon="bi-graph-up")
@@ -127,7 +127,7 @@ async def sales_report(request: Request, user: AdminUserDTO) -> dict[str, Any]:
 
 ```python
 from freeadmin.core.interface.app import AppConfig
-from freeadmin.hub import admin_site
+from freeadmin.core.hub import admin_site
 
 from .admin import PostAdmin
 from .models import Post

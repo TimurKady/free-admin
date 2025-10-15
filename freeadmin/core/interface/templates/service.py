@@ -18,7 +18,7 @@ from weakref import WeakSet
 from fastapi import FastAPI
 from fastapi.templating import Jinja2Templates
 
-from ...conf import (
+from freeadmin.core.configuration.conf import (
     FreeAdminSettings,
     current_settings,
     register_settings_observer,

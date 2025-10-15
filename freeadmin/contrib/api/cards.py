@@ -18,7 +18,11 @@ from typing import Any, AsyncIterator, TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from ...conf import FreeAdminSettings, current_settings, register_settings_observer
+from freeadmin.core.configuration.conf import (
+    FreeAdminSettings,
+    current_settings,
+    register_settings_observer,
+)
 from ...core.settings import SettingsKey, system_config
 
 from ...core.auth import admin_auth_service

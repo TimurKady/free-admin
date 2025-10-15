@@ -16,13 +16,13 @@ from typing import ClassVar, TYPE_CHECKING
 from .urls import SystemURLRegistrar
 
 if TYPE_CHECKING:  # pragma: no cover - import for typing only
-    from ....core.interface.site import AdminSite
+    from freeadmin.core.interface.site import AdminSite
 
 
 class SystemAppConfig:
     """App configuration mirroring Django's :class:`~django.apps.AppConfig`."""
 
-    name: ClassVar[str] = "freeadmin.apps.system"
+    name: ClassVar[str] = "freeadmin.contrib.apps.system"
     label: ClassVar[str] = "system"
     verbose_name: ClassVar[str] = "System Administration"
 

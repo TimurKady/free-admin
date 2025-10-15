@@ -21,7 +21,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from importlib import import_module
 
-from ...conf import FreeAdminSettings, current_settings
+from freeadmin.core.configuration.conf import FreeAdminSettings, current_settings
 
 from ...contrib.adapters import BaseAdapter
 from .services.auth import AdminUserDTO

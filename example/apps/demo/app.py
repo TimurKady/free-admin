@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from freeadmin.core.interface.app import AppConfig
-from freeadmin.hub import admin_site
+from freeadmin.core.hub import admin_site
 
 from .service import TemperaturePublisher
 from .views import DemoDashboard

@@ -21,7 +21,7 @@ from types import SimpleNamespace
 from tortoise import Tortoise, fields, models
 
 from freeadmin.core.models import ModelAdmin
-from freeadmin.boot import admin as boot_admin
+from freeadmin.core.boot import admin as boot_admin
 from freeadmin.core.services.permissions import PermAction
 from freeadmin.core.services.export import (
     ExportService,
@@ -29,7 +29,10 @@ from freeadmin.core.services.export import (
     SQLiteExportCacheBackend,
 )
 from freeadmin.core.actions.export_selected import ExportSelectedAction
-from freeadmin.apps.system.api.views import AdminAPIConfiguration, AdminActionsListView
+from freeadmin.contrib.apps.system.api.views import (
+    AdminAPIConfiguration,
+    AdminActionsListView,
+)
 from fastapi import HTTPException, Request
 import pytest
 from tests.system_models import system_models
