@@ -21,6 +21,7 @@ from tortoise import Tortoise
 from tortoise import exceptions as tortoise_exceptions
 
 from ..adapters import registry
+from ..utils.migration_errors import MigrationErrorClassifier
 
 
 class ORMLifecycle:
@@ -32,13 +33,7 @@ class ORMLifecycle:
     """
 
     _logger = logging.getLogger(__name__)
-    _startup_error_types: tuple[type[BaseException], ...] = (
-        tortoise_exceptions.OperationalError,
-    )
-    if hasattr(tortoise_exceptions, "DBOperationalError"):
-        _startup_error_types = _startup_error_types + (
-            tortoise_exceptions.DBOperationalError,
-        )
+    _migration_error_classifier = MigrationErrorClassifier()
 
     def __init__(self, *, config: ORMConfig) -> None:
         """Persist the configuration used to initialise the ORM."""
@@ -73,8 +68,11 @@ class ORMLifecycle:
 
         try:
             await self._initialise_orm()
-        except self._startup_error_types as exc:
-            self._handle_startup_failure(exc)
+        except Exception as exc:
+            if self._migration_error_classifier.is_missing_schema(exc):
+                self._handle_startup_failure(exc)
+                return
+            raise
 
     async def _initialise_orm(self) -> None:
         """Attempt ORM initialisation honouring legacy call patterns."""
