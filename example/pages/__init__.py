@@ -12,8 +12,13 @@ Email: timurkady@yandex.com
 from __future__ import annotations
 
 from .home import ExampleWelcomePage, example_welcome_page
+from .welcome_page import router as public_welcome_router
 
-__all__ = ["ExampleWelcomePage", "example_welcome_page"]
+__all__ = [
+    "ExampleWelcomePage",
+    "example_welcome_page",
+    "public_welcome_router",
+]
 
 # The End
 
