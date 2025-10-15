@@ -33,7 +33,7 @@ The `config` package defines how the admin integrates with your FastAPI applicat
 | ---- | ------- |
 | `main.py` | Creates the FastAPI app and should call `BootManager.init()` to mount FreeAdmin. |
 | `orm.py` | Declares adapter constants and exports an `ORMConfig` instance with lifecycle helpers. |
-| `settings.py` | Declares the `ProjectSettings` model backed by `pydantic.BaseSettings`. |
+| `settings.py` | Declares the `ProjectSettings` model backed by `pydantic_settings.BaseSettings`. |
 
 After customisation a typical `main.py` instantiates the generated `ApplicationFactory`, which in turn coordinates `BootManager` and the ORM lifecycle:
 

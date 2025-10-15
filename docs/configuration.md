@@ -56,11 +56,11 @@ Every admin component registered after this call receives the customised setting
 
 ## Integrating with project settings
 
-The scaffolded `config/settings.py` uses `pydantic.BaseSettings` so you can maintain project-specific configuration independently of FreeAdmin. For example:
+The scaffolded `config/settings.py` uses `pydantic_settings.BaseSettings` so you can maintain project-specific configuration independently of FreeAdmin. For example:
 
 ```python
 # config/settings.py
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 
 
 class ProjectSettings(BaseSettings):
