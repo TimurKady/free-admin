@@ -65,6 +65,11 @@ class RouterAggregator(RouterFoundation):
             self._admin_router = self.create_admin_router()
         return self._admin_router
 
+    def invalidate_admin_router(self) -> None:
+        """Drop the cached admin router so it rebuilds on next access."""
+
+        self._admin_router = None
+
     def mount(self, app: FastAPI, prefix: str | None = None) -> None:
         """Mount the admin router and any configured extras onto the app."""
 
@@ -187,6 +192,12 @@ class ExtendedRouterAggregator(RouterAggregator):
                 aggregated.include_router(router, prefix=router_prefix or "")
             self._router = aggregated
         return self._router
+
+    def invalidate_admin_router(self) -> None:
+        """Drop cached admin and aggregate routers to rebuild mappings."""
+
+        super().invalidate_admin_router()
+        self._invalidate_router_cache()
 
     def _collect_admin_entries(self) -> list[tuple[APIRouter, str | None]]:
         entries: list[tuple[APIRouter, str | None]] = [

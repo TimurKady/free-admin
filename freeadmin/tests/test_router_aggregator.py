@@ -221,5 +221,41 @@ def test_extended_aggregator_respects_order_flag() -> None:
     assert routers[-1][0] is public_router
 
 
+def test_invalidate_admin_router_rebuilds_cached_router() -> None:
+    """Dropping the cache should force site router reconstruction."""
+
+    initial_router = APIRouter()
+    site = _build_site(initial_router)
+    aggregator = RouterAggregator(site=site, prefix="/admin")
+
+    assert aggregator.get_admin_router() is initial_router
+
+    replacement = APIRouter()
+    site.build_router.return_value = replacement
+
+    aggregator.invalidate_admin_router()
+
+    assert aggregator.get_admin_router() is replacement
+    assert site.build_router.call_count == 2
+
+
+def test_extended_aggregator_invalidation_resets_aggregate_router() -> None:
+    """Extended aggregator cache should be rebuilt after invalidation."""
+
+    initial_admin = APIRouter()
+    site = _build_site(initial_admin)
+    aggregator = ExtendedRouterAggregator(site=site, prefix="/admin")
+
+    first_combined = aggregator.router
+
+    replacement_admin = APIRouter()
+    site.build_router.return_value = replacement_admin
+
+    aggregator.invalidate_admin_router()
+
+    assert aggregator.router is not first_combined
+    assert site.build_router.call_count == 2
+
+
 # The End
 
