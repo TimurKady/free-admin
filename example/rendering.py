@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-example.templates.renderer
+example.rendering
 
 Example utilities demonstrating how to render FreeAdmin templates for public pages.
 
@@ -20,7 +20,7 @@ from fastapi.templating import Jinja2Templates
 
 from freeadmin.conf import FreeAdminSettings, current_settings
 
-EXAMPLE_TEMPLATES_DIR = Path(__file__).resolve().parent
+EXAMPLE_TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 ADMIN_TEMPLATES_DIR = EXAMPLE_TEMPLATES_DIR.parents[1] / "freeadmin" / "templates"
 
 
@@ -66,4 +66,3 @@ class ExampleTemplateRenderer:
 
 
 # The End
-

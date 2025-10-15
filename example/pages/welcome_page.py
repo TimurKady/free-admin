@@ -14,7 +14,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-from example.templates import ExampleTemplateRenderer
+from example.rendering import ExampleTemplateRenderer
 
 router = APIRouter()
 
