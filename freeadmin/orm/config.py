@@ -16,7 +16,7 @@ import logging
 import re
 import warnings
 from copy import deepcopy
-from typing import Any, Dict, Iterable, List, Mapping, MutableMapping
+from typing import Any, Callable, Dict, Iterable, List, Mapping, MutableMapping
 from warnings import WarningMessage
 
 from fastapi import FastAPI
@@ -80,6 +80,7 @@ class ORMLifecycle:
     async def _initialise_orm(self) -> None:
         """Attempt ORM initialisation honouring legacy call patterns."""
 
+        default_showwarning = warnings.showwarning
         with warnings.catch_warnings(record=True) as captured:
             warnings.simplefilter("always", RuntimeWarning)
             try:
@@ -89,7 +90,7 @@ class ORMLifecycle:
                     db_url=self._config.connection_dsn,
                     modules=self.modules,
                 )
-        self._handle_startup_warnings(captured)
+        self._handle_startup_warnings(captured, default_showwarning)
 
     def _handle_startup_failure(self, error: BaseException) -> None:
         """Log a helpful error message when ORM initialisation fails."""
@@ -99,7 +100,11 @@ class ORMLifecycle:
             error,
         )
 
-    def _handle_startup_warnings(self, captured: Iterable[WarningMessage]) -> None:
+    def _handle_startup_warnings(
+        self,
+        captured: Iterable[WarningMessage],
+        showwarning: Callable[[Any, type, str, int, Any | None, Any | None], None],
+    ) -> None:
         """Report ORM startup warnings emitted by the underlying ORM engine."""
 
         missing_models: set[str] = set()
@@ -107,6 +112,14 @@ class ORMLifecycle:
             message = str(warning.message)
             module_name = self._extract_missing_model_module(message)
             if module_name is None:
+                showwarning(
+                    warning.message,
+                    warning.category,
+                    warning.filename,
+                    warning.lineno,
+                    warning.file,
+                    warning.line,
+                )
                 continue
             if module_name in missing_models:
                 continue
