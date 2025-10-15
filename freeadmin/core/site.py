@@ -47,6 +47,7 @@ from .menu import MenuBuilder
 from .cache import SQLiteCardCache
 from .cache.menu import MainMenuCache
 from .permissions.checker import PermissionChecker
+from ..utils.migration_errors import MigrationErrorClassifier
 
 if TYPE_CHECKING:  # pragma: no cover - for type checking only
     from .permissions.checker import PermissionChecker as PermissionCheckerType
@@ -56,7 +57,6 @@ ImportService = import_module("freeadmin.core.services.import").ImportService
 Model = Any
 
 logger = logging.getLogger(__name__)
-
 
 @dataclass(frozen=True)
 class _ViewRoute:
@@ -110,6 +110,7 @@ class AdminSite(IconPathMixin):
             settings=self._settings,
             card_cache=self.card_cache,
         )
+        self._migration_error_classifier = MigrationErrorClassifier()
         if permission_checker_obj is not None:
             self.permission_checker = permission_checker_obj
         elif permission_service is not None:
@@ -358,40 +359,51 @@ class AdminSite(IconPathMixin):
         self.ct_map.clear()
         seen: set[str] = set()
 
-        for app, model in self.model_reg.keys():
-            dotted = f"{app}.{model}"
-            await _ensure_content_type(app, model, dotted)
-            seen.add(dotted)
+        try:
+            for app, model in self.model_reg.keys():
+                dotted = f"{app}.{model}"
+                await _ensure_content_type(app, model, dotted)
+                seen.add(dotted)
 
-        for entry in self.cards.iter_cards():
-            virtual = self.cards.get_card_virtual(entry.key)
-            dotted = virtual.dotted
-            model_value = f"cards.{virtual.slug}"
-            await _ensure_content_type(virtual.app_slug, model_value, dotted)
-            seen.add(dotted)
+            for entry in self.cards.iter_cards():
+                virtual = self.cards.get_card_virtual(entry.key)
+                dotted = virtual.dotted
+                model_value = f"cards.{virtual.slug}"
+                await _ensure_content_type(virtual.app_slug, model_value, dotted)
+                seen.add(dotted)
 
-        for virtual in self.registry.iter_virtual_views():
-            dotted = virtual.dotted
-            model_value = f"views.{virtual.slug}"
-            await _ensure_content_type(virtual.app_slug, model_value, dotted)
-            seen.add(dotted)
+            for virtual in self.registry.iter_virtual_views():
+                dotted = virtual.dotted
+                model_value = f"views.{virtual.slug}"
+                await _ensure_content_type(virtual.app_slug, model_value, dotted)
+                seen.add(dotted)
 
-        existing = await self.adapter.fetch_all(
-            self.adapter.all(self.AdminContentType)
-        )
-        for ct in existing:
-            if ct.dotted in seen:
-                if not getattr(ct, "is_registered", True):
-                    ct.is_registered = True
+            existing = await self.adapter.fetch_all(
+                self.adapter.all(self.AdminContentType)
+            )
+            for ct in existing:
+                if ct.dotted in seen:
+                    if not getattr(ct, "is_registered", True):
+                        ct.is_registered = True
+                        await self.adapter.save(ct)
+                    continue
+                dotted = ct.dotted or ""
+                if ".cards." in dotted or ".views." in dotted:
+                    await self.adapter.delete(ct)
+                    continue
+                if getattr(ct, "is_registered", True):
+                    ct.is_registered = False
                     await self.adapter.save(ct)
-                continue
-            dotted = ct.dotted or ""
-            if ".cards." in dotted or ".views." in dotted:
-                await self.adapter.delete(ct)
-                continue
-            if getattr(ct, "is_registered", True):
-                ct.is_registered = False
-                await self.adapter.save(ct)
+        except Exception as exc:
+            if self._migration_error_classifier.is_missing_schema(exc):
+                self.ct_map.clear()
+                logger.error(
+                    "Skipping admin content type synchronisation due to database error: %s. "
+                    "Run your migrations before starting FreeAdmin.",
+                    exc,
+                )
+                return
+            raise
 
     def get_ct_id(self, app: str, model: str) -> int | None:
         """Return ct_id for (app, model) or ``None`` if not registered."""
