@@ -36,7 +36,7 @@ from ....core.schema.descriptors import (
     Choice, FieldDescriptor, ModelDescriptor, Relation
 )
 from .. import registry
-from ....core.filters import FilterSpec
+from ....core.interface.filters import FilterSpec
 
 
 Model = TortoiseModel

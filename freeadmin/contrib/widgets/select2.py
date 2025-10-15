@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Tuple, Optional
 
-from ...core.settings import SettingsKey, system_config
+from ...core.interface.settings import SettingsKey, system_config
 from freeadmin.core.configuration.conf import current_settings
 from .base import BaseWidget
 from .mixins import RelationChoicesMixin, RelationPrefetchMixin, RelationValueMixin

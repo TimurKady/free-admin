@@ -7,10 +7,10 @@ Before extending FreeAdmin it helps to understand the main services, registries,
 
 The **AdminSite** is the central registry. It stores model admins, custom views, dashboard cards, and menu entries. The site instance is created by the **AdminHub**, which also performs package discovery.
 
-In day-to-day code you import the shared instance from `freeadmin.core.hub`:
+In day-to-day code you import the shared instance from `freeadmin.core.runtime.hub`:
 
 ```python
-from freeadmin.core.hub import admin_site
+from freeadmin.core.runtime.hub import admin_site
 from freeadmin.core.interface.models import ModelAdmin
 from .models import Product
 
@@ -96,7 +96,7 @@ This snippet initialises the adapter, discovers admin registrations inside `my_p
 A **card** is a dashboard widget backed by templates and optional server-sent-event publishers. Register cards with `admin_site.register_card(...)`. Cards can stream live updates by registering a publisher through `admin_site.cards.register_publisher(publisher_instance)`.
 
 ```python
-from freeadmin.core.hub import admin_site
+from freeadmin.core.runtime.hub import admin_site
 
 admin_site.register_card(
     key="orders-today",
@@ -121,7 +121,7 @@ import asyncio
 from collections.abc import Awaitable, Callable
 
 from freeadmin.core.interface.sse.publisher import PublisherService
-from freeadmin.core.hub import admin_site
+from freeadmin.core.runtime.hub import admin_site
 
 
 class OrdersPublisher(PublisherService):
@@ -159,7 +159,7 @@ Custom admin pages are registered with `admin_site.register_view()`, which acts 
 ```python
 from typing import Any
 from fastapi import Request
-from freeadmin.core.hub import admin_site
+from freeadmin.core.runtime.hub import admin_site
 
 
 @admin_site.register_view(path="/reports/export", name="Exports", icon="bi-download", label="Reports")

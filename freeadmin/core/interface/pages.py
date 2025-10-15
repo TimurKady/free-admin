@@ -281,7 +281,7 @@ class PageDescriptorManager:
     def page_responder(self):  # pragma: no cover - attribute proxy
         """Return template responder used for public pages."""
 
-        from ..templates import PageTemplateResponder
+        from .templates import PageTemplateResponder
 
         return PageTemplateResponder
 

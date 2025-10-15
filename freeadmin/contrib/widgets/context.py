@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from ...core.schema.descriptors import ModelDescriptor, FieldDescriptor
 
 if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
-    from ...core.base import BaseModelAdmin  # type hints helper
+    from ...core.interface.base import BaseModelAdmin  # type hints helper
 
 
 @dataclass(frozen=True)

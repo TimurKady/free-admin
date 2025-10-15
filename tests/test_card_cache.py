@@ -14,8 +14,8 @@ from uuid import uuid4
 import pytest
 
 from freeadmin.core.configuration.conf import FreeAdminSettings
-from freeadmin.core.cache.cards import SQLiteCardCache
-from freeadmin.core.site import AdminSite
+from freeadmin.core.interface.cache.cards import SQLiteCardCache
+from freeadmin.core.interface.site import AdminSite
 
 
 class DummyAdapter:
@@ -106,7 +106,7 @@ class SiteFactory:
         """Return a configured admin site with deterministic dependencies."""
 
         self.monkeypatch.setattr(
-            "freeadmin.core.site.PermAction",
+            "freeadmin.core.interface.site.PermAction",
             DummyPermissionsService.PermAction,
             raising=False,
         )

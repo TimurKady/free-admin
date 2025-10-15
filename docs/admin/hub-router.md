@@ -7,7 +7,7 @@
 `AdminHub.autodiscover` walks the given packages and imports modules named `admin` or containing the `.admin` segment. Importing these modules registers admin pages so that the site can expose them later.
 
 ```python
-from freeadmin.core.hub import hub
+from freeadmin.core.runtime.hub import hub
 
 hub.autodiscover(["apps.blog", "apps.shop"])
 ```
@@ -18,7 +18,7 @@ hub.autodiscover(["apps.blog", "apps.shop"])
 
 ```python
 from fastapi import FastAPI
-from freeadmin.core.hub import hub
+from freeadmin.core.runtime.hub import hub
 
 app = FastAPI()
 hub.init_app(app, packages=["apps.blog", "apps.shop"])

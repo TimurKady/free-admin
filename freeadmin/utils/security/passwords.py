@@ -17,7 +17,7 @@ import hmac
 import os
 from typing import Tuple
 
-from ...core.settings import SettingsKey, system_config
+from ...core.interface.settings import SettingsKey, system_config
 
 
 class PasswordHasher:

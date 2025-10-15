@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
-from freeadmin.core.templates import TemplateRenderer, TemplateService
+from freeadmin.core.interface.templates import TemplateRenderer, TemplateService
 
 
 class DummyTemplates:

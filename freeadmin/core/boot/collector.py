@@ -15,7 +15,7 @@ from importlib import import_module
 import pkgutil
 from typing import Callable, Iterable
 
-from ..app import AppConfig
+from ..interface.app import AppConfig
 
 
 class AppConfigCollector:

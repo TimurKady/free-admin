@@ -20,15 +20,15 @@ from types import SimpleNamespace
 
 from tortoise import Tortoise, fields, models
 
-from freeadmin.core.models import ModelAdmin
+from freeadmin.core.interface.models import ModelAdmin
 from freeadmin.core.boot import admin as boot_admin
-from freeadmin.core.services.permissions import PermAction
-from freeadmin.core.services.export import (
+from freeadmin.core.interface.services.permissions import PermAction
+from freeadmin.core.interface.services.export import (
     ExportService,
     MemoryCacheBackend,
     SQLiteExportCacheBackend,
 )
-from freeadmin.core.actions.export_selected import ExportSelectedAction
+from freeadmin.core.interface.actions.export_selected import ExportSelectedAction
 from freeadmin.contrib.apps.system.api.views import (
     AdminAPIConfiguration,
     AdminActionsListView,

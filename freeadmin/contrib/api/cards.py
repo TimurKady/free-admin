@@ -23,18 +23,18 @@ from freeadmin.core.configuration.conf import (
     current_settings,
     register_settings_observer,
 )
-from ...core.settings import SettingsKey, system_config
+from ...core.interface.settings import SettingsKey, system_config
 
-from ...core.auth import admin_auth_service
-from ...core.exceptions import PermissionDenied
-from ...core.permissions import permission_checker
-from ...core.services.auth import AdminUserDTO
-from ...core.services.permissions import PermAction
-from ...core.services.tokens import ScopeTokenService
-from ...core.cache import SQLiteEventCache
+from ...core.interface.auth import admin_auth_service
+from ...core.interface.exceptions import PermissionDenied
+from ...core.interface.permissions import permission_checker
+from ...core.interface.services.auth import AdminUserDTO
+from ...core.interface.services.permissions import PermAction
+from ...core.interface.services.tokens import ScopeTokenService
+from ...core.interface.cache import SQLiteEventCache
 
 if TYPE_CHECKING:  # pragma: no cover - for type checking only
-    from ...core.site import AdminSite
+    from ...core.interface.site import AdminSite
 
 
 class CardEventStreamer:

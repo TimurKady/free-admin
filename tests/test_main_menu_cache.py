@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from freeadmin.core.registry import PageRegistry
-from freeadmin.core.menu import MenuBuilder
-from freeadmin.core.cache.menu import MainMenuCache
-from freeadmin.core.settings import SettingsKey, system_config
+from freeadmin.core.interface.registry import PageRegistry
+from freeadmin.core.interface.menu import MenuBuilder
+from freeadmin.core.interface.cache.menu import MainMenuCache
+from freeadmin.core.interface.settings import SettingsKey, system_config
 
 
 class _DummyAdmin:

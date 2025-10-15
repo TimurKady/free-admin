@@ -19,11 +19,11 @@ from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from tortoise import Tortoise
 
-from freeadmin.core.hub import admin_site
+from freeadmin.core.runtime.hub import admin_site
 from freeadmin.core.network.router import AdminRouter
-from freeadmin.core.permissions import permission_checker
-from freeadmin.core.services.permissions import PermAction
-from freeadmin.core.auth import admin_auth_service
+from freeadmin.core.interface.permissions import permission_checker
+from freeadmin.core.interface.services.permissions import PermAction
+from freeadmin.core.interface.auth import admin_auth_service
 from tests.system_models import system_models
 import freeadmin.contrib.apps.system.admin  # ensure registration
 

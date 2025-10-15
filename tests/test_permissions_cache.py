@@ -11,8 +11,8 @@ from unittest.mock import AsyncMock
 import pytest
 
 from freeadmin.contrib.adapters.tortoise.users import PermAction
-from freeadmin.core.services.admin import AdminService
-from freeadmin.core.services.permissions import PermissionsService
+from freeadmin.core.interface.services.admin import AdminService
+from freeadmin.core.interface.services.permissions import PermissionsService
 
 
 class CacheAdapter:
@@ -185,7 +185,9 @@ async def test_admin_service_triggers_permission_cache_invalidation(monkeypatch)
     adapter = DummyPermissionAdapter()
     fake_service = FakePermissionsService()
     monkeypatch.setattr(
-        "freeadmin.core.services.admin.permissions_service", fake_service, raising=False
+        "freeadmin.core.interface.services.admin.permissions_service",
+        fake_service,
+        raising=False,
     )
 
     user_admin = DummyPermissionAdmin(adapter.user_permission_model, adapter)

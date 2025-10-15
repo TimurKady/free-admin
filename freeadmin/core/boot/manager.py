@@ -23,12 +23,12 @@ from freeadmin.core.configuration.conf import (
     current_settings,
     register_settings_observer,
 )
-from ..app import AppConfig
+from ..interface.app import AppConfig
 from .collector import AppConfigCollector
 from .registry import ModelRegistrar
 
 if TYPE_CHECKING:  # pragma: no cover
-    from ..base import BaseModelAdmin
+    from ..interface.base import BaseModelAdmin
     from ..runtime import AdminHub
 
 
@@ -111,7 +111,7 @@ class BootManager:
     def get_admin(self, target: str) -> "BaseModelAdmin | None":
         """Return registered admin instance for ``target``."""
 
-        from ..hub import admin_site
+        from ..runtime.hub import admin_site
 
         try:
             app_label, model_name = target.split(".", 1)
@@ -132,7 +132,7 @@ class BootManager:
         if packages:
             self._load_app_configs_from_packages(packages)
 
-        from ..middleware import AdminGuardMiddleware
+        from ..runtime.middleware import AdminGuardMiddleware
         from ..interface.settings import SettingsKey, system_config
 
         app.add_middleware(AdminGuardMiddleware)
@@ -201,7 +201,7 @@ class BootManager:
         """Return the cached admin hub instance, importing on first access."""
 
         if self._hub is None:
-            from ..hub import hub as admin_hub
+            from ..runtime.hub import hub as admin_hub
 
             self._hub = admin_hub
         return self._hub
@@ -210,7 +210,7 @@ class BootManager:
         """Return the lazily instantiated system application configuration."""
 
         if self._system_app is None:
-            from ..apps.system import SystemAppConfig
+            from ...contrib.apps.system.apps import SystemAppConfig
 
             self._system_app = SystemAppConfig()
         return self._system_app

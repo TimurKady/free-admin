@@ -7,7 +7,7 @@ It demonstrates how to wire handlers through `AdminSite.register_view` and `Admi
 
 ```python
 from freeadmin.contrib.apps.system.views import BuiltinPagesRegistrar
-from freeadmin.core.hub import hub
+from freeadmin.core.runtime.hub import hub
 
 BuiltinPagesRegistrar().register(hub.admin_site)
 ```
@@ -60,7 +60,7 @@ existing model admins.
 
 ```python
 from fastapi import Request
-from freeadmin.core.hub import admin_site, render
+from freeadmin.core.runtime.hub import admin_site, render
 
 
 @admin_site.register_view(
