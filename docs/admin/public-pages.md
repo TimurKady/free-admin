@@ -19,46 +19,26 @@ public ones.
 
 ## Example: registering the welcome page
 
-Create a public page class in `example/pages/welcome_page.py`:
+Register a public page in `example/pages/welcome_page.py`:
 
 ```python
-from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi import Request
 
-from example.rendering import ExampleTemplateRenderer
-
-
-class ExamplePublicWelcomePage:
-    """Expose a public welcome page mounted at the site root."""
-
-    path = "/"
-
-    def __init__(self) -> None:
-        """Initialise and register the public welcome page router."""
-
-        self._router = APIRouter()
-        self._register_routes()
-
-    def get_router(self) -> APIRouter:
-        """Return the router that serves the public welcome page."""
-
-        return self._router
-
-    def _register_routes(self) -> None:
-        @self._router.get(self.path, response_class=HTMLResponse)
-        async def index(request: Request) -> HTMLResponse:
-            context = {"title": "Welcome", "user": None}
-            return ExampleTemplateRenderer.render(
-                "welcome.html", context, request=request
-            )
+from freeadmin.hub import admin_site
 
 
-example_public_welcome_page = ExamplePublicWelcomePage()
-public_welcome_router = example_public_welcome_page.get_router()
+@admin_site.register_public_view(
+    path="/",
+    name="Welcome",
+    template="welcome.html",
+)
+async def public_welcome(request: Request, user=None) -> dict[str, object]:
+    return {"subtitle": "Rendered outside the admin", "user": user}
 ```
 
-The instance also exposes `get_handler()` when you need to inspect or reuse the
-registered callable directly (for example, in bespoke test suites).
+Handlers decorated with `register_public_view()` return a mapping used as template
+context. The page manager injects the request, anonymous user, and page title before
+rendering the template through :class:`PageTemplateResponder`.
 
 Place a template at `example/templates/welcome.html`. It can extend the
 administrative layout while remaining visually independent:
@@ -88,27 +68,27 @@ administrative layout while remaining visually independent:
 from fastapi import FastAPI
 
 from freeadmin.core.site import admin_site
-from example.pages.welcome_page import public_welcome_router
 from freeadmin.router import ExtendedRouterAggregator
 
 app = FastAPI()
 aggregator = ExtendedRouterAggregator(site=admin_site)
 aggregator.add_admin_router(aggregator.get_admin_router())
-aggregator.add_additional_router(public_welcome_router)
 aggregator.mount(app)
 ```
 
 `mount()` ensures the admin site is cached, registers the favicon, static files, and
-exposes each public router without adding a prefix.
+exposes registered public pages without adding a prefix. Additional routers can still
+be registered via :meth:`ExtendedRouterAggregator.add_additional_router` when needed.
 
 ## Adding new public pages
 
 1. Create a module under your project's pages package (for example,
-   `example/pages/`) exporting an `APIRouter`.
-2. Use a renderer similar to `ExampleTemplateRenderer` to share the admin template
-   engine and settings while keeping templates under `example/templates/`.
-3. Register the router with `ExtendedRouterAggregator.add_additional_router()`.
-4. Call `aggregator.mount(app)` or include `aggregator.router` in your FastAPI app.
+   `example/pages/`).
+2. Decorate an async handler with :meth:`AdminSite.register_public_view` and return a
+   mapping representing the template context.
+3. Provide a template in your project's template directory.
+4. Call :meth:`ExtendedRouterAggregator.mount` or include
+   :attr:`ExtendedRouterAggregator.router` in your FastAPI app.
 
 ## Integrating with an existing ``main.py``
 
@@ -116,14 +96,12 @@ exposes each public router without adding a prefix.
 from fastapi import FastAPI
 
 from freeadmin.core.site import admin_site
-from example.pages.welcome_page import public_welcome_router
 from freeadmin.router import ExtendedRouterAggregator
 
 app = FastAPI()
 
 aggregator = ExtendedRouterAggregator(site=admin_site, public_first=True)
 aggregator.add_admin_router(aggregator.get_admin_router())
-aggregator.add_additional_router(public_welcome_router)
 app.include_router(aggregator.router)
 ```
 

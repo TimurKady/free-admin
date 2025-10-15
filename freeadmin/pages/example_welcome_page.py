@@ -11,20 +11,20 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi import Request
 
-from freeadmin.templates import render_template
-
-router = APIRouter()
+from freeadmin.hub import admin_site
 
 
-@router.get("/", response_class=HTMLResponse)
-async def index(request: Request) -> HTMLResponse:
-    """Render the welcome page example for anonymous visitors."""
+@admin_site.register_public_view(
+    path="/",
+    name="Welcome",
+    template="welcome.html",
+)
+async def index(request: Request, user: object | None = None) -> dict[str, object]:
+    """Return template context for the welcome example page."""
 
-    context = {"request": request, "title": "Welcome", "user": None}
-    return render_template("welcome.html", context)
+    return {"request": request, "user": user}
 
 
 # The End

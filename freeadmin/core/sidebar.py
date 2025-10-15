@@ -57,12 +57,8 @@ class SidebarBuilder:
             SettingsKey.ADMIN_PREFIX, settings_obj.admin_path
         ).rstrip("/")
 
-        trimmed_path = request.url.path
-        if admin_prefix and trimmed_path.startswith(admin_prefix):
-            trimmed_path = trimmed_path[len(admin_prefix) :]
-            if not trimmed_path.startswith("/"):
-                trimmed_path = f"/{trimmed_path}"
-        normalized_path = trimmed_path.rstrip("/") or "/"
+        resolution = admin_site.pages.resolve_request(request)
+        normalized_path = resolution.normalized_path
         normalized_views = cls._normalize_prefix(views_prefix)
         normalized_orm = cls._normalize_prefix(orm_prefix)
         normalized_settings = cls._normalize_prefix(settings_prefix)
@@ -70,29 +66,8 @@ class SidebarBuilder:
         orm_segments = cls._split_prefix(normalized_orm)
         settings_segments = cls._split_prefix(normalized_settings)
 
-        is_views_section = normalized_path == normalized_views or normalized_path.startswith(
-            f"{normalized_views}/"
-        )
-
-        route = admin_site._view_routes.get(normalized_path)
-        route_matches_view_prefix = False
-        if route is not None:
-            route_matches_view_prefix = route.path == normalized_views or route.path.startswith(
-                f"{normalized_views}/"
-            )
-            if not route.settings:
-                is_views_section = not (
-                    route.path == normalized_orm
-                    or route.path.startswith(f"{normalized_orm}/")
-                    or route.path == normalized_settings
-                    or route.path.startswith(f"{normalized_settings}/")
-                )
-            else:
-                is_views_section = False
-
+        is_views_section = resolution.section_mode == "views"
         include_apps = not is_views_section
-        if is_views_section and route is not None and not route.settings:
-            include_apps = include_apps and route_matches_view_prefix
 
         raw_apps = (
             cls.collect(admin_site, cls.KIND_APPS, settings_mode) if include_apps else []
@@ -174,15 +149,7 @@ class SidebarBuilder:
     def _collect_views(
         cls, admin_site: "AdminSite", settings: bool
     ) -> List[Tuple[str, List[Dict[str, Any]]]]:
-        grouped: List[Tuple[str, List[Dict[str, Any]]]] = []
-        for label, entries in admin_site._views.items():
-            filtered = [dict(entry) for entry in entries if entry["settings"] == settings]
-            if not filtered:
-                continue
-            filtered.sort(key=lambda item: item["display_name"].lower())
-            grouped.append((label, filtered))
-        grouped.sort(key=lambda item: item[0].lower())
-        return grouped
+        return admin_site.pages.iter_sidebar_views(settings=settings)
 
     @staticmethod
     def _split_prefix(prefix: str) -> List[str]:

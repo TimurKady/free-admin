@@ -92,6 +92,8 @@ class RouterAggregator(RouterFoundation):
 
         for router, router_prefix in self._iter_additional_routers():
             app.include_router(router, prefix=router_prefix or "")
+        for router in self.get_public_routers():
+            app.include_router(router, prefix="")
 
     def add_additional_router(
         self, router: APIRouter, prefix: str | None = None
@@ -104,6 +106,11 @@ class RouterAggregator(RouterFoundation):
         """Return routers that should be mounted alongside the admin router."""
 
         return ()
+
+    def get_public_routers(self) -> Iterable[APIRouter]:
+        """Return routers exposing public pages registered on the site."""
+
+        return self.site.pages.iter_public_routers()
 
     def _iter_additional_routers(self) -> Iterable[tuple[APIRouter, str | None]]:
         yield from self._additional_routers
@@ -168,6 +175,7 @@ class ExtendedRouterAggregator(RouterAggregator):
         self.ensure_site_templates(self.site)
         admin_entries = self._collect_admin_entries()
         public_entries = [(router, None) for router in self._public_routers]
+        public_entries.extend((router, None) for router in self.get_public_routers())
         if self._public_first:
             return [*public_entries, *admin_entries]
         return [*admin_entries, *public_entries]
