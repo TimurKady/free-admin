@@ -40,7 +40,7 @@ When the admin panel boots, it imports the desired adapter and exposes it via bo
 All database calls route through this object.
 
 ```python
-from freeadmin.boot import admin as boot_admin
+from freeadmin.core.boot import admin as boot_admin
 
 adapter = boot_admin.adapter
 ```

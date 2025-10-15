@@ -9,7 +9,7 @@ built-in pages and mounts the admin site onto the ASGI application.
 ```python
 from fastapi import FastAPI
 from freeadmin.contrib.adapters import registry
-from freeadmin.boot import admin
+from freeadmin.core.boot import admin
 from my_project.adapters import MyAdapter
 
 app = FastAPI()

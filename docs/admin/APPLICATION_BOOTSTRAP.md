@@ -48,11 +48,11 @@ Create these files explicitly:
 
 ## 3. Implement `app.py`
 
-Each application exposes an `AppConfig` subclass and a module-level `default` instance. The base class lives in `freeadmin/core/app.py` and validates the configuration when instantiated. Create `apps/weather/app.py` with the following structure:
+Each application exposes an `AppConfig` subclass and a module-level `default` instance. The base class lives in `freeadmin/core/interface/app.py` and validates the configuration when instantiated. Create `apps/weather/app.py` with the following structure:
 
 ```python
 # apps/weather/app.py
-from freeadmin.core.app import AppConfig
+from freeadmin.core.interface.app import AppConfig
 from core.services.registry import ServiceRegistry  # project-specific registry helper
 from .service import WeatherService
 

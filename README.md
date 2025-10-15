@@ -66,7 +66,7 @@ Populate `apps/blog/models.py` and `apps/blog/admin.py` with your domain objects
 from tortoise import fields
 from tortoise.models import Model
 
-from freeadmin.core.models import ModelAdmin
+from freeadmin.core.interface.models import ModelAdmin
 from freeadmin.hub import admin_site
 
 
@@ -93,7 +93,7 @@ admin_site.register(app="blog", model=Post, admin_cls=PostAdmin)
 Initialise FreeAdmin inside your FastAPI application (usually in `config/main.py`):
 
 ```python
-from freeadmin.application import ApplicationFactory
+from freeadmin.core.application import ApplicationFactory
 
 
 application = ApplicationFactory()

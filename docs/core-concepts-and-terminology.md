@@ -11,7 +11,7 @@ In day-to-day code you import the shared instance from `freeadmin.hub`:
 
 ```python
 from freeadmin.hub import admin_site
-from freeadmin.core.models import ModelAdmin
+from freeadmin.core.interface.models import ModelAdmin
 from .models import Product
 
 
@@ -30,7 +30,7 @@ The hub also exposes `hub.autodiscover([...])` for manual discovery, although mo
 
 ## ModelAdmin
 
-A **ModelAdmin** describes how a model is displayed and edited. Subclasses inherit from `freeadmin.core.models.ModelAdmin` and define declarative attributes:
+A **ModelAdmin** describes how a model is displayed and edited. Subclasses inherit from `freeadmin.core.interface.models.ModelAdmin` and define declarative attributes:
 
 * `list_display`, `search_fields`, and `ordering` control list views.
 * `fields`, `readonly_fields`, and `widgets_overrides` customise the edit form.
@@ -41,7 +41,7 @@ Model admins never execute ORM operations directly. Instead they delegate persis
 
 ## InlineModelAdmin
 
-`InlineModelAdmin` classes describe related objects that appear on a parent form. They inherit from `freeadmin.core.inline.InlineModelAdmin` and define:
+`InlineModelAdmin` classes describe related objects that appear on a parent form. They inherit from `freeadmin.core.interface.inline.InlineModelAdmin` and define:
 
 * `model`: the related model class handled by the inline.
 * `parent_fk_name`: the foreign key on the inline that points to the parent object.
@@ -65,7 +65,7 @@ You can implement a custom adapter by subclassing `BaseAdapter` and registering 
 
 ## BootManager and FastAPI integration
 
-`BootManager` (`freeadmin.boot`) is the entry point used by FastAPI applications. It performs three tasks:
+`BootManager` (`freeadmin.core.boot`) is the entry point used by FastAPI applications. It performs three tasks:
 
 1. Loads the configured adapter and any bundled models.
 2. Adds middleware such as the admin guard and session management.
@@ -75,7 +75,7 @@ Typical usage:
 
 ```python
 from fastapi import FastAPI
-from freeadmin.boot import BootManager
+from freeadmin.core.boot import BootManager
 
 
 app = FastAPI()
@@ -113,14 +113,14 @@ When the FastAPI app starts, publishers registered on the card manager begin bro
 
 ### Publishers
 
-Cards stream live data through subclasses of `freeadmin.core.sse.publisher.PublisherService`. A publisher attaches to a card key
+Cards stream live data through subclasses of `freeadmin.core.interface.sse.publisher.PublisherService`. A publisher attaches to a card key
 , fetches fresh state, and calls `publish()` whenever a new payload is available.
 
 ```python
 import asyncio
 from collections.abc import Awaitable, Callable
 
-from freeadmin.core.sse.publisher import PublisherService
+from freeadmin.core.interface.sse.publisher import PublisherService
 from freeadmin.hub import admin_site
 
 
@@ -176,10 +176,10 @@ The returned dictionary feeds the Jinja2 template responsible for rendering the 
 
 ## Actions
 
-Actions are operations that run on selected rows from the changelist. They inherit from `freeadmin.core.actions.base.BaseAction` (or one of the bundled subclasses) and implement an async `run()` method.
+Actions are operations that run on selected rows from the changelist. They inherit from `freeadmin.core.interface.actions.BaseAction` (or one of the bundled subclasses) and implement an async `run()` method.
 
 ```python
-from freeadmin.core.actions import BaseAction, ActionResult
+from freeadmin.core.interface.actions import BaseAction, ActionResult
 
 
 class MarkFeaturedAction(BaseAction):
@@ -203,7 +203,7 @@ Widgets are frontend components referenced from `ModelAdmin.widgets_overrides` o
 
 ## Settings
 
-Global configuration lives inside `freeadmin.conf.FreeAdminSettings`. Instances are normally created with `FreeAdminSettings.from_env()`, which reads environment variables prefixed with `FA_`.
+Global configuration lives inside `freeadmin.core.configuration.conf.FreeAdminSettings`. Instances are normally created with `FreeAdminSettings.from_env()`, which reads environment variables prefixed with `FA_`.
 
 Important attributes include:
 
@@ -212,7 +212,7 @@ Important attributes include:
 * `event_cache_path`: storage location for card payload caching.
 * `brand_icon` and `admin_site_title`: values shown in the UI.
 
-To override defaults in code, call `freeadmin.conf.configure(settings_instance)` before initialising the boot manager.
+To override defaults in code, call `freeadmin.core.configuration.conf.configure(settings_instance)` before initialising the boot manager.
 
 
 ## Key takeaway
