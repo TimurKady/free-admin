@@ -1144,7 +1144,7 @@ class AdminSite(IconPathMixin):
                 dry = payload.get("dry", False)
                 fields = payload.get("fields") or list(admin.get_import_fields())
                 report = await import_service.run(admin, token, fields, dry=dry)
-                import_service.cleanup(token)
+                await import_service.cleanup(token)
                 return report.__dict__
 
         for entry in self.registry.iter_settings():

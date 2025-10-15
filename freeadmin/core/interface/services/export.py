@@ -611,12 +611,7 @@ class ExportService:
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                return
-            if not loop.is_running():
-                return
+            return
         loop.call_later(delay, lambda t=token: self.cleanup(t))
 
     def _restore_cache_state(self) -> None:

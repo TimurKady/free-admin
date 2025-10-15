@@ -231,12 +231,8 @@ class ImportService:
         self._cache = SQLiteUploadCache(str(target))
         self._registry = registry
         self.cleanup_interval = cleanup_interval
+        self._cleanup_task: asyncio.Task[None] | None = None
         self._prune_expired_sync()
-        try:
-            loop = asyncio.get_event_loop()
-            loop.create_task(self._periodic_cleanup())
-        except RuntimeError:
-            pass
 
     async def import_rows(
         self, admin: ModelAdmin, rows: Iterable[dict[str, Any]]
@@ -274,6 +270,7 @@ class ImportService:
         )
         await self._prune_expired()
         loop = asyncio.get_running_loop()
+        self._ensure_cleanup_task(loop)
         loop.call_later(self.ttl, lambda: asyncio.create_task(self.cleanup(token)))
         return token
 
@@ -297,6 +294,7 @@ class ImportService:
         dry: bool = False,
     ) -> ImportReport:
         """Import cached file for ``admin`` returning an ``ImportReport``."""
+        self._ensure_cleanup_task()
         upload_step = UploadStep(self._cache, self.cleanup)
         pipeline = ImportPipeline(
             upload_step,
@@ -335,6 +333,17 @@ class ImportService:
             pass
         except Exception:
             pass
+
+    def _ensure_cleanup_task(
+        self, loop: asyncio.AbstractEventLoop | None = None
+    ) -> None:
+        if loop is None:
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                return
+        if self._cleanup_task is None or self._cleanup_task.done():
+            self._cleanup_task = loop.create_task(self._periodic_cleanup())
 
 # The End
 
