@@ -26,7 +26,7 @@ from collections.abc import Callable
 
 from sqlmodel import Session, select
 
-from freeadmin.adapters import BaseAdapter, registry
+from freeadmin.contrib.adapters import BaseAdapter, registry
 
 
 class SQLModelAdapter:
@@ -131,7 +131,7 @@ Templates live under `freeadmin/templates/` and are rendered through Jinja2. The
 
 Each layer can be replaced or extended:
 
-* Write a custom adapter by subclassing `BaseAdapter` and registering it with `freeadmin.adapters.registry`.
+* Write a custom adapter by subclassing `BaseAdapter` and registering it with `freeadmin.contrib.adapters.registry`.
 * Provide an alternative router if you want to mount the admin under another ASGI application.
 * Add bespoke widgets or cards by extending the templates and registering new entries via the admin site.
 * Hook into the boot process to add extra startup or shutdown handlers on your FastAPI app.

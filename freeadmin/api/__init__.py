@@ -1,21 +1,18 @@
 # -*- coding: utf-8 -*-
-"""api
+"""
+__init__
 
-API endpoints for the admin interface.
+Compatibility facade exposing contrib API routers.
 
 Version:0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """
 
-import asyncio
+from __future__ import annotations
 
-from .base import AdminAPI
+from ..contrib.api import *  # noqa: F401,F403
 
-__all__ = [
-    "AdminAPI",
-    "asyncio",
-]
 
 # The End
 

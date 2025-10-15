@@ -27,8 +27,8 @@ from lxml import html
 from openpyxl import load_workbook
 from tortoise import Tortoise, fields, models
 
-orig_users_module = sys.modules.get("freeadmin.adapters.tortoise.users")
-fake_users = _types.ModuleType("freeadmin.adapters.tortoise.users")
+orig_users_module = sys.modules.get("freeadmin.contrib.adapters.tortoise.users")
+fake_users = _types.ModuleType("freeadmin.contrib.adapters.tortoise.users")
 
 
 class _PermAction(str, Enum):
@@ -58,14 +58,14 @@ class AdminUserPermission(models.Model):
         app = "admin"
 
 
-AdminUser.__module__ = "freeadmin.adapters.tortoise.users"
-AdminUserPermission.__module__ = "freeadmin.adapters.tortoise.users"
+AdminUser.__module__ = "freeadmin.contrib.adapters.tortoise.users"
+AdminUserPermission.__module__ = "freeadmin.contrib.adapters.tortoise.users"
 
 
 fake_users.PermAction = _PermAction
 fake_users.AdminUser = AdminUser
 fake_users.AdminUserPermission = AdminUserPermission
-sys.modules["freeadmin.adapters.tortoise.users"] = fake_users
+sys.modules["freeadmin.contrib.adapters.tortoise.users"] = fake_users
 
 from tests.system_models import system_models
 
@@ -173,9 +173,11 @@ class TestExportImportWizards:
         permission_checker.require_model = cls._orig_perm
         asyncio.run(Tortoise.close_connections())
         if cls._orig_users_module is not None:
-            sys.modules["freeadmin.adapters.tortoise.users"] = cls._orig_users_module
+            sys.modules[
+                "freeadmin.contrib.adapters.tortoise.users"
+            ] = cls._orig_users_module
         else:
-            sys.modules.pop("freeadmin.adapters.tortoise.users", None)
+            sys.modules.pop("freeadmin.contrib.adapters.tortoise.users", None)
 
     def test_export_wizard_lists_fields(self) -> None:
         resp = self.client.get("/admin/orm/models/item/export/")

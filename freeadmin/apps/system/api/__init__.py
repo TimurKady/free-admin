@@ -1,16 +1,18 @@
 # -*- coding: utf-8 -*-
-"""api
+"""
+__init__
 
-System API module exports.
+Compatibility facade exposing system API views.
 
 Version:0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """
 
-from .urls import API_PREFIX, router
+from __future__ import annotations
 
-__all__ = ["API_PREFIX", "router"]
+from freeadmin.contrib.apps.system.api import *  # noqa: F401,F403
+
 
 # The End
 

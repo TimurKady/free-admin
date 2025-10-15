@@ -1,18 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-__init__
+adapters
 
-Adapters for extending the admin interface.
+Backward-compatible proxy for adapter implementations.
 
 Version:0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """
 
-from .base import BaseAdapter
-from .registry import AdapterRegistry, registry
+from ..contrib.adapters import *  # noqa: F401,F403
 
-__all__ = ["BaseAdapter", "AdapterRegistry", "registry"]
 
 # The End
-

@@ -1,21 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-__init__
+settings
 
-Settings constants and enums.
+Compatibility wrapper exposing admin settings utilities from the interface package.
 
 Version:0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """
 
-from __future__ import annotations
+from ..interface.settings import *  # noqa: F401,F403
 
-from .keys import SettingsKey
-
-from .defaults import DEFAULT_SETTINGS
-from .config import system_config
-
-__all__ = ["SettingsKey", "DEFAULT_SETTINGS", "system_config"]
 
 # The End

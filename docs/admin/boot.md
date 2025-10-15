@@ -8,7 +8,7 @@ built-in pages and mounts the admin site onto the ASGI application.
 
 ```python
 from fastapi import FastAPI
-from freeadmin.adapters import registry
+from freeadmin.contrib.adapters import registry
 from freeadmin.boot import admin
 from my_project.adapters import MyAdapter
 
@@ -26,7 +26,7 @@ admin.init(app, adapter="my_adapter", packages=["apps", "contrib", "core"])
 Provide the database backend via the ``adapter`` keyword (for example
 ``adapter="tortoise"`` for the bundled Tortoise ORM integration). Supply your
 own adapter by creating an instance that implements the adapter protocol and
-registering it with ``freeadmin.adapters.registry`` before referencing the name
+registering it with ``freeadmin.contrib.adapters.registry`` before referencing the name
 with ``admin.init``. Existing adapter instances should be registered with the
 registry rather than passed directly to ``BootManager.init`` so they can be
 reused across the runtime.

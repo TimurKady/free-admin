@@ -27,7 +27,9 @@ from example.config.orm import (
 from tests.sampleapp.app import default as sample_app_config
 from tortoise import Tortoise
 
-from freeadmin.adapters.tortoise.adapter import Adapter as TortoiseAdapter
+from freeadmin.contrib.adapters.tortoise.adapter import (
+    Adapter as TortoiseAdapter,
+)
 from freeadmin.orm import ORMConfig
 
 

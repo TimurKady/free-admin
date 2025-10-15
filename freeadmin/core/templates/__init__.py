@@ -1,18 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-core.templates
+templates
 
-Public exports for FreeAdmin core templating utilities.
+Compatibility wrapper exposing template utilities from the interface package.
 
 Version:0.1.0
 Author: Timur Kady
 Email: timurkady@yandex.com
 """
 
-from .rendering import PageTemplateResponder, TemplateRenderer, render_template
-from .service import DEFAULT_TEMPLATE_SERVICE, TemplateService
+from ..interface.templates import *  # noqa: F401,F403
 
 
 # The End
-
-
