@@ -42,6 +42,19 @@ class TestExampleApplicationSmoke:
 
         assert getattr(app.state, "admin_site", None) is not None
 
+    def test_public_welcome_route_mounted(self) -> None:
+        """Ensure building the example application exposes the welcome page."""
+
+        application = ExampleApplication()
+        app = application.build()
+
+        has_public_welcome_route = any(
+            route.path == "/" and "GET" in getattr(route, "methods", set())
+            for route in app.router.routes
+        )
+
+        assert has_public_welcome_route is True
+
 
 class TestExampleApplicationStartup:
     """Ensure application configs execute startup hooks during boot."""

@@ -14,6 +14,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse, RedirectResponse
 
+from example.pages import public_welcome_router
 from freeadmin.api.cards import public_router as card_public_router
 from freeadmin.core.settings import SettingsKey, system_config
 from freeadmin.hub import admin_site
@@ -28,6 +29,7 @@ class ExampleRouterAggregator(RouterAggregator):
 
         super().__init__(admin_site)
         self.add_additional_router(card_public_router, None)
+        self.add_additional_router(public_welcome_router, None)
         self.add_additional_router(self.create_public_router(), None)
 
     def create_public_router(self) -> APIRouter:
