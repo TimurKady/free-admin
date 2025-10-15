@@ -120,6 +120,109 @@ class RouterAggregator:
 
 
 
+class ExtendedRouterAggregator(RouterAggregator):
+    """Compose admin and public routers within a single aggregator."""
+
+    def __init__(
+        self,
+        site: AdminSite,
+        prefix: str | None = None,
+        *,
+        settings: FreeAdminSettings | None = None,
+        additional_routers: Iterable[tuple[APIRouter, str | None]] | None = None,
+        public_first: bool = True,
+    ) -> None:
+        """Initialise the aggregator and configure registration order."""
+
+        super().__init__(
+            site=site,
+            prefix=prefix,
+            settings=settings,
+            additional_routers=additional_routers,
+        )
+        self._public_first = public_first
+        self._public_routers: list[APIRouter] = []
+        self._router: APIRouter | None = None
+        retained: list[tuple[APIRouter, str | None]] = []
+        for router, router_prefix in self._additional_routers:
+            if router_prefix in (None, ""):
+                self._public_routers.append(router)
+            else:
+                retained.append((router, router_prefix))
+        self._additional_routers = retained
+
+    def add_admin_router(
+        self, router: APIRouter, prefix: str | None = None
+    ) -> None:
+        """Register ``router`` so it is exposed under the admin prefix."""
+
+        super().add_additional_router(router, prefix or self.prefix)
+        self._invalidate_router_cache()
+
+    def add_additional_router(
+        self, router: APIRouter, prefix: str | None = None
+    ) -> None:
+        """Register ``router`` without a prefix for public exposure."""
+
+        if prefix not in (None, ""):
+            super().add_additional_router(router, prefix)
+        else:
+            self._public_routers.append(router)
+        self._invalidate_router_cache()
+
+    def get_routers(self) -> list[tuple[APIRouter, str | None]]:
+        """Return all registered routers respecting the configured order."""
+
+        self._ensure_templates()
+        admin_entries = self._collect_admin_entries()
+        public_entries = [(router, None) for router in self._public_routers]
+        if self._public_first:
+            return [*public_entries, *admin_entries]
+        return [*admin_entries, *public_entries]
+
+    def mount(self, app: FastAPI, prefix: str | None = None) -> None:
+        """Mount public and admin routers onto ``app`` respecting order."""
+
+        self._prefix = (prefix or self._prefix).rstrip("/")
+        self._ensure_templates()
+        app.state.admin_site = self.site
+        if app in self._mounted_apps:
+            return
+
+        for router, router_prefix in self.get_routers():
+            app.include_router(router, prefix=router_prefix or "")
+        self._provider.mount_static(app, self._prefix)
+        self._provider.mount_favicon(app)
+        self._provider.mount_media(app)
+        self._mounted_apps.add(app)
+
+    @property
+    def router(self) -> APIRouter:
+        """Return an ``APIRouter`` aggregating all registered routers."""
+
+        if self._router is None:
+            aggregated = APIRouter()
+            for router, router_prefix in self.get_routers():
+                aggregated.include_router(router, prefix=router_prefix or "")
+            self._router = aggregated
+        return self._router
+
+    def _collect_admin_entries(self) -> list[tuple[APIRouter, str | None]]:
+        entries: list[tuple[APIRouter, str | None]] = [
+            (self.get_admin_router(), self.prefix)
+        ]
+        entries.extend(self._additional_routers)
+        if (
+            self.__class__.get_additional_routers
+            is not RouterAggregator.get_additional_routers  # type: ignore[misc]
+        ):
+            entries.extend(self.get_additional_routers())
+        return entries
+
+    def _invalidate_router_cache(self) -> None:
+        self._router = None
+
+
 # The End
 
 

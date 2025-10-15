@@ -16,7 +16,7 @@ from unittest.mock import MagicMock
 from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 
-from freeadmin.router import RouterAggregator
+from freeadmin.router import ExtendedRouterAggregator, RouterAggregator
 
 
 def _build_site(router: APIRouter) -> MagicMock:
@@ -130,6 +130,67 @@ def test_constructor_additional_router_registration() -> None:
     assert response.status_code == 200
     assert response.json() == {"reports": "ok"}
 
+
+def test_extended_aggregator_combines_public_and_admin() -> None:
+    """Extended aggregator should expose public routes alongside admin ones."""
+
+    app = FastAPI()
+    admin_router = APIRouter()
+
+    @admin_router.get("/dashboard")
+    def dashboard() -> dict[str, str]:
+        return {"status": "admin"}
+
+    public_router = APIRouter()
+
+    @public_router.get("/welcome")
+    def welcome() -> dict[str, str]:
+        return {"message": "hello"}
+
+    site = _build_site(admin_router)
+    aggregator = ExtendedRouterAggregator(site=site, prefix="/admin", public_first=True)
+    aggregator.add_additional_router(public_router)
+    aggregator._provider.mount_static = MagicMock()  # type: ignore[attr-defined]
+    aggregator._provider.mount_favicon = MagicMock()  # type: ignore[attr-defined]
+    aggregator._provider.mount_media = MagicMock()  # type: ignore[attr-defined]
+
+    ordering = aggregator.get_routers()
+    assert ordering[0][0] is public_router
+    assert ordering[1][1] == "/admin"
+
+    aggregator.mount(app)
+    aggregator.mount(app)
+
+    client = TestClient(app)
+    assert client.get("/welcome").json() == {"message": "hello"}
+    assert client.get("/admin/dashboard").json() == {"status": "admin"}
+    aggregator._provider.mount_static.assert_called_once_with(app, "/admin")  # type: ignore[attr-defined]
+    aggregator._provider.mount_favicon.assert_called_once_with(app)  # type: ignore[attr-defined]
+    aggregator._provider.mount_media.assert_called_once_with(app)  # type: ignore[attr-defined]
+
+
+def test_extended_aggregator_respects_order_flag() -> None:
+    """Setting ``public_first`` to False keeps admin routers first."""
+
+    admin_router = APIRouter()
+
+    @admin_router.get("/home")
+    def home() -> dict[str, str]:
+        return {"home": "ok"}
+
+    public_router = APIRouter()
+
+    @public_router.get("/ping")
+    def ping() -> dict[str, str]:
+        return {"pong": "ok"}
+
+    site = _build_site(admin_router)
+    aggregator = ExtendedRouterAggregator(site=site, prefix="/admin", public_first=False)
+    aggregator.add_additional_router(public_router)
+
+    routers = aggregator.get_routers()
+    assert routers[0][1] == "/admin"
+    assert routers[-1][0] is public_router
 
 
 # The End
