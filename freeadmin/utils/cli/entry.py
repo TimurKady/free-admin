@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-cli
+entry
 
 Click entry point for the freeadmin toolkit.
 

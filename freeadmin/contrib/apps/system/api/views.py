@@ -16,25 +16,25 @@ from typing import Literal
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 
-from freeadmin.contrib.adapters import BaseAdapter
-from freeadmin.boot import admin as boot_admin
-from freeadmin.conf import (
+from ....adapters import BaseAdapter
+from .....core.boot import admin as boot_admin
+from .....conf import (
     FreeAdminSettings,
     current_settings,
     register_settings_observer,
 )
-from freeadmin.core.exceptions import (
+from .....core.exceptions import (
     ActionNotFound,
     AdminModelNotFound,
     HTTPError,
     PermissionDenied,
 )
-from freeadmin.core.permissions import permission_checker
-from freeadmin.core.services import PermAction, ScopeQueryService
-from freeadmin.core.services.auth import AdminUserDTO
-from freeadmin.core.services.tokens import ScopeTokenService
-from freeadmin.core.interface.settings import SettingsKey, system_config
-from freeadmin.runner import admin_action_runner
+from .....core.interface.permissions import permission_checker
+from .....core.interface.services import PermAction, ScopeQueryService
+from .....core.interface.services.auth import AdminUserDTO
+from .....core.interface.services.tokens import ScopeTokenService
+from .....core.interface.settings import SettingsKey, system_config
+from .....core.runtime.runner import admin_action_runner
 
 
 class AdminAPIConfiguration:

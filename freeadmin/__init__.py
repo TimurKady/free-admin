@@ -8,12 +8,12 @@ Author: Timur Kady
 Email: timurkady@yandex.com
 """
 
-from .application import ApplicationFactory
-from .conf import FreeAdminSettings, configure, current_settings
-from .core.base import BaseModelAdmin
-from .core.site import AdminSite
+from .core.application import ApplicationFactory
+from .core.configuration.conf import FreeAdminSettings, configure, current_settings
+from .core.interface.base import BaseModelAdmin
+from .core.interface.site import AdminSite
+from .core.network.router import AdminRouter
 from .meta import __version__
-from .router import AdminRouter
 
 # The End
 

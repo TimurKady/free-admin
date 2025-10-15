@@ -11,7 +11,7 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from freeadmin.core.interface.cache.menu import MainMenuCache
+from ..interface.cache.menu import MainMenuCache
 
 __all__ = ["MainMenuCache"]
 

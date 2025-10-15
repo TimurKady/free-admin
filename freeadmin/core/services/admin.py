@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import sys
 
-from freeadmin.core.interface.services import admin as _admin_module
+from ..interface.services import admin as _admin_module
 
 sys.modules[__name__] = _admin_module
 

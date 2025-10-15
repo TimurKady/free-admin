@@ -72,8 +72,8 @@ from typing import List
 
 from fastapi import FastAPI
 
-from freeadmin.boot import BootManager
-from freeadmin.orm import ORMConfig
+from freeadmin.core.boot import BootManager
+from freeadmin.core.data.orm import ORMConfig
 
 from .orm import ORM
 from .settings import ProjectSettings
@@ -140,7 +140,7 @@ from typing import Any, Dict
 from freeadmin.contrib.adapters.tortoise.adapter import (
     Adapter as TortoiseAdapter,
 )
-from freeadmin.orm import ORMConfig
+from freeadmin.core.data.orm import ORMConfig
 
 # Adjust the adapter name to match the backend registered with FreeAdmin.
 DB_ADAPTER = "tortoise"
@@ -244,9 +244,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, FastAPI
 
-from freeadmin.core.site import AdminSite
-from freeadmin.hub import admin_site
-from freeadmin.router import RouterAggregator
+from freeadmin.core.interface.site import AdminSite
+from freeadmin.core.runtime.hub import admin_site
+from freeadmin.core.network.router import RouterAggregator
 
 
 class {router_class}(RouterAggregator):

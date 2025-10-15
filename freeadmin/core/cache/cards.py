@@ -11,7 +11,7 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from freeadmin.core.interface.cache.cards import SQLiteCardCache
+from ..interface.cache.cards import SQLiteCardCache
 
 __all__ = ["SQLiteCardCache"]
 

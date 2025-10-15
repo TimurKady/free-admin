@@ -11,7 +11,7 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from freeadmin.contrib.apps.system.apps import SystemAppConfig
+from ....contrib.apps.system.apps import SystemAppConfig
 
 __all__ = ["SystemAppConfig"]
 

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from fastapi import Request
 
-from freeadmin.hub import admin_site
+from ..core.runtime.hub import admin_site
 
 
 @admin_site.register_public_view(

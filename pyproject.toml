@@ -34,7 +34,7 @@ dependencies = [
 ]
 
 [project.scripts]
-freeadmin = "freeadmin.cli:cli"
+freeadmin = "freeadmin.utils.cli.entry:cli"
 
 [project.urls]
 Homepage = "https://github.com/TimurKady/freeadmin"
@@ -73,4 +73,9 @@ exclude = [
 ]
 
 [tool.setuptools.package-data]
-freeadmin = ["static/**/*", "templates/**/*"]
+freeadmin = [
+    "static/**/*",
+    "templates/**/*",
+    "core/templates/**/*",
+    "core/interface/templates/**/*",
+]

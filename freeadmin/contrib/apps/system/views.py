@@ -13,10 +13,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from freeadmin.core.interface.settings import SettingsKey, system_config
+from ....core.interface.settings import SettingsKey, system_config
 
 if TYPE_CHECKING:  # pragma: no cover - import for typing only
-    from freeadmin.core.interface.site import AdminSite
+    from ....core.interface.site import AdminSite
 
 
 class BuiltinPagesRegistrar:
