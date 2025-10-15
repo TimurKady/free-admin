@@ -11,9 +11,5 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from .renderer import ExampleTemplateRenderer
-
-__all__ = ["ExampleTemplateRenderer"]
-
 # The End
 
