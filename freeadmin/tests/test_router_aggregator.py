@@ -16,7 +16,7 @@ from unittest.mock import MagicMock
 from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 
-from freeadmin.router import ExtendedRouterAggregator, RouterAggregator
+from freeadmin.router import AdminRouter, ExtendedRouterAggregator, RouterAggregator
 
 
 def _build_site(router: APIRouter) -> MagicMock:
@@ -50,6 +50,34 @@ def test_mount_is_idempotent() -> None:
     assert site.build_router.call_count == 1
     assert aggregator.get_admin_router() is admin_router
     assert initial_route_count == subsequent_route_count
+    aggregator._provider.mount_static.assert_called_once_with(app, "/admin")  # type: ignore[attr-defined]
+    aggregator._provider.mount_favicon.assert_called_once_with(app)  # type: ignore[attr-defined]
+    aggregator._provider.mount_media.assert_called_once_with(app)  # type: ignore[attr-defined]
+    assert app.state.admin_site is site
+
+
+def test_admin_router_reuses_aggregator_cache() -> None:
+    """Wrapper should expose aggregator caching to callers."""
+
+    app = FastAPI()
+    admin_router = APIRouter()
+
+    @admin_router.get("/health")
+    def health() -> dict[str, str]:
+        return {"status": "healthy"}
+
+    site = _build_site(admin_router)
+    wrapper = AdminRouter(site=site, prefix="/admin")
+    aggregator = wrapper.aggregator
+    aggregator._provider.mount_static = MagicMock()  # type: ignore[attr-defined]
+    aggregator._provider.mount_favicon = MagicMock()  # type: ignore[attr-defined]
+    aggregator._provider.mount_media = MagicMock()  # type: ignore[attr-defined]
+
+    wrapper.mount(app)
+    wrapper.mount(app)
+
+    assert site.build_router.call_count == 1
+    assert aggregator.get_admin_router() is admin_router
     aggregator._provider.mount_static.assert_called_once_with(app, "/admin")  # type: ignore[attr-defined]
     aggregator._provider.mount_favicon.assert_called_once_with(app)  # type: ignore[attr-defined]
     aggregator._provider.mount_media.assert_called_once_with(app)  # type: ignore[attr-defined]

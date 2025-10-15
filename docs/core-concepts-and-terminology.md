@@ -88,7 +88,7 @@ This snippet initialises the adapter, discovers admin registrations inside `my_p
 
 ## AdminRouter
 
-`AdminRouter` mounts the admin application onto FastAPI. You rarely instantiate it manually because `BootManager.init()` performs the work, but the class is available if you need full control over the mounting process or want to embed the admin site inside another ASGI application.
+`AdminRouter` mounts the admin application onto FastAPI. You rarely instantiate it manually because `BootManager.init()` performs the work, but the class is available if you need full control over the mounting process or want to embed the admin site inside another ASGI application. The router is a lightweight wrapper around `RouterAggregator`, exposing the cached aggregator via `.aggregator` for advanced scenarios where you need to add extra routers or inspect the mounted state.
 
 
 ## Cards
