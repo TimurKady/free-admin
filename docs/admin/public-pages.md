@@ -19,24 +19,27 @@ public ones.
 
 ## Example: registering the welcome page
 
-Create a public page router in `freeadmin/pages/example_welcome_page.py`:
+Create a public page router in `example/pages/welcome_page.py`:
 
 ```python
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-from freeadmin.templates import render_template
+from example.templates import ExampleTemplateRenderer
 
 router = APIRouter()
 
 
 @router.get("/", response_class=HTMLResponse)
 async def index(request: Request) -> HTMLResponse:
-    context = {"request": request, "title": "Welcome", "user": None}
-    return render_template("welcome.html", context)
+    context = {"title": "Welcome", "user": None}
+    return ExampleTemplateRenderer.render(
+        "welcome.html", context, request=request
+    )
 ```
 
-Place a template at `freeadmin/templates/pages/welcome.html`:
+Place a template at `example/templates/welcome.html`. It can extend the
+administrative layout while remaining visually independent:
 
 ```jinja
 {% extends "layout/base.html" %}
@@ -63,7 +66,7 @@ Place a template at `freeadmin/templates/pages/welcome.html`:
 from fastapi import FastAPI
 
 from freeadmin.core.site import admin_site
-from freeadmin.pages.example_welcome_page import router as welcome_router
+from example.pages.welcome_page import router as welcome_router
 from freeadmin.router import ExtendedRouterAggregator
 
 app = FastAPI()
@@ -78,9 +81,10 @@ exposes each public router without adding a prefix.
 
 ## Adding new public pages
 
-1. Create a module under `freeadmin/pages/` exporting an `APIRouter`.
-2. Render templates via `freeadmin.templates.render_template()` to share the admin
-   template engine and settings.
+1. Create a module under your project's pages package (for example,
+   `example/pages/`) exporting an `APIRouter`.
+2. Use a renderer similar to `ExampleTemplateRenderer` to share the admin template
+   engine and settings while keeping templates under `example/templates/`.
 3. Register the router with `ExtendedRouterAggregator.add_additional_router()`.
 4. Call `aggregator.mount(app)` or include `aggregator.router` in your FastAPI app.
 
@@ -90,7 +94,7 @@ exposes each public router without adding a prefix.
 from fastapi import FastAPI
 
 from freeadmin.core.site import admin_site
-from freeadmin.pages.example_welcome_page import router as welcome_router
+from example.pages.welcome_page import router as welcome_router
 from freeadmin.router import ExtendedRouterAggregator
 
 app = FastAPI()

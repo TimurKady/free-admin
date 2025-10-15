@@ -202,13 +202,6 @@ class ExtendedRouterAggregator(RouterAggregator):
 
         if self._router is None:
             aggregated = APIRouter()
-
-            @aggregated.middleware("http")
-            async def ensure_admin_state(request: Request, call_next):  # type: ignore[unused-ignore]
-                if getattr(request.app.state, "admin_site", None) is None:
-                    request.app.state.admin_site = self.site
-                return await call_next(request)
-
             for router, router_prefix in self.get_routers():
                 aggregated.include_router(router, prefix=router_prefix or "")
             self._router = aggregated
