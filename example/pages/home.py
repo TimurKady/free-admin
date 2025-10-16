@@ -5,11 +5,12 @@ from __future__ import annotations
 
 from fastapi import Request
 
+from freeadmin.core.interface.pages import BaseTemplatePage
 from freeadmin.core.interface.services.auth import AdminUserDTO
 from freeadmin.core.runtime.hub import admin_site
 
 
-class ExampleWelcomePage:
+class ExampleWelcomePage(BaseTemplatePage):
     """Register a welcome page showcasing custom admin content."""
 
     path = "/example/welcome"
@@ -18,43 +19,26 @@ class ExampleWelcomePage:
     icon = "bi-stars"
 
     def __init__(self) -> None:
-        """Store helpers required for page registration."""
+        """Initialise the welcome page and register it with the admin site."""
 
-        self._site = admin_site
-        self._handler: (object | None) = None
+        super().__init__(site=admin_site)
+        self.register_admin_view()
 
-    def register(self) -> None:
-        """Attach the welcome page handler to the admin site."""
+    async def get_context(
+        self,
+        *,
+        request: Request,
+        user: AdminUserDTO | None = None,
+    ) -> dict[str, object]:
+        """Return context for the admin welcome page."""
 
-        if self._handler is not None:
-            return
-
-        @self._site.register_view(
-            path=self.path,
-            name=self.name,
-            label=self.label,
-            icon=self.icon,
-        )
-        async def welcome_page(
-            request: Request, user: AdminUserDTO
-        ) -> dict[str, object]:
-            return self._site.build_template_ctx(
-                request,
-                user,
-                page_message="Welcome to the FreeAdmin example!",
-                card_entries=[],
-            )
-
-        self._handler = welcome_page
-
-    def get_handler(self) -> object | None:
-        """Return the registered handler for the admin welcome page."""
-
-        return self._handler
+        return {
+            "page_message": "Welcome to the FreeAdmin example!",
+            "card_entries": [],
+        }
 
 
 example_welcome_page = ExampleWelcomePage()
-example_welcome_page.register()
 
 __all__ = ["ExampleWelcomePage", "example_welcome_page"]
 

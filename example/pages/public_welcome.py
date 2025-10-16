@@ -15,11 +15,11 @@ from pathlib import Path
 
 from fastapi import Request
 
+from freeadmin.core.interface.pages import BaseTemplatePage
 from freeadmin.core.runtime.hub import admin_site
-from freeadmin.core.interface.templates import TemplateRenderer
 
 
-class ExamplePublicWelcomeContext:
+class ExamplePublicWelcomeContext(BaseTemplatePage):
     """Register the example public welcome page with the admin site."""
 
     path = "/"
@@ -28,17 +28,16 @@ class ExamplePublicWelcomeContext:
     template_directory = Path(__file__).resolve().parent.parent / "templates"
 
     def __init__(self) -> None:
-        """Register the public welcome view when the context helper is created."""
+        """Register the public welcome view when instantiated."""
 
-        self._ensure_template_registration()
-        admin_site.register_public_view(
-            path=self.path,
-            name=self.name,
-            template=self.template,
-        )(self.render_context)
+        super().__init__(site=admin_site)
+        self.register_public_view()
 
-    async def render_context(
-        self, request: Request, user: object | None = None
+    async def get_context(
+        self,
+        *,
+        request: Request,
+        user: object | None = None,
     ) -> dict[str, object]:
         """Return template context for the welcome example page."""
 
@@ -46,12 +45,6 @@ class ExamplePublicWelcomeContext:
             "subtitle": "Rendered outside the admin",
             "user": user,
         }
-
-    def _ensure_template_registration(self) -> None:
-        """Register example templates with the shared template renderer."""
-
-        service = TemplateRenderer.get_service()
-        service.add_template_directory(self.template_directory)
 
 
 example_public_welcome_context = ExamplePublicWelcomeContext()
