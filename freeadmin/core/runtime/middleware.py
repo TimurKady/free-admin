@@ -59,36 +59,18 @@ class AdminGuardMiddleware(BaseHTTPMiddleware):
 
         rel = path[len(self.prefix) :] or "/"
 
-        if self._login_path is None:
-            self._login_path = await system_config.get_or_default(
-                SettingsKey.LOGIN_PATH
-            )
-            self._logout_path = await system_config.get_or_default(
-                SettingsKey.LOGOUT_PATH
-            )
-            self._setup_path = await system_config.get_or_default(
-                SettingsKey.SETUP_PATH
-            )
-            self._static_path = await system_config.get_or_default(
-                SettingsKey.STATIC_PATH
-            )
-            self._session_key = await system_config.get_or_default(
-                SettingsKey.SESSION_KEY
-            )
+        login_path = await system_config.get_or_default(SettingsKey.LOGIN_PATH)
+        logout_path = await system_config.get_or_default(SettingsKey.LOGOUT_PATH)
+        setup_path = await system_config.get_or_default(SettingsKey.SETUP_PATH)
+        static_path = await system_config.get_or_default(SettingsKey.STATIC_PATH)
+        session_key = await system_config.get_or_default(SettingsKey.SESSION_KEY)
 
-        assert (
-            self._login_path is not None
-            and self._logout_path is not None
-            and self._setup_path is not None
-            and self._static_path is not None
-            and self._session_key is not None
-        )
-
-        login_path = self._login_path
-        logout_path = self._logout_path
-        setup_path = self._setup_path
-        static_path = self._static_path
-        session_key = self._session_key
+        # Persist the most recently observed values for debugging and tests.
+        self._login_path = login_path
+        self._logout_path = logout_path
+        self._setup_path = setup_path
+        self._static_path = static_path
+        self._session_key = session_key
 
         if (
             rel.startswith(login_path)
