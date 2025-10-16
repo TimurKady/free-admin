@@ -21,32 +21,33 @@ public ones.
 ## Example: registering the welcome page
 
 Create a public page in `example/pages/public_welcome.py` (the packaged example
-follows the same structure):
+follows the same structure) by extending :class:`freeadmin.core.interface.pages.BaseTemplatePage`:
 
 ```python
+from pathlib import Path
+
 from fastapi import Request
 
+from freeadmin.core.interface.pages import BaseTemplatePage
 from freeadmin.core.runtime.hub import admin_site
 
 
-class PublicWelcomePage:
+class PublicWelcomePage(BaseTemplatePage):
     """Register the example welcome page with the admin site."""
 
     path = "/"
     name = "Welcome"
     template = "pages/welcome.html"
+    template_directory = Path(__file__).resolve().parent.parent / "templates"
 
     def __init__(self) -> None:
         """Register the public welcome view when instantiated."""
 
-        admin_site.register_public_view(
-            path=self.path,
-            name=self.name,
-            template=self.template,
-        )(self.render_context)
+        super().__init__(site=admin_site)
+        self.register_public_view()
 
-    async def render_context(
-        self, request: Request, user: object | None = None
+    async def get_context(
+        self, *, request: Request, user: object | None = None
     ) -> dict[str, object]:
         """Return template context for the welcome example page."""
 
@@ -59,6 +60,9 @@ public_welcome_page = PublicWelcomePage()
 Handlers decorated with `register_public_view()` return a mapping used as template
 context. The page manager injects the request, anonymous user, and page title before
 rendering the template through :class:`PageTemplateResponder`.
+
+``BaseTemplatePage`` registers declared template directories with the shared
+renderer, so templates become available immediately after instantiation.
 
 Place a template at `example/templates/pages/welcome.html`. It can extend the
 administrative layout while remaining visually independent:
@@ -104,8 +108,8 @@ Additional routers can still be registered via
 
 1. Create a module under your project's pages package (for example,
    `example/pages/`).
-2. Decorate an async handler with :meth:`AdminSite.register_public_view` and return a
-   mapping representing the template context.
+2. Subclass :class:`BaseTemplatePage`, override :meth:`BaseTemplatePage.get_context`,
+   and call :meth:`BaseTemplatePage.register_public_view`.
 3. Provide a template in your project's template directory.
 4. Call :meth:`ExtendedRouterAggregator.mount` or include
    :attr:`ExtendedRouterAggregator.router` in your FastAPI app to expose the admin

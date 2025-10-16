@@ -11,7 +11,19 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple, TYPE_CHECKING
+from pathlib import Path
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Tuple,
+    TYPE_CHECKING,
+)
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
@@ -19,9 +31,158 @@ from fastapi.responses import HTMLResponse
 from .settings import SettingsKey, system_config
 from .auth import admin_auth_service
 from .services.permissions import PermAction
+from .templates import TemplateRenderer, TemplateService
 
 if TYPE_CHECKING:  # pragma: no cover - typing helpers only
     from .site import AdminSite
+
+
+class BaseTemplatePage:
+    """Provide reusable registration helpers for admin and public pages."""
+
+    path: str
+    name: str
+    template: str | None = None
+    template_directory: str | Path | Iterable[str | Path] | None = None
+    icon: str | None = None
+    label: str | None = None
+    settings: bool | None = None
+    include_in_sidebar: bool = True
+
+    def __init__(
+        self,
+        *,
+        site: "AdminSite",
+        template_service: TemplateService | None = None,
+    ) -> None:
+        """Store dependencies and register template directories with the service."""
+
+        self._site = site
+        self._template_service = template_service or TemplateRenderer.get_service()
+        self._admin_handler: Callable[..., Any] | None = None
+        self._public_handler: Callable[..., Any] | None = None
+        self._register_template_directories()
+        self._template_service.ensure_site_templates(self._site)
+
+    @property
+    def admin_handler(self) -> Callable[..., Any] | None:
+        """Return the registered administrative handler, if available."""
+
+        return self._admin_handler
+
+    @property
+    def public_handler(self) -> Callable[..., Any] | None:
+        """Return the registered public handler, if available."""
+
+        return self._public_handler
+
+    def register_admin_view(self) -> None:
+        """Register the page as an administrative view on the configured site."""
+
+        if self._admin_handler is not None:
+            return
+        handler = self.get_handler()
+        if handler is None:
+            handler = self._build_admin_context_handler()
+        decorator = self._site.register_view(
+            path=self.path,
+            name=self.name,
+            icon=self.icon,
+            label=self.label,
+            settings=self.settings,
+            include_in_sidebar=self.include_in_sidebar,
+        )
+        self._admin_handler = decorator(handler)
+
+    def register_public_view(self) -> None:
+        """Register the page as a public view rendered through templates."""
+
+        if self.template is None:
+            raise ValueError("Public pages require a template name.")
+        if self._public_handler is not None:
+            return
+        handler = self.get_public_handler()
+        if handler is None:
+            handler = self._build_public_context_handler()
+        decorator = self._site.register_public_view(
+            path=self.path,
+            name=self.name,
+            template=self.template,
+            icon=self.icon,
+        )
+        self._public_handler = decorator(handler)
+
+    def get_handler(self) -> Callable[..., Any] | None:
+        """Return a custom handler for administrative registration when needed."""
+
+        return None
+
+    def get_public_handler(self) -> Callable[..., Any] | None:
+        """Return a custom handler for public registration when needed."""
+
+        return self.get_handler()
+
+    async def get_context(
+        self,
+        *,
+        request: Request,
+        user: object | None = None,
+    ) -> Mapping[str, Any]:
+        """Return extra context injected into template rendering."""
+
+        return {}
+
+    def _build_admin_context_handler(self) -> Callable[..., Awaitable[Mapping[str, Any]]]:
+        """Wrap :meth:`get_context` for administrative routing."""
+
+        async def handler(request: Request, user: object) -> Mapping[str, Any]:
+            return await self._resolve_context(request=request, user=user)
+
+        return handler
+
+    def _build_public_context_handler(self) -> Callable[..., Awaitable[Mapping[str, Any]]]:
+        """Wrap :meth:`get_context` for public routing with optional user."""
+
+        async def handler(
+            request: Request,
+            user: object | None = None,
+        ) -> Mapping[str, Any]:
+            return await self._resolve_context(request=request, user=user)
+
+        return handler
+
+    async def _resolve_context(
+        self,
+        *,
+        request: Request,
+        user: object | None,
+    ) -> Mapping[str, Any]:
+        """Resolve context values returned by :meth:`get_context`."""
+
+        result = self.get_context(request=request, user=user)
+        if hasattr(result, "__await__"):
+            result = await result  # type: ignore[assignment]
+        if result is None:
+            return {}
+        if not isinstance(result, Mapping):
+            raise TypeError(
+                "get_context must return a mapping-compatible object"
+            )
+        return dict(result)
+
+    def _register_template_directories(self) -> None:
+        """Add declared template directories to the shared service."""
+
+        directory = self.template_directory
+        if directory is None:
+            return
+        directories: Iterable[str | Path]
+        if isinstance(directory, (str, Path)):
+            directories = (directory,)
+        else:
+            directories = directory
+        for item in directories:
+            self._template_service.add_template_directory(item)
 
 
 @dataclass(frozen=True)

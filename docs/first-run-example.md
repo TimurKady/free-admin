@@ -159,11 +159,10 @@ this keeps experiments reproducible.
 ### Standalone welcome page
 
 `example/pages/home.py` shows how to register additional views that are not tied
-to a specific application. The `ExampleWelcomePage` class keeps its registration
-logic encapsulated so the admin welcome screen mounts itself under
-`/example/welcome` exactly once and exposes the resulting handler for reuse.
-The implementation relies on `admin_site.build_template_ctx()` to reuse
-FreeAdmin’s standard layout while injecting its own message.
+to a specific application. The `ExampleWelcomePage` class inherits from
+`BaseTemplatePage`, so it only implements `get_context()` and delegates the
+registration ceremony. Instantiating the class automatically mounts the welcome
+screen under `/example/welcome` and keeps the setup idempotent.
 
 ## Next steps
 
