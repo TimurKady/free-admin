@@ -118,7 +118,9 @@ class TestRouterAggregatorTemplateIntegration:
             encoding="utf-8",
         )
 
-        custom_service = TemplateService(templates_dir=templates_root)
+        custom_service = TemplateService(
+            templates_dir=[templates_root, template_service_module.TEMPLATES_DIR]
+        )
         site = AdminSite(boot_admin.adapter, title="Renderer Integration")
 
         @site.register_public_view(
@@ -143,6 +145,68 @@ class TestRouterAggregatorTemplateIntegration:
 
             assert response.status_code == 200
             assert unique_phrase in response.text
+        finally:
+            admin_state.reset()
+            TemplateRenderer._service = original_renderer_service
+            template_service_module.DEFAULT_TEMPLATE_SERVICE = original_default_service
+
+
+    def test_public_page_extending_layout_receives_defaults(self, tmp_path: Path) -> None:
+        """Public pages extending admin layout should render without undefined errors."""
+
+        original_renderer_service = getattr(TemplateRenderer, "_service", None)
+        original_default_service = template_service_module.DEFAULT_TEMPLATE_SERVICE
+        admin_state.reset()
+
+        templates_root = tmp_path / "public_layout_templates"
+        pages_dir = templates_root / "pages"
+        pages_dir.mkdir(parents=True)
+        placeholder = "layout defaults available"
+        (pages_dir / "public.html").write_text(
+            """
+            {% extends "layout/default.html" %}
+            {% block page_content %}
+            <p id="site-title">{{ site_title }}</p>
+            <p id="nav-prefix" data-prefix="{{ prefix }}"></p>
+            <p id="orm-prefix">{{ ORM_PREFIX }}</p>
+            <p id="settings-prefix">{{ SETTINGS_PREFIX }}</p>
+            <p id="views-prefix">{{ VIEWS_PREFIX }}</p>
+            <div id="message">""".strip()
+            + f"{placeholder}"
+            + """</div>
+            {% endblock %}
+            """,
+            encoding="utf-8",
+        )
+
+        custom_service = TemplateService(
+            templates_dir=[templates_root, template_service_module.TEMPLATES_DIR]
+        )
+        site = AdminSite(boot_admin.adapter, title="Public Layout Checks")
+
+        @site.register_public_view(
+            path="/public-layout",
+            name="Public Layout",
+            template="pages/public.html",
+        )
+        def public_layout_page(*_: object, **__: object) -> Mapping[str, Any]:
+            """Return minimal context to exercise layout defaults."""
+
+            return {"page_title": "Public Layout"}
+
+        try:
+            aggregator = RouterAggregator(site=site, template_service=custom_service)
+            assert TemplateRenderer.get_service() is custom_service
+
+            app = FastAPI()
+            aggregator.mount(app)
+
+            with TestClient(app) as client:
+                response = client.get("/public-layout")
+
+            assert response.status_code == 200
+            assert placeholder in response.text
+            assert site.title in response.text
         finally:
             admin_state.reset()
             TemplateRenderer._service = original_renderer_service
