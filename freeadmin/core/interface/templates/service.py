@@ -12,7 +12,7 @@ Email: timurkady@yandex.com
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Iterable, TYPE_CHECKING
 from weakref import WeakSet
 
 from fastapi import FastAPI
@@ -39,14 +39,16 @@ class TemplateService:
     def __init__(
         self,
         *,
-        templates_dir: str | Path | None = None,
+        templates_dir: str | Path | Iterable[str | Path] | None = None,
         static_dir: str | Path | None = None,
         settings: FreeAdminSettings | None = None,
         provider_cls: type["TemplateProvider"] | None = None,
     ) -> None:
         """Configure the service with template locations and settings."""
 
-        self._templates_dir = str(templates_dir or TEMPLATES_DIR)
+        self._template_dirs = self._coerce_template_dirs(
+            templates_dir or TEMPLATES_DIR
+        )
         self._static_dir = str(static_dir or ASSETS_DIR)
         self._settings = settings or current_settings()
         if provider_cls is None:
@@ -65,7 +67,7 @@ class TemplateService:
 
         if self._provider is None:
             self._provider = self._provider_cls(
-                templates_dir=self._templates_dir,
+                templates_dir=self._template_dirs,
                 static_dir=self._static_dir,
                 settings=self._settings,
             )
@@ -104,6 +106,33 @@ class TemplateService:
         provider.mount_favicon(app)
         provider.mount_media(app)
         self._mounted_apps.add(app)
+
+    def add_template_directory(self, directory: str | Path) -> None:
+        """Ensure ``directory`` is part of the template search path."""
+
+        normalized = str(directory)
+        if normalized in self._template_dirs:
+            return
+        self._template_dirs.append(normalized)
+        if self._provider is not None:
+            self._provider.add_template_directory(normalized)
+        if self._templates is not None:
+            loader = self._templates.env.loader
+            if hasattr(loader, "searchpath"):
+                search_paths = list(getattr(loader, "searchpath", []))
+                if normalized not in search_paths:
+                    search_paths.append(normalized)
+                    loader.searchpath = search_paths  # type: ignore[attr-defined]
+
+    @staticmethod
+    def _coerce_template_dirs(
+        templates_dir: str | Path | Iterable[str | Path]
+    ) -> list[str]:
+        """Normalise ``templates_dir`` into a mutable list of search paths."""
+
+        if isinstance(templates_dir, (str, Path)):
+            return [str(templates_dir)]
+        return [str(path) for path in templates_dir]
 
 
 DEFAULT_TEMPLATE_SERVICE: TemplateService | None = None

@@ -12,6 +12,7 @@ Email: timurkady@yandex.com
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Iterable
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
@@ -27,21 +28,44 @@ class TemplateProvider:
     def __init__(
         self,
         *,
-        templates_dir: str | Path,
+        templates_dir: str | Path | Iterable[str | Path],
         static_dir: str | Path,
         settings: FreeAdminSettings | None = None,
     ) -> None:
         """Store template and static paths together with active settings."""
 
-        self.templates_dir = str(templates_dir)
+        self._template_dirs = self._coerce_template_dirs(templates_dir)
         self.static_dir = str(static_dir)
         self._settings = settings or current_settings()
 
     def get_templates(self) -> Jinja2Templates:
         """Return a configured ``Jinja2Templates`` instance."""
-        templates = Jinja2Templates(directory=self.templates_dir)
+        templates = Jinja2Templates(directory=list(self._template_dirs))
         templates.env.globals["settings"] = self._settings
         return templates
+
+    @property
+    def template_directories(self) -> tuple[str, ...]:
+        """Return template directories available to the provider."""
+
+        return tuple(self._template_dirs)
+
+    def add_template_directory(self, directory: str | Path) -> None:
+        """Include ``directory`` in the template search path if missing."""
+
+        normalized = str(directory)
+        if normalized not in self._template_dirs:
+            self._template_dirs.append(normalized)
+
+    @staticmethod
+    def _coerce_template_dirs(
+        templates_dir: str | Path | Iterable[str | Path]
+    ) -> list[str]:
+        """Normalise ``templates_dir`` into a mutable list of strings."""
+
+        if isinstance(templates_dir, (str, Path)):
+            return [str(templates_dir)]
+        return [str(path) for path in templates_dir]
 
     def mount_static(self, app: FastAPI, prefix: str) -> None:
         """Mount static files onto the provided application."""
