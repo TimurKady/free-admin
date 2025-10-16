@@ -34,7 +34,8 @@ class FreeAdminSettings:
     action_batch_size: int = 50
     card_events_token_ttl: int = 3600
     admin_site_title: str = "FreeAdmin"
-    brand_icon: str = ""
+    brand_icon: str = "freeadmin/static/images/icon-36x36.png"
+    favicon_path: str = "freeadmin/static/images/favicon.ico"
     database_url: str | None = None
     static_url_segment: str = "/static"
     static_route_name: str = "admin-static"
@@ -102,7 +103,8 @@ class FreeAdminSettings:
         action_batch_size = cls._to_int(data.get("ACTION_BATCH_SIZE"), default=50)
         card_ttl = cls._to_int(data.get("CARD_EVENTS_TOKEN_TTL"), default=3600)
         admin_site_title = data.get("ADMIN_SITE_TITLE") or "FreeAdmin"
-        brand_icon = data.get("BRAND_ICON") or ""
+        brand_icon = data.get("BRAND_ICON") or "freeadmin/static/images/icon-36x36.png"
+        favicon_path = data.get("FAVICON_PATH") or "freeadmin/static/images/favicon.ico"
         database_url = data.get("DATABASE_URL") or source.get("DATABASE_URL")
         static_segment = data.get("STATIC_URL_SEGMENT") or "/static"
         static_route = data.get("STATIC_ROUTE_NAME") or "admin-static"
@@ -124,6 +126,7 @@ class FreeAdminSettings:
             card_events_token_ttl=card_ttl,
             admin_site_title=admin_site_title,
             brand_icon=brand_icon,
+            favicon_path=favicon_path,
             database_url=database_url,
             static_url_segment=static_segment,
             static_route_name=static_route,

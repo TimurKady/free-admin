@@ -26,7 +26,8 @@ DEFAULT_SETTINGS: dict[SettingsKey, tuple[object, str]] = {
     SettingsKey.DEFAULT_LOCALE:       ("en", "string"),
 
     # Page icons
-    SettingsKey.BRAND_ICON:            ("icon-36x36.png", "string"),
+    SettingsKey.BRAND_ICON:            ("freeadmin/static/images/icon-36x36.png", "string"),
+    SettingsKey.FAVICON_PATH:          ("freeadmin/static/images/favicon.ico", "string"),
     SettingsKey.VIEWS_PAGE_ICON:       ("bi-eye", "string"),
     SettingsKey.ORM_PAGE_ICON:         ("bi-diagram-3", "string"),
     SettingsKey.SETTINGS_PAGE_ICON:    ("bi-gear", "string"),
