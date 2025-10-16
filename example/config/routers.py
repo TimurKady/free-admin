@@ -15,7 +15,7 @@ from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse, RedirectResponse
 
 from example.pages import public_welcome_router
-from freeadmin.api.cards import public_router as card_public_router
+from freeadmin.contrib.api.cards import public_router as card_public_router
 from freeadmin.core.interface.settings import SettingsKey, system_config
 from freeadmin.core.runtime.hub import admin_site
 from freeadmin.core.network.router import RouterAggregator

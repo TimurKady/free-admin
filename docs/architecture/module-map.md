@@ -18,13 +18,13 @@
 | `freeadmin/core/runtime/provider.py` | Управление шаблонами, статикой и медиа | `fastapi`, `starlette.staticfiles.StaticFiles`, `freeadmin.core.configuration.conf.FreeAdminSettings`, `freeadmin.core.interface.settings.system_config` |
 | `freeadmin/core/runtime/middleware.py` | Middleware охраны админки (суперпользователь, сессия) | `starlette` middleware, `freeadmin.core.configuration.conf`, `freeadmin.core.interface.settings`, `freeadmin.core.boot.admin` |
 | `freeadmin/contrib/crud/operations.py` | Построитель CRUD-роутов и файлового обмена | `fastapi`, сервисы `freeadmin.core.interface`, `freeadmin.core.configuration.conf`, `freeadmin.core.interface.settings`, `freeadmin.core.interface.services` |
-| `freeadmin/api/base.py` | Обёртка системного API админки | `fastapi.APIRouter`, `freeadmin.contrib.adapters.BaseAdapter`, системные API `freeadmin.contrib.apps.system.api.views`, сервисы `freeadmin.core.interface` |
+| `freeadmin/contrib/api/cards.py` | SSE и REST API карточек | `fastapi.APIRouter`, `freeadmin.core.interface.site.AdminSite`, сервисы `freeadmin.core.interface` |
 | `freeadmin/core/data/orm/config.py` | Конфигурация ORM и жизненный цикл Tortoise | `tortoise` ORM, реестр адаптеров, классификатор ошибок миграций (`freeadmin.utils.migration_errors`) |
 
 ## 2. Уровни важности
 
 - **Ядро**: `freeadmin/core/` (подпакеты `application`, `boot`, `configuration`, `data`, `interface`, `network`, `runtime`), а также `freeadmin/contrib/adapters/` и вспомогательные модели. Эти элементы отвечают за конфигурацию, регистрацию ресурсов, связь с ORM и глобальные сервисы.
-- **Оболочки**: `freeadmin/api/`, совместимые фасады `freeadmin/router/`, `freeadmin/crud.py`, `freeadmin/middleware.py`, `freeadmin/pages/`, `freeadmin/widgets/`, `freeadmin/templates/`, `freeadmin/static/`, `freeadmin/runner.py`, `freeadmin/cli.py`. Модули обеспечивают HTTP-интерфейсы, UI и вспомогательные сценарии.
+- **Оболочки**: совместимые фасады `freeadmin/router/`, `freeadmin/crud.py`, `freeadmin/middleware.py`, `freeadmin/pages/`, `freeadmin/widgets/`, `freeadmin/templates/`, `freeadmin/static/`, `freeadmin/runner.py`, `freeadmin/cli.py`. Модули обеспечивают HTTP-интерфейсы, UI и вспомогательные сценарии.
 - **Утилиты**: `freeadmin/utils/`, `freeadmin/schema/`, `freeadmin/tests/`, `freeadmin/provider.py`, `freeadmin/meta.py`. Служебные компоненты и расширяемые помощники.
 
 ## 3. Структура ядра после реорганизации
