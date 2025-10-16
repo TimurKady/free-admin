@@ -186,6 +186,92 @@ class TestAdminGuardMiddlewareFallback:
 
         system_config._cache.clear()  # type: ignore[attr-defined]
 
+    @pytest.mark.asyncio
+    async def test_redirects_to_migration_notice_when_flagged(self) -> None:
+        """Redirect to the migration notice page when migrations are pending."""
+
+        async def _app(scope, receive, send) -> None:  # pragma: no cover - stub
+            """Provide a placeholder ASGI application for the middleware stack."""
+
+            return None
+
+        middleware = AdminGuardMiddleware(_app)
+        system_config.flag_migrations_required()
+
+        scope = {
+            "type": "http",
+            "http_version": "1.1",
+            "method": "GET",
+            "path": "/admin/",
+            "root_path": "",
+            "scheme": "http",
+            "server": ("testserver", 80),
+            "headers": [],
+            "query_string": b"",
+        }
+        scope["session"] = {}
+
+        async def _receive() -> dict[str, Any]:
+            """Provide an empty HTTP request body for the ASGI scope."""
+
+            return {"type": "http.request", "body": b"", "more_body": False}
+
+        request = Request(scope, receive=_receive)
+
+        async def _call_next(_: Request) -> Response:
+            """Return a no-op response when middleware allows continuation."""
+
+            return Response("ok")
+
+        response = await middleware.dispatch(request, _call_next)
+        assert response.status_code == 307
+        assert response.headers.get("location") == "/admin/migration-required"
+
+        system_config.clear_migrations_flag()
+
+    @pytest.mark.asyncio
+    async def test_login_redirects_to_migration_notice_when_flagged(self) -> None:
+        """Redirect login requests to migrations notice when migrations are pending."""
+
+        async def _app(scope, receive, send) -> None:  # pragma: no cover - stub
+            """Provide a placeholder ASGI application for the middleware stack."""
+
+            return None
+
+        middleware = AdminGuardMiddleware(_app)
+        system_config.flag_migrations_required()
+
+        scope = {
+            "type": "http",
+            "http_version": "1.1",
+            "method": "GET",
+            "path": "/admin/login",
+            "root_path": "",
+            "scheme": "http",
+            "server": ("testserver", 80),
+            "headers": [],
+            "query_string": b"",
+        }
+        scope["session"] = {}
+
+        async def _receive() -> dict[str, Any]:
+            """Provide an empty HTTP request body for the ASGI scope."""
+
+            return {"type": "http.request", "body": b"", "more_body": False}
+
+        request = Request(scope, receive=_receive)
+
+        async def _call_next(_: Request) -> Response:
+            """Return a no-op response when middleware allows continuation."""
+
+            return Response("ok")
+
+        response = await middleware.dispatch(request, _call_next)
+        assert response.status_code == 307
+        assert response.headers.get("location") == "/admin/migration-required"
+
+        system_config.clear_migrations_flag()
+
 
 # The End
 

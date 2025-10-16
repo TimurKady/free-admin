@@ -64,6 +64,7 @@ class SettingsKey(StrChoices):
     LOGIN_PATH            = ("LOGIN_PATH", "Login path")
     LOGOUT_PATH           = ("LOGOUT_PATH", "Logout path")
     SETUP_PATH            = ("SETUP_PATH", "Setup path")
+    MIGRATIONS_PATH       = ("MIGRATIONS_PATH", "Migration notice path")
     SESSION_COOKIE        = ("SESSION_COOKIE", "Admin session cookie name")
     SESSION_KEY           = ("SESSION_KEY", "Admin session cookie key")
 

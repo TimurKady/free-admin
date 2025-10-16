@@ -44,6 +44,7 @@ class AdminGuardMiddleware(BaseHTTPMiddleware):
         self._logout_path: str | None = None
         self._setup_path: str | None = None
         self._static_path: str | None = None
+        self._migrations_path: str | None = None
         self._session_key: str | None = None
         self._has_superuser: bool | None = None
         register_settings_observer(self._apply_settings)
@@ -63,6 +64,9 @@ class AdminGuardMiddleware(BaseHTTPMiddleware):
         logout_path = await system_config.get_or_default(SettingsKey.LOGOUT_PATH)
         setup_path = await system_config.get_or_default(SettingsKey.SETUP_PATH)
         static_path = await system_config.get_or_default(SettingsKey.STATIC_PATH)
+        migrations_path = await system_config.get_or_default(
+            SettingsKey.MIGRATIONS_PATH
+        )
         session_key = await system_config.get_or_default(SettingsKey.SESSION_KEY)
 
         # Persist the most recently observed values for debugging and tests.
@@ -70,13 +74,22 @@ class AdminGuardMiddleware(BaseHTTPMiddleware):
         self._logout_path = logout_path
         self._setup_path = setup_path
         self._static_path = static_path
+        self._migrations_path = migrations_path
         self._session_key = session_key
+
+        if system_config.migrations_required and not (
+            rel.startswith(migrations_path) or rel.startswith(static_path)
+        ):
+            return RedirectResponse(
+                f"{self.prefix}{migrations_path}", status_code=307
+            )
 
         if (
             rel.startswith(login_path)
             or rel.startswith(logout_path)
             or rel.startswith(setup_path)
             or rel.startswith(static_path)
+            or rel.startswith(migrations_path)
         ):
             return await call_next(request)
 

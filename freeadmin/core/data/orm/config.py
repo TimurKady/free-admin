@@ -99,6 +99,17 @@ class ORMLifecycle:
             "Failed to initialise ORM: %s. Run your migrations before starting FreeAdmin.",
             error,
         )
+        self._mark_migrations_required()
+
+    def _mark_migrations_required(self) -> None:
+        """Mark the global configuration as requiring pending migrations."""
+
+        try:
+            from ...interface.settings import system_config
+
+            system_config.flag_migrations_required()
+        except Exception:  # pragma: no cover - defensive fall-through
+            self._logger.debug("Unable to flag migration requirement", exc_info=True)
 
     def _handle_startup_warnings(
         self,

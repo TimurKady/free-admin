@@ -385,6 +385,7 @@ class AdminSite(IconPathMixin):
                     await self.adapter.save(ct)
         except Exception as exc:
             if self._migration_error_classifier.is_missing_schema(exc):
+                system_config.flag_migrations_required()
                 self.ct_map.clear()
                 logger.error(
                     "Skipping admin content type synchronisation due to database error: %s. "
@@ -775,6 +776,25 @@ class AdminSite(IconPathMixin):
         page_type_settings = system_config.get_cached(SettingsKey.PAGE_TYPE_SETTINGS)
 
         self._attach_auth_routes(router, templates)
+        migrations_path = system_config.get_cached(
+            SettingsKey.MIGRATIONS_PATH, "/migration-required"
+        )
+
+        @router.get(migrations_path, response_class=HTMLResponse)
+        async def migrations_required(request: Request) -> HTMLResponse:
+            ctx = self.build_template_ctx(
+                request,
+                None,
+                page_title="Migrations required",
+                extra={
+                    "migration_message": "Run your migrations before starting FreeAdmin.",
+                },
+            )
+            ctx["menu"] = []
+            return templates.TemplateResponse(
+                "pages/migrations_required.html", ctx, status_code=503
+            )
+
         self._attach_page_routes(
             router,
             templates,
