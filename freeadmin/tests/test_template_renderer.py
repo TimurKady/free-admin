@@ -37,7 +37,7 @@ class TrackingProvider:
     def __init__(
         self,
         *,
-        templates_dir: str,
+        templates_dir: Any,
         static_dir: str,
         settings: Any,
     ) -> None:
