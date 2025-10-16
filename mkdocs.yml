@@ -20,6 +20,7 @@ nav:
       - What is FreeAdmin: what-is-freeadmin.md
       - Architecture Overview: architecture-overview.md
       - Core Concepts and Terminology: core-concepts-and-terminology.md
+      - Package Architecture: module-map.md
   - Getting Started:
       - Project and App Structure: project-structure.md
       - Installation and CLI: installation-and-cli.md
@@ -29,7 +30,9 @@ nav:
    - Using the Admin Interface:
       - Working with ORM / CRUD:
       - Permissions and Roles:
-      - Registering Views and Cards:
+      - Views:
+      - Cards:
+      - Public pages:
       - Managing Settings:
       - User Menu and UI Extensions:
   - Advanced Usage and Development:
