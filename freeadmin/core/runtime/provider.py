@@ -11,6 +11,7 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Iterable
 
@@ -21,6 +22,9 @@ from starlette.staticfiles import StaticFiles
 
 from ..configuration.conf import FreeAdminSettings, current_settings
 from ..interface.settings import SettingsKey, system_config
+
+
+logger = logging.getLogger(__name__)
 
 class TemplateProvider:
     """Encapsulates template and static file handling."""
@@ -86,11 +90,61 @@ class TemplateProvider:
 
     def mount_favicon(self, app: FastAPI) -> None:
         """Expose the favicon for the admin interface."""
-        favicon = Path(self.static_dir) / "favicon.ico"
+
+        configured = system_config.get_cached(
+            SettingsKey.FAVICON_PATH, self._settings.favicon_path
+        )
+        favicon_path = self._resolve_favicon_path(configured)
+        if favicon_path is None:
+            configured_str = str(configured).strip() if configured else ""
+            if configured_str:
+                logger.warning(
+                    "Favicon asset '%s' could not be found; skipping mount.",
+                    configured_str,
+                )
+            else:
+                logger.warning(
+                    "Favicon asset could not be located in static directory '%s'; skipping mount.",
+                    self.static_dir,
+                )
+            return
+
+        favicon = str(favicon_path)
 
         @app.get("/favicon.ico", include_in_schema=False)
         async def favicon_route() -> FileResponse:  # pragma: no cover - simple file response
             return FileResponse(favicon)
+
+    def _resolve_favicon_path(self, configured: str | Path | None) -> Path | None:
+        """Return the filesystem path for the configured favicon if present."""
+
+        normalized = str(configured).strip() if configured else ""
+        search_paths: list[Path] = []
+        if normalized:
+            candidate = Path(normalized)
+            if candidate.is_absolute():
+                search_paths.append(candidate)
+            else:
+                search_paths.append(Path(self.static_dir) / candidate)
+                parts = list(candidate.parts)
+                if "static" in parts:
+                    index = parts.index("static")
+                    trimmed_parts = parts[index + 1 :]
+                    if trimmed_parts:
+                        trimmed = Path(*trimmed_parts)
+                        search_paths.append(Path(self.static_dir) / trimmed)
+        search_paths.append(Path(self.static_dir) / "images" / "favicon.ico")
+        search_paths.append(Path(self.static_dir) / "favicon.ico")
+
+        seen: set[str] = set()
+        for candidate in search_paths:
+            candidate_str = str(candidate)
+            if candidate_str in seen:
+                continue
+            seen.add(candidate_str)
+            if candidate.is_file():
+                return candidate
+        return None
 
     def mount_media(self, app: FastAPI) -> None:
         """Mount uploaded media files onto the application."""

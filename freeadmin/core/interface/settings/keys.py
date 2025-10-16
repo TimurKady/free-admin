@@ -28,6 +28,7 @@ class SettingsKey(StrChoices):
 
     # --- Page icons ---
     BRAND_ICON           = ("BRAND_ICON", "Brand icon path")
+    FAVICON_PATH         = ("FAVICON_PATH", "Favicon file path")
     VIEWS_PAGE_ICON       = ("VIEWS_PAGE_ICON", "Views icon (Bootstrap 5 class)")
     ORM_PAGE_ICON         = ("ORM_PAGE_ICON", "ORM icon (Bootstrap 5 class)")
     SETTINGS_PAGE_ICON    = ("SETTINGS_PAGE_ICON", "Settings icon (Bootstrap 5 class)")
