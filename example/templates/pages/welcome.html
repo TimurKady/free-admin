@@ -4,7 +4,7 @@
 <div class="fa-public-welcome">
     <section class="fa-public-welcome__hero">
         <h1 class="fa-public-welcome__title">{{ title }}</h1>
-        <p class="fa-public-welcome__subtitle">This page lives outside the admin panel.</p>
+        <p class="fa-public-welcome__subtitle">{{ subtitle | default("This page lives outside the admin panel.") }}</p>
     </section>
     <section class="fa-public-welcome__body">
         <p>

@@ -53,7 +53,7 @@ class ExamplePublicWelcomePage:
 
         context = {"title": "Welcome", "user": None}
         return ExampleTemplateRenderer.render(
-            "welcome.html", context, request=request
+            "pages/welcome.html", context, request=request
         )
 
 

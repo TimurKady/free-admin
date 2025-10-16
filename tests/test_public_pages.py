@@ -26,7 +26,7 @@ class TestPublicPageRegistration:
         @cls.site.register_public_view(
             path="/welcome",
             name="Welcome",
-            template="welcome.html",
+            template="pages/welcome.html",
         )
         async def welcome(request, user=None) -> dict[str, object]:
             """Provide additional context for the welcome page."""
