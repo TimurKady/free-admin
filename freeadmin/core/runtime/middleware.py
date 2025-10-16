@@ -77,6 +77,13 @@ class AdminGuardMiddleware(BaseHTTPMiddleware):
         self._migrations_path = migrations_path
         self._session_key = session_key
 
+        if system_config.migrations_required and not (
+            rel.startswith(migrations_path) or rel.startswith(static_path)
+        ):
+            return RedirectResponse(
+                f"{self.prefix}{migrations_path}", status_code=307
+            )
+
         if (
             rel.startswith(login_path)
             or rel.startswith(logout_path)
@@ -85,11 +92,6 @@ class AdminGuardMiddleware(BaseHTTPMiddleware):
             or rel.startswith(migrations_path)
         ):
             return await call_next(request)
-
-        if system_config.migrations_required:
-            return RedirectResponse(
-                f"{self.prefix}{migrations_path}", status_code=307
-            )
 
         if self._has_superuser is not True:
             qs = boot_admin.adapter.filter(
