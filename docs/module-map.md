@@ -27,7 +27,7 @@
 - **Оболочки**: совместимые фасады `freeadmin/router/`, `freeadmin/crud.py`, `freeadmin/middleware.py`, `freeadmin/pages/`, `freeadmin/widgets/`, `freeadmin/templates/`, `freeadmin/static/`, `freeadmin/runner.py`, `freeadmin/cli.py`. Модули обеспечивают HTTP-интерфейсы, UI и вспомогательные сценарии.
 - **Утилиты**: `freeadmin/utils/`, `freeadmin/schema/`, `freeadmin/tests/`, `freeadmin/provider.py`, `freeadmin/meta.py`. Служебные компоненты и расширяемые помощники.
 
-## 3. Структура ядра после реорганизации
+## 3. Структура ядра
 
 ### 3.1 Логика группировки
 
