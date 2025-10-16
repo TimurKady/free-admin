@@ -37,16 +37,21 @@ class RouterFoundation:
         """Initialise configuration and template integration helpers."""
 
         self._settings = settings or current_settings()
-        active_service = template_service or TemplateService(settings=self._settings)
+        existing_renderer_service = getattr(TemplateRenderer, "_service", None)
+
+        if template_service is not None:
+            active_service = template_service
+        elif existing_renderer_service is not None:
+            active_service = existing_renderer_service
+        else:
+            active_service = TemplateService(settings=self._settings)
+
         self._template_service = active_service
 
-        if (
-            template_service is None
-            and template_service_module.DEFAULT_TEMPLATE_SERVICE is None
-        ):
+        if template_service_module.DEFAULT_TEMPLATE_SERVICE is None:
             template_service_module.DEFAULT_TEMPLATE_SERVICE = active_service
 
-        if getattr(TemplateRenderer, "_service", None) is not active_service:
+        if template_service is not None or existing_renderer_service is None:
             TemplateRenderer.configure(active_service)
 
     @property
