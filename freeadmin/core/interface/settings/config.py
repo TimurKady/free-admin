@@ -59,6 +59,7 @@ class SystemConfig:
         """Initialize an empty in-memory cache for system settings."""
 
         self._cache: dict[str, Any] = {}
+        self._migrations_required: bool = False
 
     @property
     def adapter(self) -> Any:
@@ -83,6 +84,7 @@ class SystemConfig:
                 "Run your migrations before starting FreeAdmin.",
                 exc,
             )
+            self.flag_migrations_required()
 
     async def _seed_defaults(self) -> None:
         """Perform the default seeding workflow within a transaction."""
@@ -146,10 +148,28 @@ class SystemConfig:
                 "Run your migrations before starting FreeAdmin.",
                 exc,
             )
+            self.flag_migrations_required()
             return
 
         self._cache.clear()
         self._cache.update(new_cache)
+        self.clear_migrations_flag()
+
+    @property
+    def migrations_required(self) -> bool:
+        """Return ``True`` when database migrations are required."""
+
+        return self._migrations_required
+
+    def flag_migrations_required(self) -> None:
+        """Record that database migrations must run before admin usage."""
+
+        self._migrations_required = True
+
+    def clear_migrations_flag(self) -> None:
+        """Reset the migration requirement marker after successful reloads."""
+
+        self._migrations_required = False
 
     def get_cached(self, key: SettingsKey | str, default: Any | None = None) -> Any:
         """Return ``key`` value directly from the in-memory cache.
