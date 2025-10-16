@@ -60,11 +60,21 @@ class AdminGuardMiddleware(BaseHTTPMiddleware):
         rel = path[len(self.prefix) :] or "/"
 
         if self._login_path is None:
-            self._login_path = await system_config.get(SettingsKey.LOGIN_PATH)
-            self._logout_path = await system_config.get(SettingsKey.LOGOUT_PATH)
-            self._setup_path = await system_config.get(SettingsKey.SETUP_PATH)
-            self._static_path = await system_config.get(SettingsKey.STATIC_PATH)
-            self._session_key = await system_config.get(SettingsKey.SESSION_KEY)
+            self._login_path = await system_config.get_or_default(
+                SettingsKey.LOGIN_PATH
+            )
+            self._logout_path = await system_config.get_or_default(
+                SettingsKey.LOGOUT_PATH
+            )
+            self._setup_path = await system_config.get_or_default(
+                SettingsKey.SETUP_PATH
+            )
+            self._static_path = await system_config.get_or_default(
+                SettingsKey.STATIC_PATH
+            )
+            self._session_key = await system_config.get_or_default(
+                SettingsKey.SESSION_KEY
+            )
 
         assert (
             self._login_path is not None
