@@ -17,6 +17,8 @@ from fastapi import FastAPI
 from freeadmin.core.configuration.conf import FreeAdminSettings, current_settings
 from ...interface.site import AdminSite
 from ...interface.templates import TemplateService
+from ...interface.templates import service as template_service_module
+from ...interface.templates.rendering import TemplateRenderer
 
 if TYPE_CHECKING:  # pragma: no cover - convenience for type checkers
     from .aggregator import RouterAggregator
@@ -35,9 +37,22 @@ class RouterFoundation:
         """Initialise configuration and template integration helpers."""
 
         self._settings = settings or current_settings()
-        self._template_service = template_service or TemplateService(
-            settings=self._settings
-        )
+        existing_renderer_service = getattr(TemplateRenderer, "_service", None)
+
+        if template_service is not None:
+            active_service = template_service
+        elif existing_renderer_service is not None:
+            active_service = existing_renderer_service
+        else:
+            active_service = TemplateService(settings=self._settings)
+
+        self._template_service = active_service
+
+        if template_service_module.DEFAULT_TEMPLATE_SERVICE is None:
+            template_service_module.DEFAULT_TEMPLATE_SERVICE = active_service
+
+        if template_service is not None or existing_renderer_service is None:
+            TemplateRenderer.configure(active_service)
 
     @property
     def template_service(self) -> TemplateService:

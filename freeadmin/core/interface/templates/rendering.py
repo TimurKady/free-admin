@@ -16,13 +16,14 @@ from typing import Any, Mapping
 from fastapi import Request
 from fastapi.responses import HTMLResponse
 
-from .service import DEFAULT_TEMPLATE_SERVICE, TemplateService
+from . import service as template_service_module
+from .service import TemplateService
 
 
 class TemplateRenderer:
     """Provide cached access to FreeAdmin templates for public pages."""
 
-    _service: TemplateService | None = DEFAULT_TEMPLATE_SERVICE
+    _service: TemplateService | None = template_service_module.DEFAULT_TEMPLATE_SERVICE
 
     @classmethod
     def configure(cls, service: TemplateService) -> None:
@@ -35,7 +36,11 @@ class TemplateRenderer:
         """Return the template service backing the renderer."""
 
         if cls._service is None:
-            cls._service = TemplateService()
+            default_service = template_service_module.DEFAULT_TEMPLATE_SERVICE
+            if default_service is not None:
+                cls._service = default_service
+            else:
+                cls._service = TemplateService()
         return cls._service
 
     @classmethod

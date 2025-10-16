@@ -11,9 +11,18 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Mapping
 
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from freeadmin.core.boot import admin as boot_admin
+from freeadmin.core.interface.site import AdminSite
 from freeadmin.core.interface.templates import TemplateRenderer, TemplateService
+from freeadmin.core.interface.templates import service as template_service_module
+from freeadmin.core.network.router.aggregator import RouterAggregator
+from tests.conftest import admin_state
 
 
 class DummyTemplates:
@@ -88,6 +97,56 @@ def test_template_renderer_uses_shared_service_cache() -> None:
         assert second["context"]["message"] == "again"
     finally:
         TemplateRenderer.configure(original_service)
+
+
+class TestRouterAggregatorTemplateIntegration:
+    """Validate TemplateRenderer configuration within router aggregators."""
+
+    def test_public_page_uses_aggregator_service(self, tmp_path: Path) -> None:
+        """Ensure public page rendering relies on the aggregator's template service."""
+
+        original_renderer_service = getattr(TemplateRenderer, "_service", None)
+        original_default_service = template_service_module.DEFAULT_TEMPLATE_SERVICE
+        admin_state.reset()
+
+        templates_root = tmp_path / "custom_templates"
+        pages_dir = templates_root / "pages"
+        pages_dir.mkdir(parents=True)
+        unique_phrase = "aggregator template wiring is active"
+        (pages_dir / "greeting.html").write_text(
+            f"<html><body>{{{{ title }}}} :: {unique_phrase}</body></html>",
+            encoding="utf-8",
+        )
+
+        custom_service = TemplateService(templates_dir=templates_root)
+        site = AdminSite(boot_admin.adapter, title="Renderer Integration")
+
+        @site.register_public_view(
+            path="/greeting",
+            name="Greeting",
+            template="pages/greeting.html",
+        )
+        def greeting_page(*_: object, **__: object) -> Mapping[str, Any]:
+            """Provide context for the greeting public page."""
+
+            return {}
+
+        try:
+            aggregator = RouterAggregator(site=site, template_service=custom_service)
+            assert TemplateRenderer.get_service() is custom_service
+
+            app = FastAPI()
+            aggregator.mount(app)
+
+            with TestClient(app) as client:
+                response = client.get("/greeting")
+
+            assert response.status_code == 200
+            assert unique_phrase in response.text
+        finally:
+            admin_state.reset()
+            TemplateRenderer._service = original_renderer_service
+            template_service_module.DEFAULT_TEMPLATE_SERVICE = original_default_service
 
 
 # The End
