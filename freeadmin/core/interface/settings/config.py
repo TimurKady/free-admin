@@ -53,6 +53,8 @@ class SystemConfig:
     :data:`DEFAULT_SETTINGS`.
     """
 
+    _MISSING = object()
+
     def __init__(self) -> None:
         """Initialize an empty in-memory cache for system settings."""
 
@@ -160,6 +162,28 @@ class SystemConfig:
         key_str = key.value if isinstance(key, SettingsKey) else key
         return self._cache.get(key_str, default)
 
+    async def get_or_default(
+        self, key: SettingsKey | str, *, default: Any | object = _MISSING
+    ) -> Any:
+        """Return a setting value with resilient default handling.
+
+        When the cache lacks ``key``—for example before database migrations
+        have populated system settings—the value defined in
+        :data:`DEFAULT_SETTINGS` or the provided ``default`` is returned and
+        cached for later calls.
+        """
+
+        key_str = key.value if isinstance(key, SettingsKey) else key
+        if key_str in self._cache:
+            return self._cache[key_str]
+
+        fallback = default
+        if fallback is self._MISSING:
+            fallback = self._default_for(key_str)
+
+        self._cache[key_str] = fallback
+        return fallback
+
     async def get(self, key: SettingsKey | str, default: Any | None = None) -> Any:
         """Return a setting value by ``key``.
 
@@ -239,6 +263,12 @@ class SystemConfig:
         if isinstance(value, int):
             return "int"
         return "string"
+
+    def _default_for(self, key: str) -> Any:
+        for key_enum, (value, value_type) in DEFAULT_SETTINGS.items():
+            if key_enum.value == key:
+                return self._cast(value, value_type)
+        raise KeyError(key)
 
 
 # Module-level singleton ------------------------------------------------------
