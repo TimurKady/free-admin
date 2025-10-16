@@ -9,7 +9,8 @@ mounted in the root URL space so that projects keep a single integration point.
 ``RouterAggregator`` builds the administrative router, mounts static files, and caches
 the resulting `APIRouter`. `ExtendedRouterAggregator` inherits from it and introduces:
 
-- `add_admin_router()` – register extra admin routers (mounted under the admin prefix);
+- `add_admin_router()` – register extra admin routers (mounted under the admin prefix;
+  the primary admin router is provided automatically);
 - `add_additional_router()` – register public routers without any prefix;
 - `get_routers()` – retrieve all routers honouring the desired order;
 - `router` – an aggregated `APIRouter` that can be included directly.
@@ -19,7 +20,8 @@ public ones.
 
 ## Example: registering the welcome page
 
-Register a public page in `example/pages/welcome_page.py`:
+Create a public page in `example/pages/public_welcome.py` (the packaged example
+follows the same structure):
 
 ```python
 from fastapi import Request
@@ -27,20 +29,38 @@ from fastapi import Request
 from freeadmin.core.runtime.hub import admin_site
 
 
-@admin_site.register_public_view(
-    path="/",
-    name="Welcome",
-    template="welcome.html",
-)
-async def public_welcome(request: Request, user=None) -> dict[str, object]:
-    return {"subtitle": "Rendered outside the admin", "user": user}
+class PublicWelcomePage:
+    """Register the example welcome page with the admin site."""
+
+    path = "/"
+    name = "Welcome"
+    template = "pages/welcome.html"
+
+    def __init__(self) -> None:
+        """Register the public welcome view when instantiated."""
+
+        admin_site.register_public_view(
+            path=self.path,
+            name=self.name,
+            template=self.template,
+        )(self.render_context)
+
+    async def render_context(
+        self, request: Request, user: object | None = None
+    ) -> dict[str, object]:
+        """Return template context for the welcome example page."""
+
+        return {"subtitle": "Rendered outside the admin", "user": user}
+
+
+public_welcome_page = PublicWelcomePage()
 ```
 
 Handlers decorated with `register_public_view()` return a mapping used as template
 context. The page manager injects the request, anonymous user, and page title before
 rendering the template through :class:`PageTemplateResponder`.
 
-Place a template at `example/templates/welcome.html`. It can extend the
+Place a template at `example/templates/pages/welcome.html`. It can extend the
 administrative layout while remaining visually independent:
 
 ```jinja
@@ -50,7 +70,7 @@ administrative layout while remaining visually independent:
 <div class="fa-public-welcome">
     <section class="fa-public-welcome__hero">
         <h1 class="fa-public-welcome__title">{{ title }}</h1>
-        <p class="fa-public-welcome__subtitle">This page lives outside the admin panel.</p>
+        <p class="fa-public-welcome__subtitle">{{ subtitle | default("This page lives outside the admin panel.") }}</p>
     </section>
     <section class="fa-public-welcome__body">
         <p>
@@ -67,18 +87,18 @@ administrative layout while remaining visually independent:
 ```python
 from fastapi import FastAPI
 
-from freeadmin.core.interface.site import admin_site
+from freeadmin.core.runtime.hub import admin_site
 from freeadmin.core.network.router import ExtendedRouterAggregator
 
 app = FastAPI()
 aggregator = ExtendedRouterAggregator(site=admin_site)
-aggregator.add_admin_router(aggregator.get_admin_router())
 aggregator.mount(app)
 ```
 
 `mount()` ensures the admin site is cached, registers the favicon, static files, and
-exposes registered public pages without adding a prefix. Additional routers can still
-be registered via :meth:`ExtendedRouterAggregator.add_additional_router` when needed.
+exposes registered public pages alongside the automatically included admin router.
+Additional routers can still be registered via
+:meth:`ExtendedRouterAggregator.add_additional_router` when needed.
 
 ## Adding new public pages
 
@@ -88,22 +108,23 @@ be registered via :meth:`ExtendedRouterAggregator.add_additional_router` when ne
    mapping representing the template context.
 3. Provide a template in your project's template directory.
 4. Call :meth:`ExtendedRouterAggregator.mount` or include
-   :attr:`ExtendedRouterAggregator.router` in your FastAPI app.
+   :attr:`ExtendedRouterAggregator.router` in your FastAPI app to expose the admin
+   and public routers.
 
 ## Integrating with an existing ``main.py``
 
 ```python
 from fastapi import FastAPI
 
-from freeadmin.core.interface.site import admin_site
+from freeadmin.core.runtime.hub import admin_site
 from freeadmin.core.network.router import ExtendedRouterAggregator
 
 app = FastAPI()
 
 aggregator = ExtendedRouterAggregator(site=admin_site, public_first=True)
-aggregator.add_admin_router(aggregator.get_admin_router())
 app.include_router(aggregator.router)
 ```
 
-`aggregator.router` combines all registered routers. Calling `mount()` remains
-available when you need FreeAdmin to mount static assets for you automatically.
+`aggregator.router` combines the admin router and every registered public router.
+Calling `mount()` remains available when you need FreeAdmin to mount static assets
+for you automatically.
