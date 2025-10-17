@@ -83,9 +83,7 @@ admin_site.register_public_menu(
 )
 ```
 
-Menu entries honour the ``PUBLIC_PREFIX`` setting, so you can host all public
-pages under a dedicated URL segment while keeping administrative navigation
-unaffected.
+Menu entries honour the ``PUBLIC_PREFIX`` setting, so you can host all public pages under a dedicated URL segment while keeping administrative navigation unaffected.
 
 Place a template at `example/templates/pages/welcome.html`. It can extend the
 administrative layout while remaining visually independent:
