@@ -31,11 +31,12 @@
   {% for src in assets.js %}
   <script src="{{ src }}"></script>
   {% endfor %}
-  <script src="{{ prefix }}/static/admin-form.js"></script>
-  <script src="{{ prefix }}/static/vendors/json-editor/dist/jsoneditor.min.js"></script>
+  <script src="{{ request.url_for(settings.static_route_name, path='admin-form.js') }}"></script>
+  <script src="{{ request.url_for(settings.static_route_name, path='vendors/json-editor/dist/jsoneditor.min.js') }}"></script>
   <script>
     if (window.ace?.config?.set) {
-      window.ace.config.set("basePath", "{{ prefix }}/static/vendors/ace-builds/src-noconflict/");
+      {% set ace_base = request.url_for(settings.static_route_name, path='vendors/ace-builds/src-noconflict') %}
+      window.ace.config.set("basePath", "{{ ace_base }}/");
     }
   </script>
   <script>
