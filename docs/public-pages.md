@@ -153,6 +153,32 @@ FreeAdmin public pages let you showcase product capabilities to unauthenticated 
    ```
 3. **Aligned naming.** Keep context keys synchronized with section names to prevent drift between Python logic and templates.
 
+## Static Assets
+1. **Mount from the project static directory.** Place bespoke CSS or JavaScript inside your application's `static/` folder (for example `static/public/landing.css`). The boot manager mounts this directory together with FreeAdmin's bundled assets, so files become available at the same prefix as the admin.
+2. **Generate URLs through the static route.** Resolve asset URLs inside `get_context` using `request.app.url_path_for` and the active static route name. This guards against custom prefixes and reverse proxies.
+   ```python
+   from freeadmin.core.configuration.conf import current_settings
+
+   class MarketingLanding(BaseTemplatePage):
+       ...
+
+       def get_context(self, request):
+           settings = current_settings()
+           css = request.app.url_path_for(
+               settings.static_route_name,
+               path="public/landing.css",
+           )
+           js = request.app.url_path_for(
+               settings.static_route_name,
+               path="public/landing.js",
+           )
+           return {
+               "request": request,
+               "assets": {"css": (css,), "js": (js,)},
+           }
+   ```
+3. **Let the base layout inject assets.** Returning the `assets` mapping is enough—the shared `layout/base.html` template links CSS in the `<head>` section and appends scripts before `</body>`, so you avoid duplicating `<link>` and `<script>` tags across templates.
+
 ## Extensibility and Reuse
 1. **Adding sections.** Repeat the established pattern whenever you introduce a new block.
 2. **Shared services.** Extract reusable integrations into service classes with clear interfaces and fallback behavior to avoid duplicated code across pages.
