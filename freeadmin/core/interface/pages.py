@@ -38,7 +38,23 @@ if TYPE_CHECKING:  # pragma: no cover - typing helpers only
 
 
 class BaseTemplatePage:
-    """Provide reusable registration helpers for admin and public pages."""
+    """Provide reusable registration helpers for admin and public pages.
+
+    Subclass this helper when you need class-based pages that automatically
+    integrate with :class:`AdminSite`. Declare the route metadata (``path``,
+    ``name``, optional ``icon`` and ``label``), point ``template`` at the
+    template to render, and optionally supply ``template_directory`` so the
+    renderer can discover project-specific templates. Instantiating the
+    subclass wires the template directories into the shared
+    :class:`TemplateService` and keeps registrations idempotent.
+
+    Override :meth:`get_context` to provide extra values for the template. When
+    you call :meth:`register_admin_view` or :meth:`register_public_view`, the
+    class wraps :meth:`get_context` in an async handler compatible with
+    FastAPI's routing layer. You can still override :meth:`get_handler` (or
+    :meth:`get_public_handler`) when you need complete control over the
+    endpoint implementation.
+    """
 
     path: str
     name: str

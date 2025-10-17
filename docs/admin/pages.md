@@ -88,6 +88,59 @@ Use `AdminSite.get_sidebar_views()` when you need direct access to the collected
 analytics that replicate the sidebar. The data is returned as `{label: [view, ...]}` records with `display_name`, `path`, and optional
 `icon` values ready for templating.
 
+## Class-based pages with ``BaseTemplatePage``
+
+When you prefer class-based organisation, inherit from
+:class:`freeadmin.core.interface.pages.BaseTemplatePage` instead of writing
+plain functions. The base class stores the site reference, registers template
+directories, and exposes helpers that wrap :meth:`BaseTemplatePage.get_context`
+into FastAPI handlers. This keeps route registration idempotent and removes the
+need to duplicate boilerplate for every page.
+
+```python
+from pathlib import Path
+
+from fastapi import Request
+
+from freeadmin.core.interface.pages import BaseTemplatePage
+from freeadmin.core.runtime.hub import admin_site
+
+# from myproject.analytics import load_blog_metrics
+
+
+class BlogStatisticsPage(BaseTemplatePage):
+    """Expose blog metrics through a reusable class-based page."""
+
+    path = "/views/blog/statistics"
+    name = "Statistics"
+    label = "blog"
+    template = "blog/statistics.html"
+    template_directory = Path(__file__).parent / "templates"
+
+    def __init__(self) -> None:
+        """Register the admin view once during application startup."""
+
+        super().__init__(site=admin_site)
+        self.register_admin_view()
+
+    async def get_context(
+        self, *, request: Request, user: object | None = None
+    ) -> dict[str, object]:
+        """Return context injected into the configured template."""
+
+        metrics = await load_blog_metrics()
+        return {"metrics": metrics}
+
+
+blog_statistics_page = BlogStatisticsPage()
+```
+
+``BaseTemplatePage`` keeps ``register_admin_view()`` and
+``register_public_view()`` separate so each page can decide whether it should
+live under the admin, the public site, or both. Override
+``get_public_handler()`` when you need a dedicated FastAPI coroutine for public
+routes; otherwise the base class reuses :meth:`get_handler`.
+
 ## URL prefixes and highlighting
 
 `AdminSite.parse_section_path` inspects each request URL to keep the sidebar state synchronized with the current page. Standalone routes
