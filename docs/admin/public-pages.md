@@ -62,7 +62,12 @@ context. The page manager injects the request, anonymous user, and page title be
 rendering the template through :class:`PageTemplateResponder`.
 
 ``BaseTemplatePage`` registers declared template directories with the shared
-renderer, so templates become available immediately after instantiation.
+renderer, so templates become available immediately after instantiation. The
+same subclass can call :meth:`BaseTemplatePage.register_admin_view` when you
+want to expose the page to authenticated staff while keeping
+``register_public_view()`` for anonymous visitors. This allows you to share
+context-building logic, templates, or even static assets between both
+interfaces.
 
 Place a template at `example/templates/pages/welcome.html`. It can extend the
 administrative layout while remaining visually independent:
