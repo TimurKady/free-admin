@@ -37,7 +37,7 @@ class FreeAdminSettings:
     brand_icon: str = "freeadmin/static/images/icon-36x36.png"
     favicon_path: str = "freeadmin/static/images/favicon.ico"
     database_url: str | None = None
-    static_url_segment: str = "/static"
+    static_url_segment: str = "/staticfiles"
     static_route_name: str = "admin-static"
     export_cache_path: str | None = None
     export_cache_ttl: int = 300
@@ -50,6 +50,9 @@ class FreeAdminSettings:
             self.csrf_secret = self.secret_key
         self.admin_path = self._normalize_prefix(self.admin_path)
         self.media_url = self._normalize_prefix(self.media_url)
+        self.static_url_segment = self._normalize_static_segment(
+            self.static_url_segment
+        )
         if not isinstance(self.media_root, Path):
             self.media_root = Path(str(self.media_root))
         if isinstance(self.event_cache_path, Path):
@@ -106,7 +109,9 @@ class FreeAdminSettings:
         brand_icon = data.get("BRAND_ICON") or "freeadmin/static/images/icon-36x36.png"
         favicon_path = data.get("FAVICON_PATH") or "freeadmin/static/images/favicon.ico"
         database_url = data.get("DATABASE_URL") or source.get("DATABASE_URL")
-        static_segment = data.get("STATIC_URL_SEGMENT") or "/static"
+        static_segment = cls._normalize_static_segment(
+            data.get("STATIC_URL_SEGMENT")
+        )
         static_route = data.get("STATIC_ROUTE_NAME") or "admin-static"
         export_cache_path = data.get("EXPORT_CACHE_PATH")
         export_cache_ttl = cls._to_int(
@@ -168,6 +173,21 @@ class FreeAdminSettings:
         if normalized.endswith("/") and stripped:
             cleaned += "/"
         return cleaned
+
+    @staticmethod
+    def _normalize_static_segment(value: str | None) -> str:
+        """Return an absolute URL segment used for serving static assets."""
+
+        normalized = str(value or "").strip()
+        if not normalized:
+            normalized = "/staticfiles"
+        if not normalized.startswith("/"):
+            normalized = f"/{normalized}"
+        if len(normalized) > 1 and normalized.endswith("/"):
+            normalized = normalized.rstrip("/")
+        if not normalized:
+            return "/staticfiles"
+        return normalized
 
 
 class SettingsManager:

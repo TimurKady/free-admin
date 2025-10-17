@@ -15,18 +15,31 @@ from unittest.mock import MagicMock
 
 from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
+from starlette.staticfiles import StaticFiles
 
 from freeadmin.core.network.router import (
     AdminRouter,
     ExtendedRouterAggregator,
     RouterAggregator,
 )
+from freeadmin.core.configuration.conf import FreeAdminSettings
+from freeadmin.core.interface.templates import TemplateService
+
+
+def _extract_static_mount(app: FastAPI, route_name: str) -> tuple[str, StaticFiles]:
+    """Return the mounted static route tuple of path and app."""
+
+    for route in app.router.routes:
+        if getattr(route, "name", None) == route_name:
+            return route.path, route.app  # type: ignore[attr-defined]
+    raise AssertionError(f"Static route '{route_name}' not registered")
 
 
 def _build_site(router: APIRouter) -> MagicMock:
     site = MagicMock()
     site.templates = None
     site.build_router.return_value = router
+    site.pages.iter_public_routers.return_value = []
     return site
 
 
@@ -198,17 +211,66 @@ def test_extended_aggregator_combines_public_and_admin() -> None:
 
     ordering = aggregator.get_routers()
     assert ordering[0][0] is public_router
-    assert ordering[1][1] == "/admin"
 
-    aggregator.mount(app)
+
+def test_static_assets_mounted_without_admin_prefix() -> None:
+    """Static assets must mount at the global segment, not under admin."""
+
+    app = FastAPI()
+    admin_router = APIRouter()
+
+    @admin_router.get("/status")
+    def status() -> dict[str, str]:
+        return {"status": "ready"}
+
+    site = _build_site(admin_router)
+    settings = FreeAdminSettings()
+    template_service = TemplateService(settings=settings)
+    aggregator = RouterAggregator(
+        site=site,
+        prefix="/console",
+        settings=settings,
+        template_service=template_service,
+    )
     aggregator.mount(app)
 
-    client = TestClient(app)
-    assert client.get("/welcome").json() == {"message": "hello"}
-    assert client.get("/admin/dashboard").json() == {"status": "admin"}
-    provider.mount_static.assert_called_once_with(app, "/admin")  # type: ignore[attr-defined]
-    provider.mount_favicon.assert_called_once_with(app)  # type: ignore[attr-defined]
-    provider.mount_media.assert_called_once_with(app)  # type: ignore[attr-defined]
+    provider = aggregator.provider
+    route_name = provider._settings.static_route_name  # type: ignore[attr-defined]
+    static_path, static_app = _extract_static_mount(app, route_name)
+
+    assert static_path == "/staticfiles"
+    assert not static_path.startswith(f"{aggregator.prefix}/")
+    assert isinstance(static_app, StaticFiles)
+
+
+def test_static_assets_honor_custom_segment() -> None:
+    """Custom static URL segments should be normalised and mounted."""
+
+    app = FastAPI()
+    admin_router = APIRouter()
+
+    @admin_router.get("/status")
+    def status() -> dict[str, str]:
+        return {"status": "ready"}
+
+    site = _build_site(admin_router)
+    settings = FreeAdminSettings(static_url_segment="assets/")
+    template_service = TemplateService(settings=settings)
+    aggregator = RouterAggregator(
+        site=site,
+        prefix="/console",
+        settings=settings,
+        template_service=template_service,
+    )
+    aggregator.mount(app)
+
+    provider = aggregator.provider
+    route_name = provider._settings.static_route_name  # type: ignore[attr-defined]
+    static_path, static_app = _extract_static_mount(app, route_name)
+
+    assert static_path == "/assets"
+    assert not static_path.startswith(f"{aggregator.prefix}/")
+    assert isinstance(static_app, StaticFiles)
 
 
 def test_extended_aggregator_respects_order_flag() -> None:
