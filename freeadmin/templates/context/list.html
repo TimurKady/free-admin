@@ -89,7 +89,12 @@
 
 {% block scripts %}
   {{ super() }}
-  <script src="{{ request.url_for(settings.static_route_name, path='admin-list.js') }}"></script>
+  {% set _root_path = request.scope.get('root_path', '') %}
+  {% if _root_path %}
+    {% set _root_path = _root_path.rstrip('/') %}
+  {% endif %}
+  {% set _admin_list_relative = request.app.url_path_for(settings.static_route_name, path='admin-list.js') %}
+  <script src="{{ static_href('admin-list.js') if static_href is defined else (_root_path ~ _admin_list_relative if _root_path else _admin_list_relative) }}"></script>
   <script>
     new AdminList().load();
   </script>

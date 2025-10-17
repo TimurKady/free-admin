@@ -516,18 +516,39 @@ class BaseModelAdmin:
                     SettingsKey.STATIC_ROUTE_NAME,
                     current_settings().static_route_name,
                 )
-                try:
-                    return request.url_for(route_name, path=asset_path)
-                except NoMatchFound:  # pragma: no cover - defensive fallback
-                    pass
+                app = getattr(request, "app", None)
+                url_path_for = getattr(app, "url_path_for", None)
+                if callable(url_path_for):
+                    try:
+                        relative_path = url_path_for(route_name, path=asset_path)
+                        scope = getattr(request, "scope", None)
+                        if isinstance(scope, Mapping):
+                            root_path = scope.get("root_path") or ""
+                            if root_path and relative_path.startswith("/"):
+                                normalized_root = root_path.rstrip("/")
+                                relative_path = f"{normalized_root}{relative_path}"
+                        return relative_path
+                    except NoMatchFound:  # pragma: no cover - defensive fallback
+                        pass
             if not static_segment:
                 static_segment = "/staticfiles"
             if static_segment != "/":
                 static_segment = static_segment.rstrip("/")
             fallback_prefix = static_segment if static_segment != "/" else ""
             if fallback_prefix:
-                return f"{fallback_prefix}/{asset_path}" if asset_path else fallback_prefix
-            return f"/{asset_path}" if asset_path else "/"
+                candidate = (
+                    f"{fallback_prefix}/{asset_path}" if asset_path else fallback_prefix
+                )
+            else:
+                candidate = f"/{asset_path}" if asset_path else "/"
+            if request is not None:
+                scope = getattr(request, "scope", None)
+                if isinstance(scope, Mapping):
+                    root_path = scope.get("root_path") or ""
+                    if root_path and candidate.startswith("/"):
+                        normalized_root = root_path.rstrip("/")
+                        candidate = f"{normalized_root}{candidate}"
+            return candidate
         return path
 
     def collect_assets(self, md, mode: str, obj=None, request=None, fields: list[str] | None = None) -> dict:
