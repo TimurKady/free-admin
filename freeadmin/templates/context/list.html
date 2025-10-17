@@ -89,7 +89,7 @@
 
 {% block scripts %}
   {{ super() }}
-  <script src="{{ prefix }}/static/admin-list.js"></script>
+  <script src="{{ request.url_for(settings.static_route_name, path='admin-list.js') }}"></script>
   <script>
     new AdminList().load();
   </script>

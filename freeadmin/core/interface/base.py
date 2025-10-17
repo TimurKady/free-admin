@@ -29,6 +29,7 @@ from typing import (
 from types import MappingProxyType
 from datetime import datetime, timezone
 from fastapi.responses import RedirectResponse
+from starlette.routing import NoMatchFound
 
 from .exceptions import ActionNotFound, PermissionDenied, AdminIntegrityError
 from .filters import FilterSpec
@@ -503,13 +504,30 @@ class BaseModelAdmin:
 
     # --- Assets -----------------------------------------------------------
 
-    def _prefix_static(self, path: str) -> str:
+    def _prefix_static(self, path: str, *, request=None) -> str:
         if path.startswith("/static/"):
-            prefix = system_config.get_cached(
-                SettingsKey.ADMIN_PREFIX, current_settings().admin_path
-            ).rstrip("/")
-            if prefix:
-                return f"{prefix}{path}"
+            static_segment = system_config.get_cached(
+                SettingsKey.STATIC_URL_SEGMENT,
+                current_settings().static_url_segment,
+            )
+            asset_path = path[len("/static/") :]
+            if request is not None:
+                route_name = system_config.get_cached(
+                    SettingsKey.STATIC_ROUTE_NAME,
+                    current_settings().static_route_name,
+                )
+                try:
+                    return request.url_for(route_name, path=asset_path)
+                except NoMatchFound:  # pragma: no cover - defensive fallback
+                    pass
+            if not static_segment:
+                static_segment = "/staticfiles"
+            if static_segment != "/":
+                static_segment = static_segment.rstrip("/")
+            fallback_prefix = static_segment if static_segment != "/" else ""
+            if fallback_prefix:
+                return f"{fallback_prefix}/{asset_path}" if asset_path else fallback_prefix
+            return f"/{asset_path}" if asset_path else "/"
         return path
 
     def collect_assets(self, md, mode: str, obj=None, request=None, fields: list[str] | None = None) -> dict:
@@ -521,8 +539,12 @@ class BaseModelAdmin:
         """
         fields = fields or self.get_fields(md)
 
-        css_ordered: list[str] = [self._prefix_static(h) for h in self.admin_assets_css]
-        js_ordered: list[str] = [self._prefix_static(s) for s in self.admin_assets_js]
+        css_ordered: list[str] = [
+            self._prefix_static(h, request=request) for h in self.admin_assets_css
+        ]
+        js_ordered: list[str] = [
+            self._prefix_static(s, request=request) for s in self.admin_assets_js
+        ]
         seen_css = set(css_ordered)
         seen_js = set(js_ordered)
 
@@ -533,12 +555,12 @@ class BaseModelAdmin:
             w = self._build_widget(md, name, mode, obj=obj, request=request)
             assets = w.get_assets() or {}
             for href in assets.get("css", []):
-                href = self._prefix_static(href)
+                href = self._prefix_static(href, request=request)
                 if href not in seen_css:
                     seen_css.add(href)
                     css_ordered.append(href)
             for src in assets.get("js", []):
-                src = self._prefix_static(src)
+                src = self._prefix_static(src, request=request)
                 if src not in seen_js:
                     seen_js.add(src)
                     js_ordered.append(src)

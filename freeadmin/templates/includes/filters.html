@@ -9,7 +9,7 @@
     </div>
   </div>
 
-<script src="{{ prefix }}/static/filter-panel.js"></script>
+<script src="{{ request.url_for(settings.static_route_name, path='filter-panel.js') }}"></script>
 <script>
   window._filters = new FiltersPanel({ app: "{{ current_app }}", model: "{{ current_model }}", clearButtonId: 'clear-filters-btn' });
   </script>
