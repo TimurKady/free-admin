@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 """
-pages
-
 Dataclasses describing different kinds of admin pages.
 
 Version:0.1.0
