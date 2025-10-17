@@ -104,7 +104,14 @@ app = application.build()
 
    The admin interface will be available at `http://127.0.0.1:8000/admin` once
    the server is running. On the first visit you will be redirected to the
-   built-in setup screen where you can create the initial superuser. You can
+   built-in setup screen where you can create the initial superuser. FreeAdmin
+   starts even when your database has no migrations—the public demo endpoints
+   remain online—but opening the admin without the required schema redirects you
+   to a notice explaining how to prepare the database.
+
+   ![Missing schema notice](images/scr-3.jpg)
+
+   You can
    also create it ahead of time from the command line:
 
    ```bash

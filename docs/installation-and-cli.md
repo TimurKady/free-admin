@@ -345,6 +345,10 @@ uvicorn config.main:app --reload
 
 Visit `http://127.0.0.1:8000/admin` (or the prefix you configured) and sign in with the credentials created in the previous step. The default interface includes list and detail views for any registered `ModelAdmin`, plus navigation for cards and custom pages.
 
+> **Heads up:** FreeAdmin boots even when your database has no migrations. Public routes and any custom FastAPI routers remain available, but visiting the admin will redirect you to a setup notice that explains the missing schema. Use the migration or schema generation workflow for your adapter to unlock the full interface.
+
+![Missing schema notice](images/scr-3.jpg)
+
 
 ## Step 12. Troubleshooting tips
 
