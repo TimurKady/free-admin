@@ -16,6 +16,7 @@ from pathlib import Path
 from fastapi import Request
 
 from freeadmin.core.interface.pages import BaseTemplatePage
+from freeadmin.core.interface.settings import SettingsKey, system_config
 from freeadmin.core.runtime.hub import admin_site
 
 
@@ -26,12 +27,24 @@ class ExamplePublicWelcomeContext(BaseTemplatePage):
     name = "Welcome"
     template = "pages/welcome.html"
     template_directory = Path(__file__).resolve().parent.parent / "templates"
+    icon = "bi-stars"
 
     def __init__(self) -> None:
         """Register the public welcome view when instantiated."""
 
         super().__init__(site=admin_site)
         self.register_public_view()
+        self.register_public_navigation()
+
+    def register_public_navigation(self) -> None:
+        """Register supplemental public navigation entries for the example."""
+
+        login_path = system_config.get_cached(SettingsKey.LOGIN_PATH, "/login")
+        admin_site.register_public_menu(
+            title="Sign in",
+            path=login_path,
+            icon="bi-box-arrow-in-right",
+        )
 
     async def get_context(
         self,
