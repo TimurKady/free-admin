@@ -639,6 +639,11 @@ class PageDescriptorManager:
         )
         self._public_descriptors.append(descriptor)
         self._public_router_dirty = True
+        self._admin_site.public_menu_builder.register_item(
+            title=name,
+            path=normalized_path,
+            icon=icon,
+        )
 
         def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             descriptor.handler = func

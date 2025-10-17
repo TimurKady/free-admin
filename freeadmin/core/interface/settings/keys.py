@@ -60,6 +60,7 @@ class SettingsKey(StrChoices):
 
     # --- Admin path ---
     ADMIN_PREFIX         = ("ADMIN_PREFIX", "Admin site prefix")
+    PUBLIC_PREFIX        = ("PUBLIC_PREFIX", "Public site prefix")
 
     # --- Auth / Session ---
     LOGIN_PATH            = ("LOGIN_PATH", "Login path")

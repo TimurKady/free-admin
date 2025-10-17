@@ -98,17 +98,30 @@ class PageTemplateResponder:
         if settings_obj is None:
             settings_obj = current_settings()
 
-        admin_prefix = system_config.get_cached(
-            SettingsKey.ADMIN_PREFIX,
-            getattr(settings_obj, "admin_path", "/admin"),
-        ).rstrip("/")
+        admin_prefix = cls._normalize_prefix(
+            system_config.get_cached(
+                SettingsKey.ADMIN_PREFIX,
+                getattr(settings_obj, "admin_path", "/admin"),
+            )
+        )
+        public_prefix = cls._normalize_prefix(
+            system_config.get_cached(SettingsKey.PUBLIC_PREFIX, "/"),
+            allow_root=True,
+        )
         orm_prefix = system_config.get_cached(SettingsKey.ORM_PREFIX, "/orm")
         settings_prefix = system_config.get_cached(SettingsKey.SETTINGS_PREFIX, "/settings")
         views_prefix = system_config.get_cached(SettingsKey.VIEWS_PREFIX, "/views")
 
+        request_path = request.url.path or "/"
+        is_admin_request = cls._is_admin_request(request_path, admin_prefix)
+        active_prefix = admin_prefix if is_admin_request else public_prefix
+        if not active_prefix:
+            active_prefix = "/"
+
         if admin_site is not None:
             site_title = admin_site.title
             brand_icon = admin_site.brand_icon
+            menu_builder = getattr(admin_site, "public_menu_builder", None)
         else:
             site_title = system_config.get_cached(
                 SettingsKey.DEFAULT_ADMIN_TITLE,
@@ -118,9 +131,17 @@ class PageTemplateResponder:
                 SettingsKey.BRAND_ICON,
                 getattr(settings_obj, "brand_icon", None),
             )
+            menu_builder = None
+
+        public_menu = []
+        if menu_builder is not None:
+            public_menu = menu_builder.build_menu(prefix=public_prefix)
 
         return {
-            "prefix": admin_prefix,
+            "prefix": active_prefix,
+            "admin_prefix": admin_prefix or "/",
+            "public_prefix": public_prefix or "/",
+            "is_admin_request": is_admin_request,
             "ORM_PREFIX": orm_prefix,
             "SETTINGS_PREFIX": settings_prefix,
             "VIEWS_PREFIX": views_prefix,
@@ -128,7 +149,38 @@ class PageTemplateResponder:
             "brand_icon": brand_icon,
             "assets": {"css": [], "js": []},
             "system_config": system_config,
+            "public_menu": public_menu,
         }
+
+    @staticmethod
+    def _normalize_prefix(value: str | None, *, allow_root: bool = False) -> str:
+        """Return a normalised prefix ensuring a leading slash."""
+
+        if value is None:
+            return "/" if allow_root else ""
+        candidate = str(value).strip()
+        if not candidate:
+            return "/" if allow_root else ""
+        if not candidate.startswith("/"):
+            candidate = f"/{candidate}"
+        if candidate != "/":
+            candidate = candidate.rstrip("/")
+        if candidate == "/" and not allow_root:
+            return ""
+        return candidate or "/"
+
+    @staticmethod
+    def _is_admin_request(path: str, admin_prefix: str) -> bool:
+        """Return ``True`` when ``path`` belongs to the admin namespace."""
+
+        if not admin_prefix or admin_prefix == "/":
+            return True
+        normalized = admin_prefix.rstrip("/")
+        if normalized == "":
+            return True
+        if path == normalized:
+            return True
+        return path.startswith(f"{normalized}/")
 
 
 def render_template(
