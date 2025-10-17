@@ -73,20 +73,37 @@ class TemplateProvider:
 
     def mount_static(self, app: FastAPI, prefix: str) -> None:
         """Mount static files onto the provided application."""
+
         static_segment = system_config.get_cached(
             SettingsKey.STATIC_URL_SEGMENT, self._settings.static_url_segment
         )
+        sanitized_segment = self._normalize_static_segment(static_segment)
         route_name = system_config.get_cached(
             SettingsKey.STATIC_ROUTE_NAME, self._settings.static_route_name
         )
         app.mount(
-            f"{prefix}{static_segment}",
+            sanitized_segment,
             StaticFiles(
                 directory=self.static_dir,
                 packages=[("freeadmin", "static")],
             ),
             name=route_name,
         )
+
+    @staticmethod
+    def _normalize_static_segment(value: str | None) -> str:
+        """Return an absolute URL segment for serving static assets."""
+
+        normalized = str(value or "").strip()
+        if not normalized:
+            normalized = "/staticfiles"
+        if not normalized.startswith("/"):
+            normalized = f"/{normalized}"
+        if len(normalized) > 1 and normalized.endswith("/"):
+            normalized = normalized.rstrip("/")
+        if not normalized:
+            return "/staticfiles"
+        return normalized
 
     def mount_favicon(self, app: FastAPI) -> None:
         """Expose the favicon for the admin interface."""

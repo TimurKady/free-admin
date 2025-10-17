@@ -70,7 +70,7 @@ DEFAULT_SETTINGS: dict[SettingsKey, tuple[object, str]] = {
 
     # Static
     SettingsKey.STATIC_PATH:           ("/static", "string"),
-    SettingsKey.STATIC_URL_SEGMENT:    ("/static", "string"),
+    SettingsKey.STATIC_URL_SEGMENT:    ("/staticfiles", "string"),
     SettingsKey.STATIC_ROUTE_NAME:     ("admin-static", "string"),
 
     # Media
