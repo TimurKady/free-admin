@@ -32,7 +32,7 @@ nav:
       - Permissions and Roles:
       - Views:
       - Cards:
-      - Public pages:
+      - Public pages: docs/public_pages.md
       - Managing Settings:
       - User Menu and UI Extensions:
   - Advanced Usage and Development:
