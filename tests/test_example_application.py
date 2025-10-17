@@ -57,6 +57,21 @@ class TestExampleApplicationSmoke:
 
         assert has_public_welcome_route is True
 
+    def test_public_menu_entries_registered(self) -> None:
+        """Ensure the example application registers public menu entries."""
+
+        application = ExampleApplication()
+        app = application.build()
+
+        admin_site = app.state.admin_site
+        menu_items = admin_site.public_menu_builder.build_menu()
+        menu_paths = {item.path for item in menu_items}
+        menu_titles = {item.title for item in menu_items}
+
+        assert "/docs" in menu_paths
+        assert "Documentation" in menu_titles
+        assert "/login" in menu_paths
+
 
 class TestExampleApplicationStartup:
     """Ensure application configs execute startup hooks during boot."""
