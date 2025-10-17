@@ -69,6 +69,24 @@ want to expose the page to authenticated staff while keeping
 context-building logic, templates, or even static assets between both
 interfaces.
 
+The site automatically registers each public view in the public navigation menu.
+Additional links that do not correspond to registered views can be exposed with
+``register_public_menu()``:
+
+```python
+from freeadmin.core.runtime.hub import admin_site
+
+admin_site.register_public_menu(
+    title="Documentation",
+    path="/docs",
+    icon="bi-journal-text",
+)
+```
+
+Menu entries honour the ``PUBLIC_PREFIX`` setting, so you can host all public
+pages under a dedicated URL segment while keeping administrative navigation
+unaffected.
+
 Place a template at `example/templates/pages/welcome.html`. It can extend the
 administrative layout while remaining visually independent:
 

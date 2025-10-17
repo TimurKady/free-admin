@@ -14,6 +14,7 @@ from .keys import SettingsKey
 DEFAULT_SETTINGS: dict[SettingsKey, tuple[object, str]] = {
     # Admin path
     SettingsKey.ADMIN_PREFIX:         ("/admin", "string"),
+    SettingsKey.PUBLIC_PREFIX:        ("/", "string"),
 
     # Titles / Pages
     SettingsKey.DEFAULT_ADMIN_TITLE:   ("FastAPI FreeAdmin", "string"),

@@ -16,19 +16,29 @@ from fastapi.responses import PlainTextResponse, RedirectResponse
 
 from freeadmin.contrib.api.cards import public_router as card_public_router
 from freeadmin.core.interface.settings import SettingsKey, system_config
+from freeadmin.core.network.router import ExtendedRouterAggregator
 from freeadmin.core.runtime.hub import admin_site
-from freeadmin.core.network.router import RouterAggregator
 
 
-class ExampleRouterAggregator(RouterAggregator):
+class ExampleRouterAggregator(ExtendedRouterAggregator):
     """Attach admin, card, and public routes to the demo application."""
 
     def __init__(self) -> None:
         """Initialise the example router aggregator with default routes."""
 
         super().__init__(admin_site)
+        self.configure_public_navigation()
         self.add_additional_router(card_public_router, None)
         self.add_additional_router(self.create_public_router(), None)
+
+    def configure_public_navigation(self) -> None:
+        """Register additional public navigation links for the demo."""
+
+        admin_site.register_public_menu(
+            title="Documentation",
+            path="/docs",
+            icon="bi-journal-text",
+        )
 
     def create_public_router(self) -> APIRouter:
         """Build the public router exposed by the example project."""

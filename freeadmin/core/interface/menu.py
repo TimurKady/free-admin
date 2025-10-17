@@ -11,7 +11,7 @@ Email: timurkady@yandex.com
 
 from __future__ import annotations
 
-from typing import List, TYPE_CHECKING
+from typing import Dict, List, Tuple, TYPE_CHECKING
 
 from .registry import MenuItem, UserMenuItem
 from .settings import SettingsKey, system_config
@@ -169,6 +169,144 @@ class MenuBuilder:
         return "|".join(
             f"{key}={settings_bundle[key]}" for key in sorted(settings_bundle)
         )
+
+
+class PublicMenuCache:
+    """Maintain cached snapshots of the public menu."""
+
+    def __init__(self) -> None:
+        """Initialise the in-memory storage for cached payloads."""
+
+        self._payloads: Dict[Tuple[int, str], List[MenuItem]] = {}
+
+    def load(self, version: int, prefix: str) -> List[MenuItem] | None:
+        """Return cached menu items for the ``version`` and ``prefix`` pair."""
+
+        cached = self._payloads.get((version, prefix))
+        if cached is None:
+            return None
+        return list(cached)
+
+    def store(self, version: int, prefix: str, items: List[MenuItem]) -> None:
+        """Persist ``items`` for the cache key identified by ``version``."""
+
+        self._payloads[(version, prefix)] = list(items)
+
+    def clear(self) -> None:
+        """Remove all cached menu payloads."""
+
+        self._payloads.clear()
+
+
+class PublicMenuBuilder:
+    """Manage public navigation items exposed outside the admin interface."""
+
+    def __init__(
+        self,
+        *,
+        cache: PublicMenuCache | None = None,
+    ) -> None:
+        """Initialise storage for registered items and optional cache."""
+
+        self._items: Dict[str, MenuItem] = {}
+        self._order: List[str] = []
+        self._version: int = 0
+        self._cache = cache or PublicMenuCache()
+
+    def register_item(
+        self,
+        *,
+        title: str,
+        path: str,
+        icon: str | None = None,
+    ) -> None:
+        """Register or update a public navigation entry."""
+
+        normalized_path = self._normalize_path(path)
+        item = MenuItem(title=title, path=normalized_path, icon=icon)
+        existing = self._items.get(normalized_path)
+        if existing == item:
+            return
+        if normalized_path not in self._items:
+            self._order.append(normalized_path)
+        self._items[normalized_path] = item
+        self._version += 1
+        self._cache.clear()
+
+    def build_menu(self, *, prefix: str | None = None) -> List[MenuItem]:
+        """Return public menu items adjusted for the configured ``prefix``."""
+
+        normalized_prefix = self._normalize_prefix(prefix)
+        cached = self._cache.load(self._version, normalized_prefix)
+        if cached is not None:
+            return list(cached)
+
+        items: List[MenuItem] = []
+        for key in self._order:
+            item = self._items.get(key)
+            if item is None:
+                continue
+            resolved_path = self._compose_path(normalized_prefix, item.path)
+            items.append(
+                MenuItem(
+                    title=item.title,
+                    path=resolved_path,
+                    icon=item.icon,
+                    page_type=item.page_type,
+                )
+            )
+
+        self._cache.store(self._version, normalized_prefix, items)
+        return list(items)
+
+    def clear(self) -> None:
+        """Remove registered items and cached payloads."""
+
+        self._items.clear()
+        self._order.clear()
+        self._version += 1
+        self._cache.clear()
+
+    @staticmethod
+    def _normalize_path(path: str) -> str:
+        """Return a normalised absolute path for ``path``."""
+
+        candidate = (path or "/").strip()
+        if not candidate:
+            candidate = "/"
+        if not candidate.startswith("/"):
+            candidate = f"/{candidate}"
+        if len(candidate) > 1 and candidate.endswith("/"):
+            candidate = candidate.rstrip("/")
+        return candidate or "/"
+
+    @staticmethod
+    def _normalize_prefix(prefix: str | None) -> str:
+        """Return a canonical representation for ``prefix``."""
+
+        if prefix is None:
+            return ""
+        candidate = prefix.strip()
+        if not candidate or candidate == "/":
+            return ""
+        if not candidate.startswith("/"):
+            candidate = f"/{candidate}"
+        return candidate.rstrip("/")
+
+    @classmethod
+    def _compose_path(cls, prefix: str, path: str) -> str:
+        """Combine ``prefix`` and ``path`` into a navigable URL."""
+
+        normalized_path = cls._normalize_path(path)
+        if not prefix:
+            return normalized_path
+        tail = normalized_path.lstrip("/")
+        if not tail:
+            return prefix or "/"
+        return f"{prefix}/{tail}"
+
+
+__all__ = ["MenuBuilder", "PublicMenuBuilder", "PublicMenuCache"]
 
 
 # The End

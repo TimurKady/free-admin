@@ -41,7 +41,7 @@ from .services.export import ExportService
 from .services import ScopeQueryService, ScopeTokenService
 from ...utils.icon import IconPathMixin
 from .cards import CardManager
-from .menu import MenuBuilder
+from .menu import MenuBuilder, PublicMenuBuilder
 from .cache import SQLiteCardCache
 from .cache.menu import MainMenuCache
 from .permissions.checker import PermissionChecker
@@ -86,6 +86,7 @@ class AdminSite(IconPathMixin):
         self.registry = PageRegistry()
         self.menu_cache = MainMenuCache()
         self.menu_builder = MenuBuilder(self.registry, cache=self.menu_cache)
+        self.public_menu_builder = PublicMenuBuilder()
         self.templates = templates
         # in-process map: dotted content type -> ct_id
         self.ct_map: Dict[str, int] = {}
@@ -664,6 +665,17 @@ class AdminSite(IconPathMixin):
             template=template,
             icon=icon,
         )
+
+    def register_public_menu(
+        self,
+        *,
+        title: str,
+        path: str,
+        icon: str | None = None,
+    ) -> None:
+        """Register a standalone public navigation item."""
+
+        self.public_menu_builder.register_item(title=title, path=path, icon=icon)
 
     def register_user_menu(
         self, *, title: str, path: str, icon: str | None = None

@@ -4,9 +4,11 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ site_title }} — Admin</title>
+    {% set static_prefix = admin_prefix if admin_prefix else prefix %}
+    {% set home_url = prefix if prefix == '/' else prefix ~ '/' %}
     {# Local vendor bundles served from static/vendors #}
-    <link href="{{ prefix }}/static/vendors/bootstrap/css/bootstrap.min.css" rel="stylesheet">
-    <link href="{{ prefix }}/static/vendors/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{{ static_prefix }}/static/vendors/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ static_prefix }}/static/vendors/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
     {% if assets and assets.css %}
       {% for href in assets.css %}
       <link rel="stylesheet" href="{{ href }}">
@@ -17,14 +19,16 @@
 
   <!-- stretch to full screen height and arrange columns -->
   <body class="min-vh-100 d-flex flex-column" data-admin-prefix="{{ prefix }}">
+    {% if get_admin_api is defined %}
     <script>
       // Expose API endpoints defined in contrib/admin/core/settings
       window.ADMIN_API = {{ get_admin_api() | tojson }};
     </script>
+    {% endif %}
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark p-2">
       <div class="container-fluid">
-        {% set default_brand_icon = prefix ~ '/static/images/icon-36x36.png' %}
-        <a class="navbar-brand d-flex align-items-center" href="{{ prefix }}/">
+        {% set default_brand_icon = static_prefix ~ '/static/images/icon-36x36.png' %}
+        <a class="navbar-brand d-flex align-items-center" href="{{ home_url }}">
           <img src="{{ brand_icon or default_brand_icon }}" alt="brand icon" class="me-2" width="36" height="36">
           {{ site_title }}
         </a>
@@ -32,30 +36,51 @@
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
+          {% if is_admin_request %}
           <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-            <li class="nav-item"><a class="nav-link {% if request.url.path.rstrip('/') == prefix.rstrip('/') %}active fw-semibold{% endif %}" href="{{ prefix }}/">Home</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.url.path.rstrip('/') == prefix.rstrip('/') %}active fw-semibold{% endif %}" href="{{ prefix if prefix == '/' else prefix ~ '/' }}">Home</a></li>
             <li class="nav-item"><a class="nav-link {% if request.url.path.startswith(prefix ~ VIEWS_PREFIX) %}active fw-semibold{% endif %}" href="{{ prefix }}{{ VIEWS_PREFIX }}">Views</a></li>
             <li class="nav-item"><a class="nav-link {% if request.url.path.startswith(prefix ~ ORM_PREFIX) %}active fw-semibold{% endif %}" href="{{ prefix }}{{ ORM_PREFIX }}">ORM</a></li>
             <li class="nav-item"><a class="nav-link {% if request.url.path.startswith(prefix ~ SETTINGS_PREFIX) %}active fw-semibold{% endif %}" href="{{ prefix }}{{ SETTINGS_PREFIX }}">Settings</a></li>
           </ul>
-          {% set menu = get_user_menu() if get_user_menu is defined else [] %}
-          {% if menu %}
-          <div class="dropdown ms-4">
-            <a class="nav-link dropdown-toggle text-light" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-              {{ user.username if user else '' }}
-            </a>
-            <ul class="dropdown-menu dropdown-menu-end">
-              {% for item in menu %}
-              <li>
-                <a class="dropdown-item" href="{{ item.url }}">
-                  {% if item.icon %}<i class="{{ item.icon }}"></i> {% endif %}{{ item.label }}
+          {% endif %}
+          {% set public_items = public_menu or [] %}
+          {% if public_items %}
+            {% if is_admin_request %}
+              {% set public_nav_classes = 'navbar-nav ms-lg-3 mb-2 mb-lg-0' %}
+            {% else %}
+              {% set public_nav_classes = 'navbar-nav ms-auto mb-2 mb-lg-0' %}
+            {% endif %}
+            <ul class="{{ public_nav_classes }}">
+              {% for item in public_items %}
+              <li class="nav-item">
+                <a class="nav-link {% if request.url.path.rstrip('/') == item.path.rstrip('/') %}active fw-semibold{% endif %}" href="{{ item.path }}">
+                  {% if item.icon %}<i class="{{ item.icon }}"></i> {% endif %}{{ item.title }}
                 </a>
               </li>
               {% endfor %}
             </ul>
-          </div>
-          {% else %}
-          <span class="navbar-text ms-4">{{ user.username if user else '' }}</span>
+          {% endif %}
+          {% if is_admin_request %}
+            {% set menu = get_user_menu() if get_user_menu is defined else [] %}
+            {% if menu %}
+            <div class="dropdown ms-4">
+              <a class="nav-link dropdown-toggle text-light" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                {{ user.username if user else '' }}
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end">
+                {% for item in menu %}
+                <li>
+                  <a class="dropdown-item" href="{{ item.url }}">
+                    {% if item.icon %}<i class="{{ item.icon }}"></i> {% endif %}{{ item.label }}
+                  </a>
+                </li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% else %}
+            <span class="navbar-text ms-4">{{ user.username if user else '' }}</span>
+            {% endif %}
           {% endif %}
         </div>
       </div>
@@ -77,14 +102,14 @@
       </div>
     </footer>
 
-    <script src="{{ prefix }}/static/vendors/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ static_prefix }}/static/vendors/bootstrap/js/bootstrap.bundle.min.js"></script>
     {% if assets and assets.js %}
       {% for src in assets.js %}
       <script src="{{ src }}"></script>
       {% endfor %}
     {% endif %}
     {% block scripts %}
-      <script src="{{ prefix }}/static/sidebar.js"></script>
+      <script src="{{ static_prefix }}/static/sidebar.js"></script>
       <script>
         window.addEventListener('DOMContentLoaded', () => Sidebar.load());
       </script>
